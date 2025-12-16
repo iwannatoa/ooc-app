@@ -1,0 +1,22 @@
+@use '../styles/variables' as *;
+@use '../styles/mixins' as *;
+
+.statusIndicator {
+  padding: $spacing-sm $spacing-md;
+  border-radius: $border-radius;
+  font-size: $font-size-sm;
+  font-weight: 500;
+  border: 1px solid transparent;
+
+  &.connected {
+    background: rgba($success-color, 0.1);
+    color: $success-color;
+    border-color: rgba($success-color, 0.3);
+  }
+
+  &.disconnected {
+    background: rgba($error-color, 0.1);
+    color: $error-color;
+    border-color: rgba($error-color, 0.3);
+  }
+}

@@ -1,0 +1,65 @@
+@use '../styles/variables' as *;
+@use '../styles/mixins' as *;
+
+.messageInput {
+  padding: $spacing-lg;
+  border-top: 1px solid $border-color;
+  background: $bg-darkest;
+}
+
+.textarea {
+  @include input-style;
+  width: 100%;
+  padding: $spacing-md;
+  resize: vertical;
+  min-height: 80px;
+  max-height: 200px;
+  line-height: 1.5;
+  box-sizing: border-box;
+
+  &::placeholder {
+    color: $text-muted;
+  }
+}
+
+.inputActions {
+  @include flex-between;
+  margin-top: $spacing-sm;
+}
+
+.charCount {
+  font-size: $font-size-sm;
+  color: $text-muted;
+
+  &.warning {
+    color: $warning-color;
+  }
+
+  &.error {
+    color: $error-color;
+  }
+}
+
+.sendButton {
+  @include button-reset;
+  padding: $spacing-sm $spacing-lg;
+  background: $primary-color;
+  color: white;
+  border-radius: $border-radius;
+  font-size: $font-size-base;
+  font-weight: 500;
+  transition: all $transition-fast;
+
+  &:hover:not(:disabled) {
+    background: $primary-hover;
+    transform: translateY(-1px);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(0);
+  }
+
+  &:disabled {
+    background: $secondary-color;
+  }
+}

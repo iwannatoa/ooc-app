@@ -1,0 +1,56 @@
+// 颜色变量
+$primary-color: #3b82f6;
+$primary-hover: #2563eb;
+$secondary-color: #6b7280;
+$success-color: #10b981;
+$error-color: #ef4444;
+$warning-color: #f59e0b;
+
+// 背景颜色
+$bg-dark: #1a1a1a;
+$bg-darker: #2d2d2d;
+$bg-darkest: #0f0f0f;
+$bg-light: #374151;
+$bg-lighter: #4b5563;
+
+// 文字颜色
+$text-primary: #ffffff;
+$text-secondary: #d1d5db;
+$text-muted: #9ca3af;
+$text-dark: #1f2937;
+
+// 边框
+$border-color: #333;
+$border-light: #4b5563;
+$border-radius: 6px;
+$border-radius-lg: 8px;
+
+// 间距
+$spacing-xs: 4px;
+$spacing-sm: 8px;
+$spacing-md: 16px;
+$spacing-lg: 24px;
+$spacing-xl: 32px;
+
+// 字体
+$font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+$font-size-xs: 10px;
+$font-size-sm: 12px;
+$font-size-base: 14px;
+$font-size-lg: 16px;
+$font-size-xl: 18px;
+
+// 阴影
+$shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+$shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+$shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+
+// 动画
+$transition-fast: 0.15s ease;
+$transition-normal: 0.3s ease;
+
+// 响应式断点
+$breakpoint-sm: 640px;
+$breakpoint-md: 768px;
+$breakpoint-lg: 1024px;
+$breakpoint-xl: 1280px;

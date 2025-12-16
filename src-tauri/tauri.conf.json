@@ -1,0 +1,46 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "Ollama Chat",
+  "version": "0.1.0",
+  "identifier": "io.iwannatoa.ooc",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:1420",
+    "beforeDevCommand": "",
+    "beforeBuildCommand": "cd server && python build.py"
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "createUpdaterArtifacts": false,
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "externalBin": ["../dist/server/flask-api"]
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Ollama Chat",
+        "width": 1200,
+        "height": 800,
+        "resizable": true,
+        "fullscreen": false,
+        "transparent": true,
+        "backgroundColor": "#1a1a1a"
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self' http://localhost:5000; connect-src 'self' http://localhost:5000 ws://localhost:5000"
+    }
+  },
+  "plugins": {
+    "shell": {
+      "open": true
+    }
+  }
+}

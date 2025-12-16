@@ -1,0 +1,75 @@
+@use './styles/variables' as *;
+@use './styles/mixins' as *;
+
+.app {
+  margin: 0 auto;
+  padding: $spacing-lg;
+  height: 100vh;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  background: $bg-dark;
+  color: $text-primary;
+  font-family: $font-family;
+}
+
+.header {
+  @include flex-between;
+  margin-bottom: $spacing-lg;
+  padding-bottom: $spacing-sm;
+  border-bottom: 1px solid $border-color;
+
+  h1 {
+    color: $text-primary;
+    font-size: $font-size-xl;
+    font-weight: 600;
+    margin: 0;
+  }
+}
+
+.controls {
+  display: flex;
+  gap: $spacing-sm;
+  margin-bottom: $spacing-lg;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.modelInfo {
+  padding: $spacing-sm $spacing-md;
+  background: $bg-darker;
+  border-radius: $border-radius;
+  color: $text-secondary;
+  font-size: $font-size-base;
+  border: 1px solid $border-color;
+}
+
+.clearBtn,
+.settingsBtn {
+  @include button-reset;
+  padding: $spacing-sm $spacing-md;
+  border: 1px solid $border-color;
+  border-radius: $border-radius;
+  background: $bg-darker;
+  color: $text-primary;
+  font-size: $font-size-base;
+  transition: all $transition-fast;
+
+  &:hover:not(:disabled) {
+    background: $bg-light;
+    border-color: $border-light;
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(1px);
+  }
+}
+
+.conversationContainer {
+  flex: 1;
+  overflow: hidden;
+  margin-bottom: $spacing-lg;
+  background: $bg-darker;
+  border-radius: $border-radius-lg;
+  border: 1px solid $border-color;
+}

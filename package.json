@@ -1,0 +1,52 @@
+{
+  "name": "ooc-app",
+  "version": "0.1.0",
+  "description": "OOC app use Tauri and FastApi",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
+    "build:python": "cd server && python build.py",
+    "dist": "npm run build && npm run tauri:build",
+    "clean": "rm -rf node_modules src-tauri/target src-tauri/resources/python-api/build",
+    "type-check": "tsc --noEmit",
+    "env:dev": "cp .env.development .env",
+    "env:prod": "cp .env.production .env",
+    "env:example": "cp .env.example .env",
+    "setup:dev": "npm run env:dev && npm install",
+    "setup:prod": "npm run env:prod && npm install"
+  },
+  "keywords": [
+    "Tauri",
+    "React",
+    "Python"
+  ],
+  "author": "Patrick Zhang",
+  "license": "MIT",
+  "dependencies": {
+    "@reduxjs/toolkit": "^2.10.1",
+    "@tauri-apps/api": "^2.9.0",
+    "@tauri-apps/plugin-shell": "^2.3.3",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-redux": "^9.2.0"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.9.3",
+    "@types/css-modules": "^1.0.5",
+    "@types/node": "^24.10.0",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "@types/react-redux": "^7.1.34",
+    "@vitejs/plugin-react": "^5.1.0",
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.6",
+    "sass": "^1.93.3",
+    "tailwindcss": "^4.1.17",
+    "typescript": "^5.9.3",
+    "vite": "^7.2.2"
+  }
+}

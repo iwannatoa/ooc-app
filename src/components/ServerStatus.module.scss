@@ -1,0 +1,77 @@
+@use '../styles/variables' as *;
+@use '../styles/mixins' as *;
+
+.serverStatus {
+  @include flex-center;
+  gap: $spacing-sm;
+}
+
+.retryBtn {
+  @include button-reset;
+  padding: $spacing-xs $spacing-sm;
+  background: rgba($warning-color, 0.1);
+  color: $warning-color;
+  border: 1px solid rgba($warning-color, 0.3);
+  border-radius: $border-radius;
+  font-size: $font-size-sm;
+  transition: all $transition-fast;
+
+  &:hover {
+    background: rgba($warning-color, 0.2);
+  }
+}
+
+.devBadge {
+  padding: $spacing-xs $spacing-sm;
+  background: $warning-color;
+  color: $text-dark;
+  border-radius: $border-radius;
+  font-size: $font-size-xs;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.connectionHelp {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: $spacing-sm;
+  padding: $spacing-md;
+  background: $bg-darkest;
+  border: 1px solid $border-color;
+  border-radius: $border-radius-lg;
+  box-shadow: $shadow-lg;
+  z-index: 10;
+  min-width: 300px;
+
+  h4 {
+    color: $error-color;
+    margin: 0 0 $spacing-sm 0;
+    font-size: $font-size-base;
+  }
+
+  p {
+    margin: 0 0 $spacing-sm 0;
+    color: $text-secondary;
+    font-size: $font-size-sm;
+  }
+
+  ul {
+    margin: 0;
+    padding-left: $spacing-lg;
+    color: $text-secondary;
+    font-size: $font-size-sm;
+
+    li {
+      margin-bottom: $spacing-xs;
+    }
+  }
+
+  code {
+    background: $bg-darker;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: monospace;
+    color: $text-primary;
+  }
+}
