@@ -1,0 +1,229 @@
+@use '../styles/variables' as *;
+@use '../styles/mixins' as *;
+
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal {
+  background: $bg-dark;
+  border-radius: $border-radius-lg;
+  width: 90%;
+  max-width: 700px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.header {
+  @include flex-row;
+  justify-content: space-between;
+  align-items: center;
+  padding: $spacing-lg;
+  border-bottom: 1px solid $border-color;
+
+  h2 {
+    margin: 0;
+    font-size: $font-size-lg;
+    font-weight: 600;
+    color: $text-primary;
+  }
+}
+
+.closeButton {
+  background: none;
+  border: none;
+  font-size: $font-size-xl;
+  color: $text-secondary;
+  cursor: pointer;
+  padding: $spacing-xs;
+  line-height: 1;
+  transition: color 0.2s;
+
+  &:hover {
+    color: $text-primary;
+  }
+}
+
+.content {
+  padding: $spacing-lg;
+}
+
+.info {
+  margin-bottom: $spacing-lg;
+  padding: $spacing-md;
+  background: $bg-darker;
+  border-radius: $border-radius;
+  border-left: 3px solid $primary-color;
+
+  p {
+    margin: 0 0 $spacing-sm 0;
+    color: $text-secondary;
+    font-size: $font-size-sm;
+    line-height: 1.6;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+
+    strong {
+      color: $primary-color;
+      font-weight: 600;
+    }
+  }
+}
+
+.note {
+  color: $text-secondary;
+  font-size: $font-size-xs;
+  font-style: italic;
+}
+
+.actions {
+  margin-bottom: $spacing-lg;
+}
+
+.generateButton {
+  padding: $spacing-sm $spacing-lg;
+  background: $primary-color;
+  color: white;
+  border: none;
+  border-radius: $border-radius;
+  cursor: pointer;
+  font-size: $font-size-sm;
+  font-weight: 500;
+  transition: background 0.2s;
+
+  &:hover:not(:disabled) {
+    background: $primary-color-hover;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.generatedSection {
+  margin-bottom: $spacing-lg;
+  padding: $spacing-md;
+  background: $bg-darker;
+  border-radius: $border-radius;
+  border: 1px solid $primary-color;
+}
+
+.generatedHeader {
+  @include flex-row;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: $spacing-sm;
+  font-weight: 500;
+  color: $text-primary;
+  font-size: $font-size-sm;
+}
+
+.clearButton {
+  padding: $spacing-xs $spacing-sm;
+  background: $bg-light;
+  color: $text-primary;
+  border: 1px solid $border-color;
+  border-radius: $border-radius;
+  cursor: pointer;
+  font-size: $font-size-xs;
+  transition: all 0.2s;
+
+  &:hover {
+    background: $bg-hover;
+  }
+}
+
+.field {
+  margin-bottom: $spacing-lg;
+
+  label {
+    display: block;
+    margin-bottom: $spacing-sm;
+    font-weight: 500;
+    color: $text-primary;
+  }
+
+  textarea {
+    width: 100%;
+    padding: $spacing-sm;
+    background: $bg-darker;
+    border: 1px solid $border-color;
+    border-radius: $border-radius;
+    color: $text-primary;
+    font-size: $font-size-sm;
+    font-family: inherit;
+    resize: vertical;
+    min-height: 200px;
+
+    &:focus {
+      outline: none;
+      border-color: $primary-color;
+    }
+
+    &::placeholder {
+      color: $text-secondary;
+    }
+  }
+}
+
+.footer {
+  @include flex-row;
+  justify-content: flex-end;
+  gap: $spacing-sm;
+  margin-top: $spacing-xl;
+  padding-top: $spacing-lg;
+  border-top: 1px solid $border-color;
+}
+
+.cancelButton,
+.saveButton {
+  padding: $spacing-sm $spacing-lg;
+  border: none;
+  border-radius: $border-radius;
+  cursor: pointer;
+  font-size: $font-size-sm;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.cancelButton {
+  background: $bg-darker;
+  color: $text-primary;
+
+  &:hover:not(:disabled) {
+    background: $bg-hover;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.saveButton {
+  background: $primary-color;
+  color: white;
+
+  &:hover:not(:disabled) {
+    background: $primary-color-hover;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+

@@ -40,8 +40,35 @@ pub async fn start_python_server(
         let _ = stop_python_server(server_state.clone()).await;
     }
 
+    // 获取数据库路径
+    let db_path = match app_handle.path().app_data_dir() {
+        Ok(app_data_dir) => {
+            // 确保目录存在
+            if let Err(e) = std::fs::create_dir_all(&app_data_dir) {
+                println!("创建应用数据目录失败: {}", e);
+                return Ok(ApiResponse {
+                    success: false,
+                    data: None,
+                    error: Some(format!("创建应用数据目录失败: {}", e)),
+                });
+            }
+            let db_path = app_data_dir.join("chat.db");
+            Some(db_path.to_string_lossy().to_string())
+        }
+        Err(e) => {
+            println!("获取应用数据目录失败: {}", e);
+            None
+        }
+    };
+
     let command = match app_handle.shell().sidecar("flask-api") {
-        Ok(cmd) => cmd,
+        Ok(cmd) => {
+            // 如果获取到数据库路径，设置为环境变量
+            if let Some(path) = &db_path {
+                cmd.env("DB_PATH", path);
+            }
+            cmd
+        }
         Err(e) => {
             println!("Flask服务器启动失败: {}", e);
             return Ok(ApiResponse {
@@ -127,6 +154,38 @@ pub async fn stop_python_server(
             data: None,
             error: Some("没有运行的服务器".to_string()),
         })
+    }
+}
+
+// 获取数据库路径
+#[tauri::command]
+pub async fn get_database_path(app_handle: AppHandle) -> Result<ApiResponse<String>, String> {
+    match app_handle.path().app_data_dir() {
+        Ok(app_data_dir) => {
+            // 确保目录存在
+            if let Err(e) = std::fs::create_dir_all(&app_data_dir) {
+                return Ok(ApiResponse {
+                    success: false,
+                    data: None,
+                    error: Some(format!("创建应用数据目录失败: {}", e)),
+                });
+            }
+            
+            // 数据库文件路径
+            let db_path = app_data_dir.join("chat.db");
+            let db_path_str = db_path.to_string_lossy().to_string();
+            
+            Ok(ApiResponse {
+                success: true,
+                data: Some(db_path_str),
+                error: None,
+            })
+        }
+        Err(e) => Ok(ApiResponse {
+            success: false,
+            data: None,
+            error: Some(format!("获取应用数据目录失败: {}", e)),
+        }),
     }
 }
 

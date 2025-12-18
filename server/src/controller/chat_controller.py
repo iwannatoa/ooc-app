@@ -1,0 +1,682 @@
+"""
+聊天控制器（类似 Spring 的 @RestController）
+"""
+from flask import Flask, request, jsonify
+from injector import inject
+import threading
+import time
+import os
+from src.service.chat_orchestration_service import ChatOrchestrationService
+from src.service.summary_service import SummaryService
+from src.service.summary_orchestration_service import SummaryOrchestrationService
+from src.service.story_generation_service import StoryGenerationService
+from src.service.ai_service import AIService
+from src.service.chat_service import ChatService
+from src.utils.logger import get_logger
+from src.utils.exceptions import APIError, ValidationError, ProviderError
+import uuid
+
+logger = get_logger(__name__)
+
+
+class ChatController:
+    """聊天控制器类"""
+    
+    @inject
+    def __init__(
+        self,
+        chat_orchestration_service: ChatOrchestrationService,
+        summary_service: SummaryService,
+        summary_orchestration_service: SummaryOrchestrationService,
+        story_generation_service: StoryGenerationService,
+        ai_service: AIService,
+        chat_service: ChatService
+    ):
+        """
+        初始化控制器（通过依赖注入）
+        
+        Args:
+            chat_orchestration_service: 聊天编排服务实例（自动注入，处理完整的聊天流程）
+            summary_service: 总结服务实例（自动注入，用于简单的 get/save 操作）
+            summary_orchestration_service: 总结编排服务实例（自动注入，处理完整的总结生成流程）
+            story_generation_service: 故事生成服务实例（自动注入）
+            ai_service: AI 服务实例（自动注入，用于 get_models 和 health_check）
+            chat_service: 聊天记录服务实例（自动注入，用于 get_conversation 等简单操作）
+        """
+        self.chat_orchestration_service = chat_orchestration_service
+        self.summary_service = summary_service
+        self.summary_orchestration_service = summary_orchestration_service
+        self.story_generation_service = story_generation_service
+        self.ai_service = ai_service
+        self.chat_service = chat_service
+    
+    def register_routes(self, app: Flask):
+        """
+        注册控制器路由到 Flask 应用
+        
+        Args:
+            app: Flask 应用实例
+        """
+        @app.route('/api/chat', methods=['POST'])
+        def chat():
+            """聊天接口"""
+            return self.chat()
+        
+        @app.route('/api/models', methods=['GET'])
+        def get_models():
+            """获取模型列表"""
+            return self.get_models()
+        
+        @app.route('/api/conversations', methods=['GET'])
+        def get_all_conversations():
+            """获取所有会话列表"""
+            return self.get_all_conversations()
+        
+        @app.route('/api/conversation', methods=['GET'])
+        def get_conversation():
+            """获取会话消息"""
+            return self.get_conversation()
+        
+        @app.route('/api/conversation', methods=['DELETE'])
+        def delete_conversation():
+            """删除会话"""
+            return self.delete_conversation()
+        
+        @app.route('/api/conversation/summary', methods=['GET'])
+        def get_summary():
+            """获取会话总结"""
+            return self.get_summary()
+        
+        @app.route('/api/conversation/summary/generate', methods=['POST'])
+        def generate_summary():
+            """生成会话总结"""
+            return self.generate_summary()
+        
+        @app.route('/api/conversation/summary', methods=['POST'])
+        def save_summary():
+            """保存会话总结"""
+            return self.save_summary()
+        
+        @app.route('/api/story/generate', methods=['POST'])
+        def generate_story_section():
+            """生成故事部分"""
+            return self.generate_story_section()
+        
+        @app.route('/api/story/confirm', methods=['POST'])
+        def confirm_section():
+            """确认当前部分，生成下一部分"""
+            return self.confirm_section()
+        
+        @app.route('/api/story/rewrite', methods=['POST'])
+        def rewrite_section():
+            """重写当前部分"""
+            return self.rewrite_section()
+        
+        @app.route('/api/story/modify', methods=['POST'])
+        def modify_section():
+            """修改当前部分"""
+            return self.modify_section()
+    
+    def chat(self):
+        """
+        普通聊天接口（Controller 只负责参数验证和调用 Service）
+        
+        请求体:
+            - provider: AI 提供商（必需，ollama 或 deepseek）
+            - message: 用户消息（必需）
+            - conversation_id: 会话ID（可选）
+            - model: 模型名称（可选，如果不提供则使用全局配置的默认模型）
+            
+        注意：apiKey, baseUrl, maxTokens, temperature 等配置参数将从数据库中的全局配置自动获取，无需前端传递
+        
+        返回:
+            - success: 是否成功
+            - response: AI 响应内容
+            - conversation_id: 会话ID
+        """
+        try:
+            data = request.json or {}
+            message = data.get('message', '')
+            provider = data.get('provider')
+            
+            if not message:
+                return jsonify({
+                    "success": False,
+                    "error": "message is required"
+                }), 400
+            
+            if not provider:
+                return jsonify({
+                    "success": False,
+                    "error": "provider is required (ollama or deepseek)"
+                }), 400
+            
+            result = self.chat_orchestration_service.process_chat(
+                message=message,
+                provider=provider,
+                conversation_id=data.get('conversation_id'),
+                model=data.get('model')
+            )
+            
+            return jsonify(result)
+        
+        except ValidationError as e:
+            logger.warning(f"Validation error: {e.message}")
+            return jsonify(e.to_dict()), e.status_code
+        
+        except ProviderError as e:
+            logger.error(f"Provider error ({e.provider}): {e.message}")
+            return jsonify(e.to_dict()), e.status_code
+        
+        except Exception as e:
+            logger.error(f"Unexpected error in chat endpoint: {str(e)}", exc_info=True)
+            error = APIError(
+                f"Server error: {str(e)}",
+                status_code=500
+            )
+            return jsonify(error.to_dict()), 500
+    
+    def generate_story_section(self):
+        """
+        生成故事部分（由前端按钮触发，业务逻辑在 Service 层）
+        
+        请求体:
+            - conversation_id: 会话ID（必需）
+            - provider: AI 提供商（必需，ollama 或 deepseek）
+            - model: 模型名称（可选，如果不提供则使用全局配置的默认模型）
+            
+        注意：apiKey, baseUrl, maxTokens, temperature 等配置参数将从数据库中的全局配置自动获取，无需前端传递
+        """
+        try:
+            data = request.json or {}
+            conversation_id = data.get('conversation_id')
+            provider = data.get('provider')
+            
+            if not conversation_id:
+                return jsonify({
+                    "success": False,
+                    "error": "conversation_id is required"
+                }), 400
+            
+            if not provider:
+                return jsonify({
+                    "success": False,
+                    "error": "provider is required (ollama or deepseek)"
+                }), 400
+            
+            result = self.story_generation_service.generate_story_section(
+                conversation_id=conversation_id,
+                provider=provider,
+                model=data.get('model')
+            )
+            
+            return jsonify(result)
+        
+        except Exception as e:
+            logger.error(f"Error in generate_story_section: {str(e)}", exc_info=True)
+            return jsonify({
+                "success": False,
+                "error": f"Server error: {str(e)}"
+            }), 500
+    
+    def confirm_section(self):
+        """
+        确认当前部分，生成下一部分（由前端按钮触发，业务逻辑在 Service 层）
+        
+        请求体:
+            - conversation_id: 会话ID（必需）
+            - provider: AI 提供商（必需，ollama 或 deepseek）
+            - model: 模型名称（可选，如果不提供则使用全局配置的默认模型）
+            
+        注意：apiKey, baseUrl, maxTokens, temperature 等配置参数将从数据库中的全局配置自动获取，无需前端传递
+        """
+        try:
+            data = request.json or {}
+            conversation_id = data.get('conversation_id')
+            provider = data.get('provider')
+            
+            if not conversation_id:
+                return jsonify({
+                    "success": False,
+                    "error": "conversation_id is required"
+                }), 400
+            
+            if not provider:
+                return jsonify({
+                    "success": False,
+                    "error": "provider is required (ollama or deepseek)"
+                }), 400
+            
+            result = self.story_generation_service.confirm_section(
+                conversation_id=conversation_id,
+                provider=provider,
+                model=data.get('model')
+            )
+            
+            return jsonify(result)
+        
+        except Exception as e:
+            logger.error(f"Error in confirm_section: {str(e)}", exc_info=True)
+            return jsonify({
+                "success": False,
+                "error": f"Server error: {str(e)}"
+            }), 500
+    
+    def rewrite_section(self):
+        """
+        重写当前部分（由前端按钮触发，业务逻辑在 Service 层）
+        
+        请求体:
+            - conversation_id: 会话ID（必需）
+            - feedback: 重写要求/反馈（必需）
+            - provider: AI 提供商（必需，ollama 或 deepseek）
+            - model: 模型名称（可选）
+            - apiKey: API 密钥（可选）
+            - baseUrl: 自定义基础 URL（可选）
+            - maxTokens: 最大令牌数（可选）
+            - temperature: 温度参数（可选）
+        """
+        try:
+            data = request.json or {}
+            conversation_id = data.get('conversation_id')
+            feedback = data.get('feedback', '')
+            provider = data.get('provider')
+            
+            if not conversation_id:
+                return jsonify({
+                    "success": False,
+                    "error": "conversation_id is required"
+                }), 400
+            
+            if not feedback:
+                return jsonify({
+                    "success": False,
+                    "error": "feedback is required"
+                }), 400
+            
+            if not provider:
+                return jsonify({
+                    "success": False,
+                    "error": "provider is required (ollama or deepseek)"
+                }), 400
+            
+            result = self.story_generation_service.rewrite_section(
+                conversation_id=conversation_id,
+                feedback=feedback,
+                provider=provider,
+                model=data.get('model')
+            )
+            
+            return jsonify(result)
+        
+        except Exception as e:
+            logger.error(f"Error in rewrite_section: {str(e)}", exc_info=True)
+            return jsonify({
+                "success": False,
+                "error": f"Server error: {str(e)}"
+            }), 500
+    
+    def modify_section(self):
+        """
+        修改当前部分（由前端按钮触发，业务逻辑在 Service 层）
+        
+        请求体:
+            - conversation_id: 会话ID（必需）
+            - feedback: 修改要求/反馈（必需）
+            - provider: AI 提供商（必需，ollama 或 deepseek）
+            - model: 模型名称（可选）
+            - apiKey: API 密钥（可选）
+            - baseUrl: 自定义基础 URL（可选）
+            - maxTokens: 最大令牌数（可选）
+            - temperature: 温度参数（可选）
+        """
+        try:
+            data = request.json or {}
+            conversation_id = data.get('conversation_id')
+            feedback = data.get('feedback', '')
+            provider = data.get('provider')
+            
+            if not conversation_id:
+                return jsonify({
+                    "success": False,
+                    "error": "conversation_id is required"
+                }), 400
+            
+            if not feedback:
+                return jsonify({
+                    "success": False,
+                    "error": "feedback is required"
+                }), 400
+            
+            if not provider:
+                return jsonify({
+                    "success": False,
+                    "error": "provider is required (ollama or deepseek)"
+                }), 400
+            
+            result = self.story_generation_service.modify_section(
+                conversation_id=conversation_id,
+                feedback=feedback,
+                provider=provider,
+                model=data.get('model')
+            )
+            
+            return jsonify(result)
+        
+        except Exception as e:
+            logger.error(f"Error in modify_section: {str(e)}", exc_info=True)
+            return jsonify({
+                "success": False,
+                "error": f"Server error: {str(e)}"
+            }), 500
+    
+    def get_models(self):
+        """
+        获取可用模型列表（类似 Spring 的 @GetMapping）
+        
+        返回:
+            - success: 是否成功
+            - models: 模型列表
+            - error: 错误信息（如果失败）
+        """
+        try:
+            provider = request.args.get('provider', 'ollama')
+            logger.info(f"Fetching models for provider: {provider}")
+            
+            result = self.ai_service.get_models(provider=provider)
+            return jsonify(result)
+        
+        except ProviderError as e:
+            logger.error(f"Provider error: {e.message}")
+            return jsonify(e.to_dict()), e.status_code
+        
+        except Exception as e:
+            logger.error(f"Unexpected error in models endpoint: {str(e)}", exc_info=True)
+            error = APIError(
+                f"Failed to fetch models: {str(e)}",
+                status_code=500
+            )
+            return jsonify(error.to_dict()), 500
+    
+    def health_check(self):
+        """
+        健康检查接口
+        
+        返回:
+            - status: 健康状态 (healthy, unhealthy)
+            - ollama_available: Ollama 是否可用
+            - error: 错误信息（如果有）
+        """
+        try:
+            provider = request.args.get('provider', 'ollama')
+            result = self.ai_service.health_check(provider=provider)
+            return jsonify(result)
+        
+        except Exception as e:
+            logger.error(f"Health check error: {str(e)}")
+            return jsonify({
+                "status": "unhealthy",
+                "ollama_available": False,
+                "error": str(e)
+            }), 503
+    
+    def stop_server(self):
+        """
+        停止服务器接口
+        
+        返回:
+            - success: 是否成功
+            - message: 消息
+        """
+        def shutdown():
+            time.sleep(1)
+            os._exit(0)
+        
+        logger.info("Server shutdown requested")
+        threading.Thread(target=shutdown, daemon=True).start()
+        
+        return jsonify({
+            "success": True,
+            "message": "Server is shutting down"
+        })
+    
+    def get_conversation(self):
+        """
+        获取会话消息列表
+        
+        查询参数:
+            - conversation_id: 会话ID（必需）
+            - limit: 限制数量（可选）
+            - offset: 偏移量（可选）
+        
+        返回:
+            - success: 是否成功
+            - messages: 消息列表
+            - error: 错误信息（如果失败）
+        """
+        try:
+            conversation_id = request.args.get('conversation_id')
+            if not conversation_id:
+                return jsonify({
+                    "success": False,
+                    "error": "conversation_id is required"
+                }), 400
+            
+            limit = request.args.get('limit', type=int)
+            offset = request.args.get('offset', 0, type=int)
+            
+            messages = self.chat_service.get_conversation(
+                conversation_id=conversation_id,
+                limit=limit,
+                offset=offset
+            )
+            
+            return jsonify({
+                "success": True,
+                "messages": messages,
+                "conversation_id": conversation_id
+            })
+        
+        except Exception as e:
+            logger.error(f"Failed to get conversation: {str(e)}", exc_info=True)
+            return jsonify({
+                "success": False,
+                "error": f"Failed to get conversation: {str(e)}"
+            }), 500
+    
+    def get_all_conversations(self):
+        """
+        获取所有会话ID列表
+        
+        返回:
+            - success: 是否成功
+            - conversations: 会话ID列表
+            - count: 会话数量
+        """
+        try:
+            conversations = self.chat_service.get_all_conversations()
+            return jsonify({
+                "success": True,
+                "conversations": conversations,
+                "count": len(conversations)
+            })
+        except Exception as e:
+            logger.error(f"Failed to get all conversations: {str(e)}", exc_info=True)
+            return jsonify({
+                "success": False,
+                "error": f"Failed to get conversations: {str(e)}"
+            }), 500
+    
+    def delete_conversation(self):
+        """
+        删除会话
+        
+        请求体:
+            - conversation_id: 会话ID（必需）
+        
+        返回:
+            - success: 是否成功
+            - message: 消息
+        """
+        try:
+            data = request.json or {}
+            conversation_id = data.get('conversation_id')
+            
+            if not conversation_id:
+                return jsonify({
+                    "success": False,
+                    "error": "conversation_id is required"
+                }), 400
+            
+            deleted = self.chat_service.delete_conversation(conversation_id)
+            
+            return jsonify({
+                "success": deleted,
+                "message": "Conversation deleted" if deleted else "Conversation not found"
+            })
+        
+        except Exception as e:
+            logger.error(f"Failed to delete conversation: {str(e)}", exc_info=True)
+            return jsonify({
+                "success": False,
+                "error": f"Failed to delete conversation: {str(e)}"
+            }), 500
+    
+    def get_summary(self):
+        """
+        获取会话总结
+        
+        查询参数:
+            - conversation_id: 会话ID（必需）
+        
+        返回:
+            - success: 是否成功
+            - summary: 总结内容
+        """
+        try:
+            conversation_id = request.args.get('conversation_id')
+            if not conversation_id:
+                return jsonify({
+                    "success": False,
+                    "error": "conversation_id is required"
+                }), 400
+            
+            summary = self.summary_service.get_summary(conversation_id)
+            if summary:
+                return jsonify({
+                    "success": True,
+                    "summary": summary
+                })
+            else:
+                return jsonify({
+                    "success": False,
+                    "error": "Summary not found"
+                }), 404
+        
+        except Exception as e:
+            logger.error(f"Failed to get summary: {str(e)}", exc_info=True)
+            return jsonify({
+                "success": False,
+                "error": f"Failed to get summary: {str(e)}"
+            }), 500
+    
+    def generate_summary(self):
+        """
+        生成会话总结
+        
+        请求体:
+            - conversation_id: 会话ID（必需）
+            - provider: AI提供商（必需，ollama 或 deepseek）
+            - model: 模型名称（可选，如果不提供则使用全局配置的默认模型）
+            
+        注意：apiKey, baseUrl, maxTokens, temperature 等配置参数将从数据库中的全局配置自动获取，无需前端传递
+        
+        返回:
+            - success: 是否成功
+            - summary: 生成的总结内容
+        """
+        try:
+            data = request.json or {}
+            conversation_id = data.get('conversation_id')
+            
+            if not conversation_id:
+                return jsonify({
+                    "success": False,
+                    "error": "conversation_id is required"
+                }), 400
+            
+            provider = data.get('provider')
+            if not provider:
+                return jsonify({
+                    "success": False,
+                    "error": "provider is required (ollama or deepseek)"
+                }), 400
+            
+            result = self.summary_orchestration_service.generate_summary(
+                conversation_id=conversation_id,
+                provider=provider,
+                model=data.get('model')
+            )
+            
+            if not result.get('success'):
+                return jsonify(result), 400
+            
+            return jsonify(result)
+        
+        except Exception as e:
+            logger.error(f"Failed to generate summary: {str(e)}", exc_info=True)
+            return jsonify({
+                "success": False,
+                "error": f"Failed to generate summary: {str(e)}"
+            }), 500
+    
+    def save_summary(self):
+        """
+        保存会话总结（用户确认或修改后的总结）
+        
+        请求体:
+            - conversation_id: 会话ID（必需）
+            - summary: 总结内容（必需）
+        
+        返回:
+            - success: 是否成功
+            - summary: 保存的总结
+        """
+        try:
+            data = request.json or {}
+            conversation_id = data.get('conversation_id')
+            summary_text = data.get('summary')
+            
+            if not conversation_id:
+                return jsonify({
+                    "success": False,
+                    "error": "conversation_id is required"
+                }), 400
+            
+            if not summary_text:
+                return jsonify({
+                    "success": False,
+                    "error": "summary is required"
+                }), 400
+            
+            messages = self.chat_service.get_conversation(conversation_id)
+            message_count = len(messages)
+            
+            summary = self.summary_service.create_or_update_summary(
+                conversation_id=conversation_id,
+                summary=summary_text,
+                message_count=message_count
+            )
+            
+            return jsonify({
+                "success": True,
+                "summary": summary
+            })
+        
+        except Exception as e:
+            logger.error(f"Failed to save summary: {str(e)}", exc_info=True)
+            return jsonify({
+                "success": False,
+                "error": f"Failed to save summary: {str(e)}"
+            }), 500
+

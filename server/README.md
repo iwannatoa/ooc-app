@@ -7,57 +7,60 @@ Flask API 服务器，提供统一的 AI 聊天接口，支持 Ollama 和 DeepSe
 ```
 server/
 ├── app.py                 # Flask 应用主入口
-├── config.py              # 配置管理模块
 ├── build.py               # 构建脚本
 ├── requirements.txt       # Python 依赖
-├── __init__.py            # 包初始化文件
-├── api/                   # API 路由模块
-│   ├── __init__.py
-│   └── routes.py          # 路由定义
-├── services/             # 服务层
-│   ├── __init__.py
-│   ├── ai_service.py      # AI 服务统一接口
-│   ├── ollama_service.py  # Ollama 服务实现
-│   └── deepseek_service.py # DeepSeek 服务实现
-└── utils/                 # 工具模块
-    ├── __init__.py
-    ├── logger.py          # 日志配置
-    └── exceptions.py      # 自定义异常类
+├── src/                   # 源代码目录
+│   ├── config/           # 配置模块
+│   │   └── config.py     # 应用配置
+│   ├── controller/       # 控制器层（类似 Spring 的 @RestController）
+│   │   └── chat_controller.py
+│   ├── service/          # 服务层（类似 Spring 的 @Service）
+│   │   ├── ai_service.py
+│   │   ├── ollama_service.py
+│   │   └── deepseek_service.py
+│   ├── utils/            # 工具模块
+│   │   ├── logger.py
+│   │   └── exceptions.py
+│   └── di/               # 依赖注入配置
+│       └── module.py
+├── build/                # 构建输出
+└── dist/                 # 分发文件
 ```
 
-## 模块说明
+## 架构说明
 
-### 配置模块 (`config.py`)
-- 管理应用配置（开发、生产、测试环境）
-- 支持环境变量配置
-- 包含 Ollama、DeepSeek 等服务的配置
+### Controller-Service 架构
 
-### 工具模块 (`utils/`)
-- **logger.py**: 统一的日志配置和管理
-- **exceptions.py**: 自定义异常类（APIError、ValidationError、ServiceError 等）
+采用类似 Spring MVC 的分层架构：
 
-### 服务层 (`services/`)
-- **ai_service.py**: AI 服务统一接口，处理不同提供商的请求
-- **ollama_service.py**: Ollama API 封装，提供模型列表、文本生成等功能
-- **deepseek_service.py**: DeepSeek API 封装，提供聊天完成功能
+- **Controller 层**: 处理 HTTP 请求和响应
+- **Service 层**: 业务逻辑处理
+- **依赖注入**: 使用 Flask-Injector 实现自动依赖注入
 
-### API 路由 (`api/`)
-- **routes.py**: 定义所有 API 端点
-  - `POST /api/chat`: 聊天接口
-  - `GET /api/models`: 获取模型列表
-  - `GET /api/health`: 健康检查
-  - `POST /api/stop`: 停止服务器
+### 依赖注入
+
+使用 Flask-Injector 实现依赖注入，类似 Spring 的 `@Autowired`：
+
+- `ChatController` 自动注入 `AIService`
+- `AIService` 自动注入 `OllamaService` 和 `DeepSeekService`
+- 所有服务注册为单例
 
 ## 使用方法
 
-### 开发环境
+### 安装依赖
 
 ```bash
-# 安装依赖
 pip install -r requirements.txt
+```
 
-# 运行服务器
-python app.py
+### 运行服务器
+
+```bash
+# 方式 1: 使用启动脚本（推荐）
+python run.py
+
+# 方式 2: 直接运行
+python src/app.py
 ```
 
 ### 环境变量
@@ -128,13 +131,7 @@ python build.py
 ```json
 {
   "success": true,
-  "models": [
-    {
-      "name": "模型名称",
-      "modified_at": "修改时间",
-      "size": 模型大小
-    }
-  ]
+  "models": [...]
 }
 ```
 
@@ -150,20 +147,26 @@ python build.py
 }
 ```
 
+### POST /api/stop
+
+停止服务器。
+
 ## 设计原则
 
 1. **模块化**: 代码按功能分离到不同模块
-2. **可扩展**: 易于添加新的 AI 提供商
-3. **错误处理**: 统一的异常处理和错误响应
-4. **日志记录**: 完整的日志记录系统
-5. **配置管理**: 支持多环境配置
+2. **依赖注入**: 使用 Flask-Injector 实现自动依赖管理
+3. **分层架构**: Controller-Service 分层清晰
+4. **可扩展**: 易于添加新的 AI 提供商
+5. **错误处理**: 统一的异常处理和错误响应
+6. **日志记录**: 完整的日志记录系统
+7. **配置管理**: 支持多环境配置
 
 ## 扩展新提供商
 
 要添加新的 AI 提供商：
 
-1. 在 `services/` 目录创建新的服务类（如 `new_provider_service.py`）
-2. 在 `services/ai_service.py` 中添加对新提供商的支持
-3. 更新 `config.py` 添加新提供商的配置
-4. 在 `api/routes.py` 中更新相关接口（如需要）
-
+1. 在 `src/service/` 目录创建新的服务类
+2. 在 `src/service/ai_service.py` 中添加对新提供商的支持
+3. 在 `src/config/config.py` 添加新提供商的配置
+4. 在 `src/di/module.py` 注册新服务
+5. 在 `src/controller/chat_controller.py` 中添加相关方法（如需要）

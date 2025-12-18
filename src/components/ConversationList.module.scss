@@ -1,0 +1,140 @@
+@use '../styles/variables' as *;
+@use '../styles/mixins' as *;
+
+.conversationList {
+  @include flex-column;
+  height: 100%;
+  background: $bg-dark;
+  border-right: 1px solid $border-color;
+  width: 250px;
+  min-width: 200px;
+}
+
+.header {
+  @include flex-row;
+  justify-content: space-between;
+  align-items: center;
+  padding: $spacing-md;
+  border-bottom: 1px solid $border-color;
+
+  h2 {
+    margin: 0;
+    font-size: $font-size-lg;
+    font-weight: 600;
+    color: $text-primary;
+  }
+}
+
+.newButton {
+  padding: $spacing-xs $spacing-sm;
+  background: $primary-color;
+  color: white;
+  border: none;
+  border-radius: $border-radius;
+  cursor: pointer;
+  font-size: $font-size-sm;
+  transition: background 0.2s;
+
+  &:hover {
+    background: $primary-color-hover;
+  }
+}
+
+.list {
+  flex: 1;
+  overflow-y: auto;
+  padding: $spacing-xs;
+}
+
+.empty {
+  @include flex-column;
+  align-items: center;
+  justify-content: center;
+  padding: $spacing-xl;
+  text-align: center;
+  color: $text-secondary;
+
+  p {
+    margin: 0 0 $spacing-md 0;
+  }
+}
+
+.emptyButton {
+  padding: $spacing-sm $spacing-md;
+  background: $primary-color;
+  color: white;
+  border: none;
+  border-radius: $border-radius;
+  cursor: pointer;
+  font-size: $font-size-sm;
+
+  &:hover {
+    background: $primary-color-hover;
+  }
+}
+
+.item {
+  @include flex-row;
+  align-items: center;
+  padding: $spacing-sm;
+  margin-bottom: $spacing-xs;
+  border-radius: $border-radius;
+  cursor: pointer;
+  transition: background 0.2s;
+  background: $bg-darker;
+
+  &:hover {
+    background: $bg-hover;
+  }
+
+  &.active {
+    background: $primary-color;
+    color: white;
+
+    .title,
+    .meta {
+      color: white;
+    }
+  }
+}
+
+.itemContent {
+  flex: 1;
+  min-width: 0;
+}
+
+.title {
+  font-size: $font-size-sm;
+  font-weight: 500;
+  color: $text-primary;
+  margin-bottom: $spacing-xs;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meta {
+  font-size: $font-size-xs;
+  color: $text-secondary;
+}
+
+.deleteButton {
+  padding: $spacing-xs;
+  background: transparent;
+  border: none;
+  color: $text-secondary;
+  cursor: pointer;
+  font-size: $font-size-lg;
+  line-height: 1;
+  transition: color 0.2s;
+  opacity: 0;
+
+  .item:hover & {
+    opacity: 1;
+  }
+
+  &:hover {
+    color: $error-color;
+  }
+}
+

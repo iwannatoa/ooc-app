@@ -5,18 +5,20 @@
 
 mod commands;
 
-use commands::{check_python_server_status, start_python_server, stop_python_server, PythonServer};
+use commands::{check_python_server_status, get_database_path, start_python_server, stop_python_server, PythonServer};
 use tauri::Manager;
 use tokio::sync::Mutex as TokioMutex;
 
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_path::init())
         .manage(TokioMutex::new(PythonServer::new()))
         .invoke_handler(tauri::generate_handler![
             start_python_server,
             stop_python_server,
             check_python_server_status,
+            get_database_path,
         ])
         .setup(|app| {
             let app_handle = app.app_handle().clone();

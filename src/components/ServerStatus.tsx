@@ -5,6 +5,7 @@ import { ENV_CONFIG } from '@/types/constants';
 import { useServerState } from '@/hooks/useServerState';
 import { useChatState } from '@/hooks/useChatState';
 import { useSettingsState } from '@/hooks/useSettingsState';
+import { isMockMode, mockServerClient } from '@/mock';
 import StatusIndicator from './StatusIndicator';
 import styles from './ServerStatus.module.scss';
 
@@ -51,10 +52,17 @@ const ServerStatus: React.FC = () => {
 
   const checkPythonServerStatus = async (): Promise<void> => {
     try {
-      const response = await fetch(
-        `${ENV_CONFIG.VITE_FLASK_API_URL}/api/health`
-      );
-      const data: HealthResponse = await response.json();
+      let data: HealthResponse;
+      
+      if (isMockMode()) {
+        data = await mockServerClient.checkHealth();
+      } else {
+        const response = await fetch(
+          `${ENV_CONFIG.VITE_FLASK_API_URL}/api/health`
+        );
+        data = await response.json();
+      }
+      
       setOllamaStatus(
         settings.ai.provider !== 'ollama' || data.ollama_available
           ? 'connected'
@@ -78,10 +86,17 @@ const ServerStatus: React.FC = () => {
     if (settings.ai.provider !== 'ollama') return;
 
     try {
-      const response = await fetch(
-        `${ENV_CONFIG.VITE_FLASK_API_URL}/api/models`
-      );
-      const data: ModelsResponse = await response.json();
+      let data: ModelsResponse;
+      
+      if (isMockMode()) {
+        data = await mockServerClient.getModels('ollama');
+      } else {
+        const response = await fetch(
+          `${ENV_CONFIG.VITE_FLASK_API_URL}/api/models`
+        );
+        data = await response.json();
+      }
+      
       if (data.success) {
         setModels(data.models);
         hasGetModels.current = true;
@@ -125,7 +140,12 @@ const ServerStatus: React.FC = () => {
         </button>
       )}
       {ENV_CONFIG.VITE_DEV_MODE && (
-        <span className={styles.devBadge}>开发模式</span>
+        <>
+          <span className={styles.devBadge}>开发模式</span>
+          {isMockMode() && (
+            <span className={styles.mockBadge}>Mock 模式</span>
+          )}
+        </>
       )}
 
       {ollamaStatus === 'disconnected' &&

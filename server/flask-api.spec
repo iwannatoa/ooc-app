@@ -1,12 +1,29 @@
 # -*- mode: python ; coding: utf-8 -*-
+import os
+from pathlib import Path
+from PyInstaller.utils.hooks import collect_submodules
 
+# 获取当前目录（spec 文件所在目录）
+current_dir = Path(os.path.dirname(os.path.abspath(SPEC)))
+
+# 自动收集 src 包下的所有子模块
+src_modules = collect_submodules('src')
 
 a = Analysis(
-    ['E:\\project\\ooc-app\\server\\src\\app.py'],
-    pathex=[],
+    [os.path.join(current_dir, 'src', 'app.py')],
+    pathex=[str(current_dir)],
     binaries=[],
-    datas=[('E:\\project\\ooc-app\\server\\requirements.txt', '.')],
-    hiddenimports=['flask', 'flask_cors', 'requests'],
+    datas=[(os.path.join(current_dir, 'requirements.txt'), '.')],
+    hiddenimports=[
+        # Flask 相关
+        'flask',
+        'flask_cors',
+        'flask_injector',
+        'injector',
+        # 请求库
+        'requests',
+        # 源代码模块（自动收集所有子模块）
+    ] + src_modules,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

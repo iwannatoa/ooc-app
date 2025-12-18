@@ -31,6 +31,16 @@
   text-transform: uppercase;
 }
 
+.mockBadge {
+  padding: $spacing-xs $spacing-sm;
+  background: #4CAF50;
+  color: white;
+  border-radius: $border-radius;
+  font-size: $font-size-xs;
+  font-weight: 500;
+  margin-left: $spacing-xs;
+}
+
 .connectionHelp {
   position: absolute;
   top: 100%;

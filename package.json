@@ -1,7 +1,7 @@
 {
   "name": "ooc-app",
   "version": "0.1.0",
-  "description": "OOC app use Tauri and FastApi",
+  "description": "OOC app use Tauri and Flask",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
@@ -10,6 +10,8 @@
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
     "build:python": "cd server && python build.py",
+    "server:dev": "cd server && python run.py",
+    "server:build": "cd server && python build.py",
     "dist": "npm run build && npm run tauri:build",
     "clean": "rm -rf node_modules src-tauri/target src-tauri/resources/python-api/build",
     "type-check": "tsc --noEmit",

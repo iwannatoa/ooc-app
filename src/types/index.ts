@@ -1,4 +1,3 @@
-// 环境配置类型
 export interface EnvConfig {
   VITE_APP_NAME: string;
   VITE_APP_VERSION: string;
@@ -22,7 +21,6 @@ export interface EnvConfig {
   VITE_ENABLE_CACHE: boolean;
 }
 
-// Ollama 相关类型
 export interface OllamaModel {
   name: string;
   modified_at: string;
@@ -74,13 +72,15 @@ export interface ModelsResponse {
   error: string;
 }
 
-// 聊天相关类型
 export interface ChatMessage {
   role: 'user' | 'assistant' | 'system' | 'error';
   content: string;
   model?: string;
   timestamp?: number;
   id?: string;
+  needsSummary?: boolean;
+  messageCount?: number;
+  storyProgress?: StoryProgress;
 }
 
 export interface Conversation {
@@ -91,6 +91,47 @@ export interface Conversation {
   updatedAt: number;
   model?: string;
 }
+
+export interface ConversationSettings {
+  id?: number;
+  conversation_id: string;
+  title?: string;
+  background?: string;
+  characters?: string[];
+  character_personality?: Record<string, string>;
+  outline?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface ConversationWithSettings extends Conversation {
+  settings?: ConversationSettings;
+}
+
+export interface ConversationSummary {
+  id?: number;
+  conversation_id: string;
+  summary: string;
+  message_count?: number;
+  token_count?: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface StoryProgress {
+  id?: number;
+  conversation_id: string;
+  current_section: number;
+  total_sections?: number;
+  last_generated_content?: string;
+  last_generated_section?: number;
+  status: 'pending' | 'generating' | 'completed';
+  outline_confirmed: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export type StoryActionType = 'auto' | 'generate' | 'confirm' | 'rewrite' | 'modify' | 'add_settings';
 
 // API 响应类型
 export interface ApiResponse<T = any> {
@@ -111,6 +152,11 @@ export interface ChatResponse {
   success: boolean;
   response: string;
   model: string;
+  conversation_id?: string;
+  needs_summary?: boolean;
+  message_count?: number;
+  action_type?: StoryActionType;
+  story_progress?: StoryProgress;
   error?: string;
   usage?: {
     prompt_tokens: number;

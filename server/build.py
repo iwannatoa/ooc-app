@@ -47,28 +47,12 @@ def build_for_platform(base_name: str, target_triple: str, output_suffix: str):
     
     dist_dir.mkdir(parents=True, exist_ok=True)
     
-    # PyInstaller 命令
+    # 使用 spec 文件构建（更清晰，配置集中管理）
+    spec_file = current_dir / "flask-api.spec"
     pyinstaller_cmd = [
         "pyinstaller",
-        "--onefile",
-        "--console",
-        "--name", base_name,
-        "--add-data", f"{os.path.join(current_dir, 'requirements.txt')};.",
-        "--hidden-import", "flask",
-        "--hidden-import", "flask_cors",
-        "--hidden-import", "requests",
-        "--hidden-import", "config",
-        "--hidden-import", "api",
-        "--hidden-import", "api.routes",
-        "--hidden-import", "services",
-        "--hidden-import", "services.ai_service",
-        "--hidden-import", "services.ollama_service",
-        "--hidden-import", "services.deepseek_service",
-        "--hidden-import", "utils",
-        "--hidden-import", "utils.logger",
-        "--hidden-import", "utils.exceptions",
-        "--clean", 
-        os.path.join(current_dir, "app.py")
+        "--clean",
+        str(spec_file)
     ]
 
     try:

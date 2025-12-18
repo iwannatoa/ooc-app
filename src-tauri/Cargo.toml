@@ -13,6 +13,7 @@ reqwest = { version = "0.11", features = ["json"] }
 tauri = { version = "2", features = [] }
 windows-sys = "0.61"
 tauri-plugin-shell = "2"
+tauri-plugin-path = "2"
 
 [build-dependencies]
 tauri-build = { version = "2.0", features = [] }

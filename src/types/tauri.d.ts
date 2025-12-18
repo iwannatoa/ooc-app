@@ -1,4 +1,7 @@
-// Tauri 特定类型定义
+/*
+ * Copyright © 2016-2025 Patrick Zhang.
+ * All Rights Reserved.
+ */
 declare module '@tauri-apps/api/core' {
   export interface InvokeArgs {
     [key: string]: any;
@@ -7,14 +10,12 @@ declare module '@tauri-apps/api/core' {
   export function invoke<T>(cmd: string, args?: InvokeArgs): Promise<T>;
 }
 
-// Window 扩展
 interface Window {
   __TAURI__?: {
     invoke: <T>(cmd: string, args?: any) => Promise<T>;
   };
 }
 
-// 环境变量类型定义
 interface ImportMetaEnv {
   readonly VITE_APP_NAME: string;
   readonly VITE_APP_VERSION: string;
@@ -36,6 +37,7 @@ interface ImportMetaEnv {
   readonly VITE_ENABLE_CONSOLE_LOGS: string;
   readonly VITE_ENABLE_COMPRESSION: string;
   readonly VITE_ENABLE_CACHE: string;
+  readonly VITE_USE_MOCK?: string;
 }
 
 interface ImportMeta {
