@@ -57,6 +57,16 @@ def build_for_platform(base_name: str, target_triple: str, output_suffix: str):
         "--hidden-import", "flask",
         "--hidden-import", "flask_cors",
         "--hidden-import", "requests",
+        "--hidden-import", "config",
+        "--hidden-import", "api",
+        "--hidden-import", "api.routes",
+        "--hidden-import", "services",
+        "--hidden-import", "services.ai_service",
+        "--hidden-import", "services.ollama_service",
+        "--hidden-import", "services.deepseek_service",
+        "--hidden-import", "utils",
+        "--hidden-import", "utils.logger",
+        "--hidden-import", "utils.exceptions",
         "--clean", 
         os.path.join(current_dir, "app.py")
     ]

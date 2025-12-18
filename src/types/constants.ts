@@ -22,9 +22,6 @@ export const CONSTANTS: AppConstants = {
 export const AI_PROVIDERS = {
   OLLAMA: 'ollama',
   DEEPSEEK: 'deepseek',
-  OPENAI: 'openai',
-  ANTHROPIC: 'anthropic',
-  CUSTOM: 'custom',
 } as const;
 
 export const DEFAULT_AI_CONFIGS = {
@@ -38,27 +35,6 @@ export const DEFAULT_AI_CONFIGS = {
   deepseek: {
     baseUrl: 'https://api.deepseek.com',
     model: 'deepseek-chat',
-    timeout: 60000,
-    maxTokens: 2048,
-    temperature: 0.7,
-  },
-  openai: {
-    baseUrl: 'https://api.openai.com/v1',
-    model: 'gpt-3.5-turbo',
-    timeout: 60000,
-    maxTokens: 2048,
-    temperature: 0.7,
-  },
-  anthropic: {
-    baseUrl: 'https://api.anthropic.com',
-    model: 'claude-3-sonnet',
-    timeout: 60000,
-    maxTokens: 2048,
-    temperature: 0.7,
-  },
-  custom: {
-    baseUrl: '',
-    model: '',
     timeout: 60000,
     maxTokens: 2048,
     temperature: 0.7,
@@ -139,33 +115,6 @@ export const DEFAULT_SETTINGS: AppSettings = {
       provider: 'deepseek',
       baseUrl: 'https://api.deepseek.com',
       model: 'deepseek-chat',
-      timeout: 60000,
-      maxTokens: 2048,
-      temperature: 0.7,
-      apiKey: '',
-    }),
-    openai: createAiConfig({
-      provider: 'openai',
-      baseUrl: 'https://api.openai.com/v1',
-      model: 'gpt-3.5-turbo',
-      timeout: 60000,
-      maxTokens: 2048,
-      temperature: 0.7,
-      apiKey: '',
-    }),
-    anthropic: createAiConfig({
-      provider: 'anthropic',
-      baseUrl: 'https://api.anthropic.com',
-      model: 'claude-3-sonnet',
-      timeout: 60000,
-      maxTokens: 2048,
-      temperature: 0.7,
-      apiKey: '',
-    }),
-    custom: createAiConfig({
-      provider: 'custom',
-      baseUrl: '',
-      model: '',
       timeout: 60000,
       maxTokens: 2048,
       temperature: 0.7,

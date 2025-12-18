@@ -1,114 +1,80 @@
+"""
+Flask 应用主入口
+"""
 import sys
 import os
-import requests
-import json
-from flask import Flask, request, jsonify
+from pathlib import Path
+
+# 添加 server 目录到 Python 路径
+server_dir = Path(__file__).parent
+if str(server_dir) not in sys.path:
+    sys.path.insert(0, str(server_dir))
+
+from flask import Flask
 from flask_cors import CORS
-import threading
-import time
-import logging
+from config import get_config
+from utils.logger import setup_logger
+from api import api_bp
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+# 设置日志
+logger = setup_logger(__name__)
 
+# 创建 Flask 应用
 app = Flask(__name__)
-CORS(app)
 
-# Ollama API configuration
-OLLAMA_BASE_URL = "http://localhost:11434"
+# 加载配置
+config = get_config()
+app.config.from_object(config)
 
-@app.route('/api/chat', methods=['POST'])
-def chat_with_ollama():
-    try:
-        data = request.json
-        message = data.get('message', '')
-        model = data.get('model', 'deepseek-chat')
-        
-        logger.info(f"Received request - Model: {model}, Message length: {len(message)}")
-        
-        # Call Ollama API
-        ollama_response = requests.post(
-            f"{OLLAMA_BASE_URL}/api/generate",
-            json={
-                "model": model,
-                "prompt": message,
-                "stream": False
-            },
-            timeout=None
-        )
-        
-        if ollama_response.status_code == 200:
-            result = ollama_response.json()
-            logger.info(f"Ollama response successful: {result}")
-            return jsonify({
-                "success": True,
-                "response": result.get('response', ''),
-                "model": model
-            })
-        else:
-            logger.error(f"Ollama API error: {ollama_response.status_code}")
-            return jsonify({
-                "success": False,
-                "error": f"Ollama API error: {ollama_response.status_code}"
-            }), 500
-            
-    except Exception as e:
-        logger.error(f"Server error: {str(e)}")
-        return jsonify({
-            "success": False,
-            "error": f"Server error: {str(e)}"
-        }), 500
+# 启用 CORS
+if config.CORS_ENABLED:
+    CORS(app)
 
-@app.route('/api/models', methods=['GET'])
-def get_models():
-    try:
-        response = requests.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=10)
-        if response.status_code == 200:
-            models_data = response.json()
-            return jsonify({
-                "success": True,
-                "models": models_data.get('models', [])
-            })
-        else:
-            return jsonify({
-                "success": False,
-                "error": "Unable to fetch model list"
-            }), 500
-    except Exception as e:
-        return jsonify({
-            "success": False,
-            "error": f"Failed to connect to Ollama: {str(e)}"
-        }), 500
+# 注册蓝图
+app.register_blueprint(api_bp)
 
-@app.route('/api/health', methods=['GET'])
-def health_check():
-    try:
-        response = requests.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=5)
-        return jsonify({
-            "status": "healthy" if response.status_code == 200 else "unhealthy",
-            "ollama_available": response.status_code == 200
-        })
-    except Exception as e:
-        return jsonify({
-            "status": "unhealthy",
-            "ollama_available": False,
-            "error": str(e)
-        }), 503
+# 设置最大内容长度
+app.config['MAX_CONTENT_LENGTH'] = config.MAX_CONTENT_LENGTH
 
-@app.route('/api/stop', methods=['POST'])
-def stop_server():
-    """Stop Flask server"""
-    def shutdown():
-        time.sleep(1)
-        os._exit(0)
-    
-    threading.Thread(target=shutdown).start()
-    return jsonify({"success": True, "message": "Server is shutting down"})
+
+@app.route('/')
+def index():
+    """根路径"""
+    return {
+        "name": "OOC Flask API",
+        "version": "1.0.0",
+        "status": "running"
+    }
+
+
+@app.errorhandler(404)
+def not_found(error):
+    """404 错误处理"""
+    return {
+        "success": False,
+        "error": "Endpoint not found"
+    }, 404
+
+
+@app.errorhandler(500)
+def internal_error(error):
+    """500 错误处理"""
+    logger.error(f"Internal server error: {str(error)}", exc_info=True)
+    return {
+        "success": False,
+        "error": "Internal server error"
+    }, 500
+
 
 if __name__ == '__main__':
     logger.info("Starting Flask server...")
-    app.run(host='127.0.0.1', port=5000, debug=False, use_reloader=False)
+    logger.info(f"Environment: {config.__class__.__name__}")
+    logger.info(f"Host: {config.HOST}, Port: {config.PORT}")
+    logger.info(f"Debug: {config.DEBUG}")
+    
+    app.run(
+        host=config.HOST,
+        port=config.PORT,
+        debug=config.DEBUG,
+        use_reloader=False
+    )

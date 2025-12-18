@@ -4,9 +4,6 @@ import {
   AIProvider,
   OllamaConfig,
   DeepSeekConfig,
-  OpenAIConfig,
-  AnthropicConfig,
-  CustomConfig,
 } from '@/types';
 import { DEFAULT_SETTINGS } from '@/types/constants';
 
@@ -65,36 +62,6 @@ const settingsSlice = createSlice({
     ) => {
       state.settings.ai.deepseek = {
         ...state.settings.ai.deepseek,
-        ...action.payload,
-      };
-      state.hasUnsavedChanges = true;
-    },
-    updateOpenAIConfig: (
-      state,
-      action: PayloadAction<Partial<OpenAIConfig>>
-    ) => {
-      state.settings.ai.openai = {
-        ...state.settings.ai.openai,
-        ...action.payload,
-      };
-      state.hasUnsavedChanges = true;
-    },
-    updateAnthropicConfig: (
-      state,
-      action: PayloadAction<Partial<AnthropicConfig>>
-    ) => {
-      state.settings.ai.anthropic = {
-        ...state.settings.ai.anthropic,
-        ...action.payload,
-      };
-      state.hasUnsavedChanges = true;
-    },
-    updateCustomConfig: (
-      state,
-      action: PayloadAction<Partial<CustomConfig>>
-    ) => {
-      state.settings.ai.custom = {
-        ...state.settings.ai.custom,
         ...action.payload,
       };
       state.hasUnsavedChanges = true;
@@ -158,9 +125,6 @@ export const {
   updateAiProvider,
   updateOllamaConfig,
   updateDeepSeekConfig,
-  updateOpenAIConfig,
-  updateAnthropicConfig,
-  updateCustomConfig,
   updateGeneralSettings,
   updateAppearanceSettings,
   updateAdvancedSettings,

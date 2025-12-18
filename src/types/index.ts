@@ -118,12 +118,7 @@ export interface ChatResponse {
     total_tokens: number;
   };
 }
-export type AIProvider =
-  | 'ollama'
-  | 'openai'
-  | 'anthropic'
-  | 'deepseek'
-  | 'custom';
+export type AIProvider = 'ollama' | 'deepseek';
 
 export interface AIProviderConfig {
   provider: AIProvider;
@@ -143,21 +138,6 @@ export interface DeepSeekConfig extends AIProviderConfig {
   apiKey: string;
 }
 
-export interface OpenAIConfig extends AIProviderConfig {
-  provider: 'openai';
-  apiKey: string;
-}
-
-export interface AnthropicConfig extends AIProviderConfig {
-  provider: 'anthropic';
-  apiKey: string;
-}
-
-export interface CustomConfig extends AIProviderConfig {
-  provider: 'custom';
-  apiKey: string;
-}
-
 export interface AppSettings {
   general: GeneralSettings;
   appearance: AppearanceSettings;
@@ -169,9 +149,6 @@ export interface AISettings {
   provider: AIProvider;
   ollama: OllamaConfig;
   deepseek: DeepSeekConfig;
-  openai: OpenAIConfig;
-  anthropic: AnthropicConfig;
-  custom: CustomConfig;
 }
 // 服务器状态类型
 export type PythonServerStatus =

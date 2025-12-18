@@ -6,9 +6,6 @@ import {
   updateAiProvider,
   updateOllamaConfig,
   updateDeepSeekConfig,
-  updateOpenAIConfig,
-  updateAnthropicConfig,
-  updateCustomConfig,
   updateGeneralSettings,
   updateAppearanceSettings,
   updateAdvancedSettings,
@@ -20,9 +17,6 @@ import {
 import {
   OllamaConfig,
   DeepSeekConfig,
-  OpenAIConfig,
-  AnthropicConfig,
-  CustomConfig,
   AIProvider,
   AppSettings,
 } from '@/types';
@@ -48,12 +42,6 @@ export const useSettingsState = () => {
       dispatch(updateOllamaConfig(config)),
     updateDeepSeekConfig: (config: Partial<DeepSeekConfig>) =>
       dispatch(updateDeepSeekConfig(config)),
-    updateOpenAIConfig: (config: Partial<OpenAIConfig>) =>
-      dispatch(updateOpenAIConfig(config)),
-    updateAnthropicConfig: (config: Partial<AnthropicConfig>) =>
-      dispatch(updateAnthropicConfig(config)),
-    updateCustomConfig: (config: Partial<CustomConfig>) =>
-      dispatch(updateCustomConfig(config)),
 
     // 分类设置
     updateGeneralSettings: (settings: Partial<AppSettings['general']>) =>

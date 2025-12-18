@@ -20,9 +20,6 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
     updateAiProvider,
     updateOllamaConfig,
     updateDeepSeekConfig,
-    updateOpenAIConfig,
-    updateAnthropicConfig,
-    updateCustomConfig,
     updateGeneralSettings,
     updateAppearanceSettings,
     updateAdvancedSettings,
@@ -38,39 +35,25 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
   };
 
   const handleApiKeyChange = (provider: AIProvider, apiKey: string) => {
-    const updateActions = {
-      ollama: updateOllamaConfig,
-      deepseek: updateDeepSeekConfig,
-      openai: updateOpenAIConfig,
-      anthropic: updateAnthropicConfig,
-      custom: updateCustomConfig,
-    };
-
-    updateActions[provider]?.({ apiKey });
+    if (provider === 'deepseek') {
+      updateDeepSeekConfig({ apiKey });
+    }
   };
 
   const handleBaseUrlChange = (provider: AIProvider, baseUrl: string) => {
-    const updateActions = {
-      ollama: updateOllamaConfig,
-      deepseek: updateDeepSeekConfig,
-      openai: updateOpenAIConfig,
-      anthropic: updateAnthropicConfig,
-      custom: updateCustomConfig,
-    };
-
-    updateActions[provider]?.({ baseUrl });
+    if (provider === 'ollama') {
+      updateOllamaConfig({ baseUrl });
+    } else if (provider === 'deepseek') {
+      updateDeepSeekConfig({ baseUrl });
+    }
   };
 
   const handleModelChange = (provider: AIProvider, model: string) => {
-    const updateActions = {
-      ollama: updateOllamaConfig,
-      deepseek: updateDeepSeekConfig,
-      openai: updateOpenAIConfig,
-      anthropic: updateAnthropicConfig,
-      custom: updateCustomConfig,
-    };
-
-    updateActions[provider]?.({ model });
+    if (provider === 'ollama') {
+      updateOllamaConfig({ model });
+    } else if (provider === 'deepseek') {
+      updateDeepSeekConfig({ model });
+    }
   };
 
   const handleSave = () => {
@@ -169,9 +152,6 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
                 >
                   <option value='ollama'>Ollama (本地)</option>
                   <option value='deepseek'>DeepSeek</option>
-                  <option value='openai'>OpenAI</option>
-                  <option value='anthropic'>Anthropic</option>
-                  <option value='custom'>自定义</option>
                 </select>
               </div>
 
@@ -241,16 +221,11 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
                   type='number'
                   value={currentConfig.timeout}
                   onChange={(e) => {
-                    const updateActions = {
-                      ollama: updateOllamaConfig,
-                      deepseek: updateDeepSeekConfig,
-                      openai: updateOpenAIConfig,
-                      anthropic: updateAnthropicConfig,
-                      custom: updateCustomConfig,
-                    };
-                    updateActions[currentProvider]?.({
-                      timeout: parseInt(e.target.value),
-                    });
+                    if (currentProvider === 'ollama') {
+                      updateOllamaConfig({ timeout: parseInt(e.target.value) });
+                    } else if (currentProvider === 'deepseek') {
+                      updateDeepSeekConfig({ timeout: parseInt(e.target.value) });
+                    }
                   }}
                 />
               </div>
@@ -261,16 +236,11 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
                   type='number'
                   value={currentConfig.maxTokens}
                   onChange={(e) => {
-                    const updateActions = {
-                      ollama: updateOllamaConfig,
-                      deepseek: updateDeepSeekConfig,
-                      openai: updateOpenAIConfig,
-                      anthropic: updateAnthropicConfig,
-                      custom: updateCustomConfig,
-                    };
-                    updateActions[currentProvider]?.({
-                      maxTokens: parseInt(e.target.value),
-                    });
+                    if (currentProvider === 'ollama') {
+                      updateOllamaConfig({ maxTokens: parseInt(e.target.value) });
+                    } else if (currentProvider === 'deepseek') {
+                      updateDeepSeekConfig({ maxTokens: parseInt(e.target.value) });
+                    }
                   }}
                 />
               </div>
@@ -285,16 +255,11 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
                     step='0.1'
                     value={currentConfig.temperature}
                     onChange={(e) => {
-                      const updateActions = {
-                        ollama: updateOllamaConfig,
-                        deepseek: updateDeepSeekConfig,
-                        openai: updateOpenAIConfig,
-                        anthropic: updateAnthropicConfig,
-                        custom: updateCustomConfig,
-                      };
-                      updateActions[currentProvider]?.({
-                        temperature: parseFloat(e.target.value),
-                      });
+                      if (currentProvider === 'ollama') {
+                        updateOllamaConfig({ temperature: parseFloat(e.target.value) });
+                      } else if (currentProvider === 'deepseek') {
+                        updateDeepSeekConfig({ temperature: parseFloat(e.target.value) });
+                      }
                     }}
                   />
                 </label>
