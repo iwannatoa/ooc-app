@@ -9,6 +9,7 @@ interface ConversationListProps {
   onSelectConversation: (id: string) => void;
   onDeleteConversation: (id: string) => void;
   onNewConversation: () => void;
+  onRefresh?: () => void;
   onCollapseChange?: (collapsed: boolean) => void;
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
@@ -20,6 +21,7 @@ const ConversationList: React.FC<ConversationListProps> = ({
   onSelectConversation,
   onDeleteConversation,
   onNewConversation,
+  onRefresh,
   onCollapseChange,
   isCollapsed: externalCollapsed,
   onToggleCollapse,
@@ -54,13 +56,24 @@ const ConversationList: React.FC<ConversationListProps> = ({
         <h2>{t('conversation.title')}</h2>
         <div className={styles.headerActions}>
           {!isCollapsed && (
-            <button
-              onClick={onNewConversation}
-              className={styles.newButton}
-              title={t('conversation.newConversation')}
-            >
-              + {t('common.new')}
-            </button>
+            <>
+              {onRefresh && (
+                <button
+                  onClick={onRefresh}
+                  className={styles.refreshButton}
+                  title={t('common.refresh')}
+                >
+                  ↻
+                </button>
+              )}
+              <button
+                onClick={onNewConversation}
+                className={styles.newButton}
+                title={t('conversation.newConversation')}
+              >
+                + {t('common.new')}
+              </button>
+            </>
           )}
           <button
             onClick={handleToggleCollapse}

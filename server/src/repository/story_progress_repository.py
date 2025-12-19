@@ -22,15 +22,15 @@ class StoryProgressRepository:
             db_path: 数据库文件路径
         """
         self.db_path = db_path
-        # 创建数据库引擎
+        # Create database engine
         self.engine = create_engine(
             f'sqlite:///{db_path}',
             echo=False,
             connect_args={'check_same_thread': False}
         )
-        # 创建会话工厂
+        # Create session factory
         self.SessionLocal = sessionmaker(bind=self.engine)
-        # 创建表（如果不存在）
+        # Create tables (if not exist)
         self._init_database()
     
     def _init_database(self):
@@ -100,7 +100,7 @@ class StoryProgressRepository:
             ).first()
             
             if existing:
-                # 更新现有进度
+                # Update existing progress
                 existing.current_section = current_section
                 if total_sections is not None:
                     existing.total_sections = total_sections
@@ -116,7 +116,7 @@ class StoryProgressRepository:
                 logger.info(f"Updated progress for conversation: {conversation_id}")
                 return existing
             else:
-                # 创建新进度
+                # Create new progress
                 new_progress = StoryProgress(
                     conversation_id=conversation_id,
                     current_section=current_section,
@@ -158,11 +158,24 @@ class StoryProgressRepository:
             
             if progress:
                 progress.outline_confirmed = 'true'
-                progress.status = 'pending'  # 大纲确认后，可以开始生成
+                progress.status = 'pending'  # Can start generation after outline is confirmed
                 progress.updated_at = datetime.utcnow()
-                session.commit()
-                return True
-            return False
+            else:
+                # Create progress if it doesn't exist
+                progress = StoryProgress(
+                    conversation_id=conversation_id,
+                    current_section=0,
+                    status='pending',
+                    outline_confirmed='true',
+                    created_at=datetime.utcnow(),
+                    updated_at=datetime.utcnow()
+                )
+                session.add(progress)
+            
+            session.commit()
+            session.refresh(progress)
+            logger.info(f"Marked outline confirmed for conversation: {conversation_id}")
+            return True
         except Exception as e:
             session.rollback()
             logger.error(f"Failed to mark outline confirmed: {str(e)}")

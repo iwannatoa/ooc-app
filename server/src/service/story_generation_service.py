@@ -1,8 +1,10 @@
 """
 Story generation service layer
 """
-from typing import Optional, Dict, List, TYPE_CHECKING
+from typing import Optional, Dict, List, TYPE_CHECKING, Generator
+import json
 from service.ai_service import AIService
+from service.ai_service_streaming import AIServiceStreaming
 from service.chat_service import ChatService
 from service.conversation_service import ConversationService
 from service.summary_service import SummaryService
@@ -10,6 +12,7 @@ from service.story_service import StoryService
 from service.ai_config_service import AIConfigService
 from service.app_settings_service import AppSettingsService
 from utils.system_prompt import build_system_prompt, build_feedback_prompt
+from utils.i18n import get_i18n_text
 from config import get_config
 from utils.logger import get_logger
 
@@ -25,6 +28,7 @@ class StoryGenerationService:
     def __init__(
         self,
         ai_service: AIService,
+        ai_service_streaming: AIServiceStreaming,
         chat_service: ChatService,
         conversation_service: ConversationService,
         summary_service: SummaryService,
@@ -46,6 +50,7 @@ class StoryGenerationService:
             app_settings_service: App settings service instance
         """
         self.ai_service = ai_service
+        self.ai_service_streaming = ai_service_streaming
         self.chat_service = chat_service
         self.conversation_service = conversation_service
         self.summary_service = summary_service
@@ -107,12 +112,17 @@ class StoryGenerationService:
         Returns:
             生成结果字典
         """
-        progress = self.story_service.get_progress(conversation_id)
-        if not progress or not progress.get('outline_confirmed'):
+        # Check if outline exists in database
+        settings = self.conversation_service.get_settings(conversation_id)
+        if not settings or not settings.get('outline'):
+            language = self.app_settings_service.get_language()
+            error_msg = get_i18n_text(language, 'error_messages.outline_required')
             return {
                 "success": False,
-                "error": "请先确认故事大纲"
+                "error": error_msg
             }
+        
+        progress = self.story_service.get_progress(conversation_id)
         
         api_config = self.ai_config_service.get_config_for_api(
             provider=provider,
@@ -126,7 +136,8 @@ class StoryGenerationService:
         
         messages, system_prompt = self._prepare_generation_context(conversation_id)
         
-        user_message = "请根据大纲生成当前部分的故事内容。"
+        language = self.app_settings_service.get_language()
+        user_message = get_i18n_text(language, 'user_messages.generate_current_section')
         result = self.ai_service.chat(
             provider=api_config['provider'],
             message=user_message,
@@ -141,26 +152,32 @@ class StoryGenerationService:
         
         if result.get('success'):
             response_content = result.get('response', '')
+            # Remove think content before saving
+            clean_content = self.conversation_service._strip_think_content(response_content)
             
             self.chat_service.save_user_message(conversation_id, user_message)
             assistant_msg = self.chat_service.save_assistant_message(
                 conversation_id=conversation_id,
-                content=response_content,
+                content=clean_content,
                 model=result.get('model'),
                 provider=api_config['provider']
             )
             
-            # Record characters from generated content
+            # Record characters from generated content (use clean content)
             settings = self.conversation_service.get_settings(conversation_id)
             if assistant_msg:
                 self._record_characters_from_message(
                     conversation_id=conversation_id,
                     message_id=assistant_msg.get('id'),
-                    content=response_content,
+                    content=clean_content,
                     settings=settings
                 )
-            
-            current_section = progress.get('current_section') or 0
+                
+                # Ensure progress is a dict before calling .get()
+                if isinstance(progress, dict):
+                    current_section = progress.get('current_section', 0) or 0
+                else:
+                    current_section = 0
             self.story_service.update_progress(
                 conversation_id=conversation_id,
                 last_generated_content=response_content,
@@ -175,6 +192,123 @@ class StoryGenerationService:
                 result['story_progress'] = updated_progress
         
         return result
+    
+    def generate_story_section_stream(
+        self,
+        conversation_id: str,
+        provider: str,
+        model: Optional[str] = None
+    ) -> Generator[str, None, None]:
+        """
+        流式生成故事的一个部分
+        
+        Args:
+            conversation_id: 会话ID
+            provider: AI提供商
+            model: 模型名称，如果不提供则使用全局配置的默认模型
+        
+        Yields:
+            文本块
+        """
+        # Check if outline exists in database
+        settings = self.conversation_service.get_settings(conversation_id)
+        if not settings or not settings.get('outline'):
+            language = self.app_settings_service.get_language()
+            error_msg = get_i18n_text(language, 'error_messages.outline_required')
+            yield json.dumps({"error": error_msg}) + "\n"
+            return
+        
+        progress = self.story_service.get_progress(conversation_id)
+        
+        api_config = self.ai_config_service.get_config_for_api(
+            provider=provider,
+            model=model
+        )
+        
+        self.story_service.update_progress(
+            conversation_id=conversation_id,
+            status='generating'
+        )
+        
+        messages, system_prompt = self._prepare_generation_context(conversation_id)
+        
+        language = self.app_settings_service.get_language()
+        user_message = get_i18n_text(language, 'user_messages.generate_current_section')
+        
+        # Stream the response
+        accumulated_content = ""
+        try:
+            for chunk in self.ai_service_streaming.chat_stream(
+                provider=api_config['provider'],
+                message=user_message,
+                model=api_config['model'],
+                api_key=api_config['api_key'],
+                base_url=api_config['base_url'],
+                max_tokens=api_config['max_tokens'],
+                temperature=api_config['temperature'],
+                system_prompt=system_prompt,
+                messages=messages
+            ):
+                accumulated_content += chunk
+                yield chunk
+        except Exception as e:
+            error_msg = str(e)
+            logger.error(f"Error in stream: {error_msg}", exc_info=True)
+            # Also print to stderr for immediate visibility in Tauri
+            import sys
+            print(f"[ERROR] Error in stream: {error_msg}", file=sys.stderr, flush=True)
+            yield json.dumps({"error": error_msg}) + "\n"
+            return
+        
+        # Save messages after streaming completes
+        if accumulated_content:
+            try:
+                # Remove think content before saving
+                clean_content = self.conversation_service._strip_think_content(accumulated_content)
+                
+                self.chat_service.save_user_message(conversation_id, user_message)
+                assistant_msg = self.chat_service.save_assistant_message(
+                    conversation_id=conversation_id,
+                    content=clean_content,
+                    model=api_config['model'],
+                    provider=api_config['provider']
+                )
+                
+                # Record characters from generated content (use clean content)
+                settings = self.conversation_service.get_settings(conversation_id)
+                if assistant_msg:
+                    self._record_characters_from_message(
+                        conversation_id=conversation_id,
+                        message_id=assistant_msg.get('id'),
+                        content=clean_content,
+                        settings=settings
+                    )
+                
+                # Get current section from progress (re-fetch to ensure we have the latest)
+                current_progress = self.story_service.get_progress(conversation_id)
+                if isinstance(current_progress, dict):
+                    current_section = current_progress.get('current_section', 0)
+                elif progress and isinstance(progress, dict):
+                    current_section = progress.get('current_section', 0)
+                else:
+                    current_section = 0
+                    
+                self.story_service.update_progress(
+                    conversation_id=conversation_id,
+                    last_generated_content=accumulated_content,
+                    last_generated_section=current_section,
+                    status='completed'
+                )
+                
+                # Check if summary is needed
+                result = {"success": True, "response": accumulated_content}
+                self._check_and_mark_summary_needed(conversation_id, result)
+            except Exception as e:
+                error_msg = str(e)
+                logger.error(f"Error saving streamed content: {error_msg}", exc_info=True)
+                # Also print to stderr for immediate visibility in Tauri
+                import sys
+                print(f"[ERROR] Error saving streamed content: {error_msg}", file=sys.stderr, flush=True)
     
     def confirm_section(
         self,
@@ -195,9 +329,20 @@ class StoryGenerationService:
         """
         progress = self.story_service.get_progress(conversation_id)
         if not progress:
+            language = self.app_settings_service.get_language()
+            error_msg = get_i18n_text(language, 'error_messages.story_progress_not_found')
             return {
                 "success": False,
-                "error": "故事进度不存在"
+                "error": error_msg
+            }
+        
+        # Ensure progress is a dict
+        if not isinstance(progress, dict):
+            language = self.app_settings_service.get_language()
+            error_msg = get_i18n_text(language, 'error_messages.invalid_progress_data')
+            return {
+                "success": False,
+                "error": error_msg
             }
         
         new_section = (progress.get('current_section') or 0) + 1
@@ -232,28 +377,30 @@ class StoryGenerationService:
         
         if result.get('success'):
             response_content = result.get('response', '')
+            # Remove think content before saving
+            clean_content = self.conversation_service._strip_think_content(response_content)
             
             self.chat_service.save_user_message(conversation_id, user_message)
             assistant_msg = self.chat_service.save_assistant_message(
                 conversation_id=conversation_id,
-                content=response_content,
+                content=clean_content,
                 model=result.get('model'),
                 provider=api_config['provider']
             )
             
-            # Record characters from generated content
+            # Record characters from generated content (use clean content)
             settings = self.conversation_service.get_settings(conversation_id)
             if assistant_msg:
                 self._record_characters_from_message(
                     conversation_id=conversation_id,
                     message_id=assistant_msg.get('id'),
-                    content=response_content,
+                    content=clean_content,
                     settings=settings
                 )
             
             self.story_service.update_progress(
                 conversation_id=conversation_id,
-                last_generated_content=response_content,
+                last_generated_content=clean_content,
                 last_generated_section=new_section,
                 status='completed'
             )
@@ -286,17 +433,29 @@ class StoryGenerationService:
             Generation result dictionary
         """
         progress = self.story_service.get_progress(conversation_id)
+        language = self.app_settings_service.get_language()
+        
         if not progress:
+            error_msg = get_i18n_text(language, 'error_messages.story_progress_not_found')
             return {
                 "success": False,
-                "error": "Story progress not found"
+                "error": error_msg
+            }
+        
+        # Ensure progress is a dict
+        if not isinstance(progress, dict):
+            error_msg = get_i18n_text(language, 'error_messages.invalid_progress_data')
+            return {
+                "success": False,
+                "error": error_msg
             }
         
         previous_content = progress.get('last_generated_content')
         if not previous_content:
+            error_msg = get_i18n_text(language, 'error_messages.no_content_to_rewrite')
             return {
                 "success": False,
-                "error": "No content to rewrite"
+                "error": error_msg
             }
         
         api_config = self.ai_config_service.get_config_for_api(
@@ -323,22 +482,24 @@ class StoryGenerationService:
         
         if result.get('success'):
             response_content = result.get('response', '')
+            # Remove think content before saving
+            clean_content = self.conversation_service._strip_think_content(response_content)
             
             self.chat_service.save_user_message(conversation_id, feedback)
             assistant_msg = self.chat_service.save_assistant_message(
                 conversation_id=conversation_id,
-                content=response_content,
+                content=clean_content,
                 model=result.get('model'),
                 provider=api_config['provider']
             )
             
-            # Record characters from generated content
+            # Record characters from generated content (use clean content)
             settings = self.conversation_service.get_settings(conversation_id)
             if assistant_msg:
                 self._record_characters_from_message(
                     conversation_id=conversation_id,
                     message_id=assistant_msg.get('id'),
-                    content=response_content,
+                    content=clean_content,
                     settings=settings
                 )
             
@@ -401,8 +562,14 @@ class StoryGenerationService:
         
         progress = self.story_service.get_progress(conversation_id)
         if current_section is None:
-            current_section = progress.get('current_section') if progress else None
-        total_sections = progress.get('total_sections') if progress else None
+            if isinstance(progress, dict):
+                current_section = progress.get('current_section')
+            else:
+                current_section = None
+        if isinstance(progress, dict):
+            total_sections = progress.get('total_sections')
+        else:
+            total_sections = None
         
         summary = self.summary_service.get_summary(conversation_id)
         summary_text = summary.get('summary') if summary else None

@@ -53,6 +53,9 @@ app.config['MAX_CONTENT_LENGTH'] = config.MAX_CONTENT_LENGTH
 
 injector = FlaskInjector(app=app, modules=[AppModule()])
 
+# Global server instance for shutdown
+_server_instance = None
+
 
 @app.route('/')
 def index():
@@ -98,15 +101,19 @@ def health_check():
 def stop_server():
     import threading
     import time
-    
     def shutdown():
+        global _server_instance
         time.sleep(1)
-        func = request.environ.get('werkzeug.server.shutdown')
-        if func is None:
-            raise RuntimeError('Not running with the Werkzeug Server')
-        func()
+        if _server_instance:
+            logger.info("Shutting down server via server.shutdown()")
+            _server_instance.shutdown()
+        else:
+            # Fallback: use os._exit if no other method available
+            import os
+            logger.info("Shutting down server via os._exit")
+            os._exit(0)
     
-    threading.Thread(target=shutdown).start()
+    threading.Thread(target=shutdown, daemon=True).start()
     return jsonify({
         "success": True,
         "message": "Server is shutting down"
@@ -145,12 +152,12 @@ if __name__ == '__main__':
         requested_port = s.getsockname()[1]
         s.close()
     
-    server = make_server(config.HOST, requested_port, app)
-    actual_port = server.server_port
+    _server_instance = make_server(config.HOST, requested_port, app)
+    actual_port = _server_instance.server_port
     
     print(f"FLASK_PORT:{actual_port}", flush=True)
     
     logger.info(f"Server running on http://{config.HOST}:{actual_port}")
     
-    server.serve_forever()
+    _server_instance.serve_forever()
 

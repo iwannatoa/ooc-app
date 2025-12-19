@@ -20,7 +20,7 @@ class ChatRecord(Base):
     provider = Column(String(50), nullable=True, comment='AI提供商: ollama, deepseek')
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True, comment='创建时间')
     
-    # 添加索引以提高查询性能
+    # Add index to improve query performance
     __table_args__ = (
         Index('idx_conversation_created', 'conversation_id', 'created_at'),
     )

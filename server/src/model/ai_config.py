@@ -22,7 +22,7 @@ class AIConfig(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False, comment='创建时间')
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False, comment='更新时间')
     
-    # 确保每个 provider 只有一条记录
+    # Ensure only one record per provider
     __table_args__ = (
         UniqueConstraint('provider', name='uq_provider'),
     )
@@ -45,7 +45,7 @@ class AIConfig(Base):
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
         
-        # 只在明确要求时返回 API Key
+        # Return API Key only when explicitly requested
         if include_api_key:
             result['api_key'] = self.api_key
         

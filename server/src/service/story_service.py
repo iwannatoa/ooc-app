@@ -77,11 +77,11 @@ class StoryService:
         Returns:
             更新后的进度字典
         """
-        # 获取现有进度
+        # Get existing progress
         existing = self.repository.get_progress(conversation_id)
         
         if existing:
-            # 更新现有进度
+            # Update existing progress
             progress = self.repository.create_or_update_progress(
                 conversation_id=conversation_id,
                 current_section=current_section if current_section is not None else existing.current_section,
@@ -92,7 +92,7 @@ class StoryService:
                 outline_confirmed=outline_confirmed if outline_confirmed is not None else (existing.outline_confirmed == 'true')
             )
         else:
-            # 创建新进度
+            # Create new progress
             progress = self.repository.create_or_update_progress(
                 conversation_id=conversation_id,
                 current_section=current_section or 0,
@@ -119,10 +119,10 @@ class StoryService:
         if not progress:
             return False
         
-        # 如果大纲未确认，不能生成
+        # Cannot generate if outline is not confirmed
         if progress.outline_confirmed != 'true':
             return False
         
-        # 如果状态是 pending 或 completed，可以生成下一部分
+        # Can generate next section if status is pending or completed
         return progress.status in ['pending', 'completed']
 

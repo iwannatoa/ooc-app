@@ -72,7 +72,7 @@ class SummaryRepository:
         """
         session = self._get_session()
         try:
-            # 查找是否已存在总结
+            # Check if summary already exists
             existing = session.query(ConversationSummary).filter(
                 ConversationSummary.conversation_id == conversation_id
             ).first()

@@ -95,7 +95,24 @@
     }
   },
   "user_messages": {
-    "continue_story": "Please continue generating the next section of the story."
+    "continue_story": "Please continue generating the next section of the story.",
+    "generate_current_section": "Please generate the current section of the story based on the outline."
+  },
+  "error_messages": {
+    "outline_required": "Please set the story outline first",
+    "message_required": "message is required",
+    "provider_required": "provider is required (ollama or deepseek)",
+    "conversation_id_required": "conversation_id is required",
+    "background_required": "background is required",
+    "background_required_detailed": "Background is required. Please provide background in request or save it in settings first.",
+    "language_required": "language is required",
+    "name_required": "name is required",
+    "server_error": "Server error: {error}",
+    "story_progress_not_found": "Story progress not found",
+    "invalid_progress_data": "Invalid progress data",
+    "no_content_to_rewrite": "No content to rewrite",
+    "feedback_required": "feedback is required",
+    "summary_required": "summary is required"
   },
   "feedback_prompt": {
     "intro": "The user provided the following feedback:",
@@ -114,6 +131,43 @@
         "label": "**Operation Type**: Continue",
         "instruction": "Please continue developing the story based on the user's feedback."
       }
+    }
+  },
+  "character_generation": {
+    "intro": "Please generate a suitable new character based on the following story background.",
+    "sections": {
+      "background": "Story Background:",
+      "existing_characters_from_settings": "Existing Characters (from settings):",
+      "appeared_characters": "Appeared Characters:",
+      "recent_content": "Recent Story Content (for reference):",
+      "character_hints": "Character Hints:"
+    },
+    "instructions": {
+      "zh": "请生成一个新角色的信息，包括：\n1. 角色姓名\n2. 角色性格和设定（简要描述，100字左右）\n\n请按照以下格式返回：\n姓名：[角色姓名]\n设定：[角色性格和设定描述]",
+      "en": "Please generate information for a new character, including:\n1. Character name\n2. Character personality and settings (brief description, around 100 words)\n\nPlease return in the following format:\nName: [Character Name]\nSetting: [Character personality and setting description]"
+    }
+  },
+  "outline_generation": {
+    "intro": "Please generate a detailed story outline based on the following information:",
+    "sections": {
+      "background": "Story Background",
+      "characters": "Main Characters"
+    },
+    "character_format": {
+      "with_personality": "{index}. {name} - Setting: {personality}",
+      "without_personality": "{index}. {name}"
+    },
+    "instructions": {
+      "intro": "Please generate a detailed story outline including:",
+      "items": [
+        "1. Story beginning and background setting",
+        "2. Main conflicts and contradictions",
+        "3. Story development and turning points",
+        "4. Climax",
+        "5. Ending direction"
+      ],
+      "note": "The outline should be detailed and actionable to guide subsequent story creation.",
+      "warning": "Note: Do not include estimated word count or length information in the outline, only describe the story content and plot development."
     }
   }
 }

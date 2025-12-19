@@ -20,7 +20,7 @@ class ConversationSummary(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False, comment='创建时间')
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False, comment='更新时间')
     
-    # 添加索引
+    # Add index
     __table_args__ = (
         Index('idx_conversation_created', 'conversation_id', 'created_at'),
     )

@@ -7,6 +7,8 @@ import { useChatState } from '@/hooks/useChatState';
 import { useSettingsState } from '@/hooks/useSettingsState';
 import { useFlaskPort } from '@/hooks/useFlaskPort';
 import { useI18n } from '@/i18n';
+import { useConversationClient } from '@/hooks/useConversationClient';
+import { useConversationManagement } from '@/hooks/useConversationManagement';
 import { isMockMode, mockServerClient } from '@/mock';
 import StatusIndicator from './StatusIndicator';
 import styles from './ServerStatus.module.scss';
@@ -22,11 +24,20 @@ const ServerStatus: React.FC = () => {
   const { apiUrl, refetch: refetchPort } = useFlaskPort();
   const { t } = useI18n();
 
-  const { setModels, setSelectedModel } = useChatState();
+  const { setModels, setSelectedModel, activeConversationId, setMessages } = useChatState();
   const { settings, updateOllamaConfig } = useSettingsState();
+  const conversationClient = useConversationClient();
+  const { loadConversations } = useConversationManagement();
   const intervalId = useRef<number | null>(null);
   const hasGetModels = useRef<boolean>(false);
   const apiUrlRef = useRef<string>(apiUrl);
+  const isServerHealthy = useRef<boolean>(false);
+  const lastReloadedConversationId = useRef<string | null>(null);
+  
+  // 短 interval：服务器未正常时使用（3秒）
+  const SHORT_INTERVAL = 3000;
+  // 长 interval：服务器正常后使用（15秒）
+  const LONG_INTERVAL = 15000;
 
   useEffect(() => {
     apiUrlRef.current = apiUrl;
@@ -34,6 +45,8 @@ const ServerStatus: React.FC = () => {
 
   useEffect(() => {
     initializeCheckServerStatusInterval();
+    // 立即执行一次检查
+    checkPythonServerStatus();
     return () => {
       if (intervalId.current) {
         clearInterval(intervalId.current);
@@ -48,10 +61,21 @@ const ServerStatus: React.FC = () => {
       clearInterval(intervalId.current);
       intervalId.current = null;
     }
+    // 重置健康状态，使用短 interval 开始检查
+    isServerHealthy.current = false;
     setPythonServerStatus('started');
+    startHealthCheckInterval();
+  };
+
+  const startHealthCheckInterval = (): void => {
+    if (intervalId.current) {
+      clearInterval(intervalId.current);
+    }
+    // 根据服务器健康状态选择 interval
+    const interval = isServerHealthy.current ? LONG_INTERVAL : SHORT_INTERVAL;
     intervalId.current = window.setInterval(() => {
       checkPythonServerStatus();
-    }, 5000);
+    }, interval);
   };
 
   const checkPythonServerStatus = async (): Promise<void> => {
@@ -78,16 +102,62 @@ const ServerStatus: React.FC = () => {
           : 'disconnected'
       );
       if (data.status === 'healthy') {
+        const wasHealthy = isServerHealthy.current;
         setPythonServerStatus('started');
+        isServerHealthy.current = true;
+        // 如果从异常状态变为正常状态，切换到长 interval
+        if (!wasHealthy) {
+          startHealthCheckInterval();
+          // 先刷新端口，确保使用正确的端口号
+          refetchPort().then(() => {
+            // 等待一小段时间确保 React 状态已更新
+            setTimeout(() => {
+              // 重新加载会话列表
+              loadConversations().catch((error) => {
+                console.error('Failed to reload conversations list:', error);
+              });
+              // 重新加载当前会话的历史记录
+              if (activeConversationId) {
+                reloadConversationHistory(activeConversationId);
+                lastReloadedConversationId.current = activeConversationId;
+              }
+            }, 100);
+          }).catch((error) => {
+            console.error('Failed to refetch port:', error);
+          });
+        }
         if (settings.ai.provider === 'ollama' && !hasGetModels.current) {
           fetchModels();
         }
       } else {
+        const wasHealthy = isServerHealthy.current;
         setPythonServerStatus('error');
+        isServerHealthy.current = false;
+        // 如果从正常状态变为异常状态，切换到短 interval
+        if (wasHealthy) {
+          startHealthCheckInterval();
+          lastReloadedConversationId.current = null;
+        }
       }
     } catch (error) {
+      const wasHealthy = isServerHealthy.current;
       setPythonServerStatus('error');
       setOllamaStatus('disconnected');
+      isServerHealthy.current = false;
+      // 如果从正常状态变为异常状态，切换到短 interval
+      if (wasHealthy) {
+        startHealthCheckInterval();
+        lastReloadedConversationId.current = null;
+      }
+    }
+  };
+  
+  const reloadConversationHistory = async (conversationId: string): Promise<void> => {
+    try {
+      const messages = await conversationClient.getConversationMessages(conversationId);
+      setMessages(messages);
+    } catch (error) {
+      console.error('Failed to reload conversation history:', error);
     }
   };
 

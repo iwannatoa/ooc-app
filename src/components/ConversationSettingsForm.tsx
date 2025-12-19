@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useToast } from '@/hooks/useToast';
 import { ConversationSettings } from '@/types';
 import { useConversationClient } from '@/hooks/useConversationClient';
@@ -29,16 +29,28 @@ const ConversationSettingsForm: React.FC<ConversationSettingsFormProps> = ({
   const [characterPersonality, setCharacterPersonality] = useState<
     Record<string, string>
   >(settings?.character_personality || {});
+  const [characterIsMain, setCharacterIsMain] = useState<
+    Record<string, boolean>
+  >(settings?.character_is_main || {});
   const [outline, setOutline] = useState(settings?.outline || '');
   const [isGeneratingOutline, setIsGeneratingOutline] = useState(false);
   const [generatedOutline, setGeneratedOutline] = useState<string | null>(null);
   const [outlineConfirmed, setOutlineConfirmed] = useState(false);
   const [isGeneratingCharacter, setIsGeneratingCharacter] = useState(false);
   
+  const generatedContentRef = useRef<HTMLDivElement>(null);
+  
   const conversationClient = useConversationClient();
   const { settings: appSettings } = useSettingsState();
   const { t } = useI18n();
   const { showError, showWarning } = useToast();
+  
+  // Auto-scroll to bottom when generatedOutline updates during streaming
+  useEffect(() => {
+    if (generatedContentRef.current && generatedOutline && isGeneratingOutline) {
+      generatedContentRef.current.scrollTop = generatedContentRef.current.scrollHeight;
+    }
+  }, [generatedOutline, isGeneratingOutline]);
 
   const handleAddCharacter = () => {
     setCharacters([...characters, '']);
@@ -58,7 +70,11 @@ const ConversationSettingsForm: React.FC<ConversationSettingsFormProps> = ({
       const generated = await conversationClient.generateCharacter(
         conversationId,
         provider,
-        config.model
+        config.model,
+        undefined, // characterHints
+        background, // background
+        characters.filter(c => c.trim()), // characters (filter out empty strings)
+        characterPersonality // characterPersonality
       );
       
       // Add the generated character
@@ -93,10 +109,17 @@ const ConversationSettingsForm: React.FC<ConversationSettingsFormProps> = ({
     const newCharacters = characters.filter((_, i) => i !== index);
     setCharacters(newCharacters);
     const characterName = characters[index];
-    if (characterName && characterPersonality[characterName]) {
-      const newPersonality = { ...characterPersonality };
-      delete newPersonality[characterName];
-      setCharacterPersonality(newPersonality);
+    if (characterName) {
+      if (characterPersonality[characterName]) {
+        const newPersonality = { ...characterPersonality };
+        delete newPersonality[characterName];
+        setCharacterPersonality(newPersonality);
+      }
+      if (characterIsMain[characterName]) {
+        const newIsMain = { ...characterIsMain };
+        delete newIsMain[characterName];
+        setCharacterIsMain(newIsMain);
+      }
     }
   };
 
@@ -105,15 +128,27 @@ const ConversationSettingsForm: React.FC<ConversationSettingsFormProps> = ({
     const oldName = newCharacters[index];
     newCharacters[index] = value;
 
-    if (oldName && characterPersonality[oldName]) {
-      const newPersonality = { ...characterPersonality };
-      if (value) {
-        newPersonality[value] = newPersonality[oldName];
+    if (oldName) {
+      if (characterPersonality[oldName]) {
+        const newPersonality = { ...characterPersonality };
+        if (value) {
+          newPersonality[value] = newPersonality[oldName];
+        }
+        if (oldName !== value) {
+          delete newPersonality[oldName];
+        }
+        setCharacterPersonality(newPersonality);
       }
-      if (oldName !== value) {
-        delete newPersonality[oldName];
+      if (characterIsMain[oldName]) {
+        const newIsMain = { ...characterIsMain };
+        if (value) {
+          newIsMain[value] = newIsMain[oldName];
+        }
+        if (oldName !== value) {
+          delete newIsMain[oldName];
+        }
+        setCharacterIsMain(newIsMain);
       }
-      setCharacterPersonality(newPersonality);
     }
 
     setCharacters(newCharacters);
@@ -139,6 +174,7 @@ const ConversationSettingsForm: React.FC<ConversationSettingsFormProps> = ({
     }
 
     setIsGeneratingOutline(true);
+    setGeneratedOutline(''); // Clear previous outline
     try {
       const validPersonality: Record<string, string> = {};
       validCharacters.forEach((char) => {
@@ -150,13 +186,18 @@ const ConversationSettingsForm: React.FC<ConversationSettingsFormProps> = ({
       const provider = appSettings.ai.provider;
       const config = appSettings.ai[provider];
       
+      // Use streaming version with onChunk callback for real-time updates
       const generated = await conversationClient.generateOutline(
         background.trim(),
         validCharacters,
         validPersonality,
         conversationId,
         provider,
-        config.model
+        config.model,
+        (chunk: string, accumulated: string) => {
+          // Update outline in real-time as chunks arrive
+          setGeneratedOutline(accumulated);
+        }
       );
       
       setGeneratedOutline(generated);
@@ -232,6 +273,13 @@ const ConversationSettingsForm: React.FC<ConversationSettingsFormProps> = ({
     });
 
     try {
+      const validIsMain: Record<string, boolean> = {};
+      validCharacters.forEach((char) => {
+        if (characterIsMain[char]) {
+          validIsMain[char] = characterIsMain[char];
+        }
+      });
+      
       await onSave({
         conversation_id: conversationId,
         title: title.trim() || undefined,
@@ -240,6 +288,10 @@ const ConversationSettingsForm: React.FC<ConversationSettingsFormProps> = ({
         character_personality:
           Object.keys(validPersonality).length > 0
             ? validPersonality
+            : undefined,
+        character_is_main:
+          Object.keys(validIsMain).length > 0
+            ? validIsMain
             : undefined,
         outline: finalOutline || undefined,
       });
@@ -325,15 +377,30 @@ const ConversationSettingsForm: React.FC<ConversationSettingsFormProps> = ({
                   className={styles.characterInput}
                 />
                 {char && (
-                  <input
-                    type="text"
-                    value={characterPersonality[char] || ''}
-                    onChange={(e) =>
-                      handlePersonalityChange(char, e.target.value)
-                    }
-                    placeholder={t('conversationSettingsForm.characterSettingPlaceholder')}
-                    className={styles.personalityInput}
-                  />
+                  <>
+                    <input
+                      type="text"
+                      value={characterPersonality[char] || ''}
+                      onChange={(e) =>
+                        handlePersonalityChange(char, e.target.value)
+                      }
+                      placeholder={t('conversationSettingsForm.characterSettingPlaceholder')}
+                      className={styles.personalityInput}
+                    />
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap', fontSize: '12px', cursor: 'pointer', marginLeft: '8px' }}>
+                      <input
+                        type="checkbox"
+                        checked={characterIsMain[char] || false}
+                        onChange={(e) => {
+                          setCharacterIsMain({
+                            ...characterIsMain,
+                            [char]: e.target.checked,
+                          });
+                        }}
+                      />
+                      {t('conversationSettingsForm.mainCharacter', { defaultValue: '主要' })}
+                    </label>
+                  </>
                 )}
                 {characters.length > 1 && (
                   <button
@@ -385,7 +452,7 @@ const ConversationSettingsForm: React.FC<ConversationSettingsFormProps> = ({
                     </button>
                   </div>
                 </div>
-                <div className={styles.generatedContent}>{generatedOutline}</div>
+                <div ref={generatedContentRef} className={styles.generatedContent}>{generatedOutline}</div>
               </div>
             )}
             

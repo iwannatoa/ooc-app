@@ -1,5 +1,5 @@
 [package]
-name = "ollama-tauri-app"
+name = "ooc-tauri-app"
 version = "0.1.0"
 description = "OOC story with Embedded Python Flask API"
 authors = ["Patrick Zhang"]

@@ -95,7 +95,24 @@
     }
   },
   "user_messages": {
-    "continue_story": "请继续生成下一部分故事内容。"
+    "continue_story": "请继续生成下一部分故事内容。",
+    "generate_current_section": "请根据大纲生成当前部分的故事内容。"
+  },
+  "error_messages": {
+    "outline_required": "请先设置故事大纲",
+    "message_required": "message is required",
+    "provider_required": "provider is required (ollama or deepseek)",
+    "conversation_id_required": "conversation_id is required",
+    "background_required": "background is required",
+    "background_required_detailed": "Background is required. Please provide background in request or save it in settings first.",
+    "language_required": "language is required",
+    "name_required": "name is required",
+    "server_error": "Server error: {error}",
+    "story_progress_not_found": "Story progress not found",
+    "invalid_progress_data": "Invalid progress data",
+    "no_content_to_rewrite": "No content to rewrite",
+    "feedback_required": "feedback is required",
+    "summary_required": "summary is required"
   },
   "feedback_prompt": {
     "intro": "用户提供了以下反馈：",
@@ -114,6 +131,43 @@
         "label": "**操作类型**：继续创作",
         "instruction": "请根据用户反馈继续发展故事。"
       }
+    }
+  },
+  "character_generation": {
+    "intro": "请根据以下故事背景，生成一个合适的新人物。",
+    "sections": {
+      "background": "故事背景：",
+      "existing_characters_from_settings": "已有角色（从设定中）：",
+      "appeared_characters": "已出场人物：",
+      "recent_content": "最近的故事内容（供参考）：",
+      "character_hints": "角色提示："
+    },
+    "instructions": {
+      "zh": "请生成一个新角色的信息，包括：\n1. 角色姓名\n2. 角色性格和设定（简要描述，100字左右）\n\n请按照以下格式返回：\n姓名：[角色姓名]\n设定：[角色性格和设定描述]",
+      "en": "Please generate information for a new character, including:\n1. Character name\n2. Character personality and settings (brief description, around 100 words)\n\nPlease return in the following format:\nName: [Character Name]\nSetting: [Character personality and setting description]"
+    }
+  },
+  "outline_generation": {
+    "intro": "请根据以下信息生成一个详细的故事大纲：",
+    "sections": {
+      "background": "故事背景",
+      "characters": "主要人物"
+    },
+    "character_format": {
+      "with_personality": "{index}. {name} - 设定：{personality}",
+      "without_personality": "{index}. {name}"
+    },
+    "instructions": {
+      "intro": "请生成一个详细的故事大纲，包括：",
+      "items": [
+        "1. 故事的开端和背景设定",
+        "2. 主要冲突和矛盾",
+        "3. 故事发展和转折点",
+        "4. 高潮部分",
+        "5. 结局方向"
+      ],
+      "note": "大纲应该详细且具有可操作性，能够指导后续的故事创作。",
+      "warning": "注意：大纲中不要包含预计字数或长度信息，只需描述故事内容和情节发展。"
     }
   }
 }

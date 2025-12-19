@@ -31,3 +31,13 @@ Thumbs.db
 
 # Tauri
 src-tauri/bin/
+
+# Server data
+server/data/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python

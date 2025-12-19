@@ -88,6 +88,25 @@
   flex: 1;
   overflow-y: auto;
   padding: $spacing-lg;
+  
+  // Custom scrollbar styling
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: $bg-darker;
+    border-radius: 4px;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: $border-color;
+    border-radius: 4px;
+    
+    &:hover {
+      background: darken($border-color, 10%);
+    }
+  }
 }
 
 .section {

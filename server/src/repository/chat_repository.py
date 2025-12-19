@@ -22,15 +22,15 @@ class ChatRepository:
             db_path: 数据库文件路径
         """
         self.db_path = db_path
-        # 创建数据库引擎
+        # Create database engine
         self.engine = create_engine(
             f'sqlite:///{db_path}',
             echo=False,
-            connect_args={'check_same_thread': False}  # SQLite 允许多线程
+            connect_args={'check_same_thread': False}  # SQLite allows multi-threading
         )
-        # 创建会话工厂
+        # Create session factory
         self.SessionLocal = sessionmaker(bind=self.engine)
-        # 创建表（如果不存在）
+        # Create tables (if not exist)
         self._init_database()
     
     def _init_database(self):
@@ -133,7 +133,7 @@ class ChatRepository:
         """
         session = self._get_session()
         try:
-            # 使用 DISTINCT 获取唯一的会话ID
+            # Use DISTINCT to get unique conversation IDs
             result = session.query(ChatRecord.conversation_id).distinct().all()
             return [row[0] for row in result]
         except Exception as e:

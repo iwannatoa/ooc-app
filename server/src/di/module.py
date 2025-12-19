@@ -3,6 +3,7 @@ Dependency injection module configuration
 """
 from injector import Module, singleton, Binder, provider
 from service.ai_service import AIService
+from service.ai_service_streaming import AIServiceStreaming
 from service.ollama_service import OllamaService
 from service.deepseek_service import DeepSeekService
 from service.chat_service import ChatService
@@ -37,6 +38,7 @@ class AppModule(Module):
         binder.bind(OllamaService, to=OllamaService, scope=singleton)
         binder.bind(DeepSeekService, to=DeepSeekService, scope=singleton)
         binder.bind(AIService, to=self._create_ai_service, scope=singleton)
+        binder.bind(AIServiceStreaming, to=self._create_ai_service_streaming, scope=singleton)
         binder.bind(ChatRepository, to=self._create_chat_repository, scope=singleton)
         binder.bind(ConversationRepository, to=self._create_conversation_repository, scope=singleton)
         binder.bind(SummaryRepository, to=self._create_summary_repository, scope=singleton)
@@ -190,6 +192,23 @@ class AppModule(Module):
         )
     
     @provider
+    def _create_ai_service_streaming(
+        self,
+        ollama_service: OllamaService,
+        deepseek_service: DeepSeekService
+    ) -> AIServiceStreaming:
+        """
+        Create streaming AI service
+        
+        Returns:
+            AIServiceStreaming instance
+        """
+        return AIServiceStreaming(
+            ollama_service=ollama_service,
+            deepseek_service=deepseek_service
+        )
+    
+    @provider
     def _create_summary_service(
         self,
         summary_repository: SummaryRepository,
@@ -230,7 +249,8 @@ class AppModule(Module):
         self,
         conversation_repository: ConversationRepository,
         ai_service: AIService,
-        ai_config_service: AIConfigService
+        ai_config_service: AIConfigService,
+        ai_service_streaming: AIServiceStreaming
     ) -> ConversationService:
         """
         Create conversation service (needs AIConfigService injection)
@@ -241,7 +261,8 @@ class AppModule(Module):
         return ConversationService(
             conversation_repository=conversation_repository,
             ai_service=ai_service,
-            ai_config_service=ai_config_service
+            ai_config_service=ai_config_service,
+            ai_service_streaming=ai_service_streaming
         )
     
     @provider
@@ -299,7 +320,13 @@ class AppModule(Module):
     def _create_character_service(
         self,
         character_repository: CharacterRecordRepository,
-        chat_repository: ChatRepository
+        chat_repository: ChatRepository,
+        conversation_service: ConversationService,
+        chat_service: ChatService,
+        ai_service: AIService,
+        ai_service_streaming: AIServiceStreaming,
+        ai_config_service: AIConfigService,
+        app_settings_service: AppSettingsService
     ) -> CharacterService:
         """
         Create character service
@@ -309,13 +336,20 @@ class AppModule(Module):
         """
         return CharacterService(
             character_repository=character_repository,
-            chat_repository=chat_repository
+            chat_repository=chat_repository,
+            conversation_service=conversation_service,
+            chat_service=chat_service,
+            ai_service=ai_service,
+            ai_service_streaming=ai_service_streaming,
+            ai_config_service=ai_config_service,
+            app_settings_service=app_settings_service
         )
     
     @provider
     def _create_story_generation_service(
         self,
         ai_service: AIService,
+        ai_service_streaming: AIServiceStreaming,
         chat_service: ChatService,
         conversation_service: ConversationService,
         summary_service: SummaryService,
@@ -332,6 +366,7 @@ class AppModule(Module):
         """
         return StoryGenerationService(
             ai_service=ai_service,
+            ai_service_streaming=ai_service_streaming,
             chat_service=chat_service,
             conversation_service=conversation_service,
             summary_service=summary_service,

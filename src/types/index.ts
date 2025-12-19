@@ -51,7 +51,7 @@ export interface ModelsResponse {
 }
 
 export interface ChatMessage {
-  role: 'user' | 'assistant' | 'system' | 'error';
+  role: 'user' | 'assistant' | 'system' | 'error' | 'ai';
   content: string;
   model?: string;
   timestamp?: number;
@@ -77,8 +77,10 @@ export interface ConversationSettings {
   background?: string;
   characters?: string[];
   character_personality?: Record<string, string>;
+  character_is_main?: Record<string, boolean>;
   outline?: string;
   allow_auto_generate_characters?: boolean;
+  additional_settings?: Record<string, any>;
   created_at?: string;
   updated_at?: string;
 }

@@ -71,10 +71,24 @@ class ChatOrchestrationService:
         
         if result.get('success'):
             try:
+                # Import here to avoid circular dependency
+                from service.conversation_service import ConversationService
+                # Note: This is a temporary solution. In production, ConversationService
+                # should be injected via dependency injection
+                # For now, we'll strip think content using a simple regex
+                import re
+                response_content = result.get('response', '')
+                # Remove think content before saving
+                clean_content = re.sub(r'<think>.*?</think>', '', response_content, flags=re.DOTALL | re.IGNORECASE)
+                clean_content = re.sub(r'```think\s*\n.*?\n```', '', clean_content, flags=re.DOTALL | re.IGNORECASE)
+                clean_content = re.sub(r'```think\s*```', '', clean_content, flags=re.IGNORECASE)
+                clean_content = re.sub(r'\n\s*\n\s*\n+', '\n\n', clean_content)
+                clean_content = clean_content.strip()
+                
                 self.chat_service.save_user_message(conversation_id, message)
                 self.chat_service.save_assistant_message(
                     conversation_id=conversation_id,
-                    content=result.get('response', ''),
+                    content=clean_content,
                     model=result.get('model'),
                     provider=api_config['provider']
                 )

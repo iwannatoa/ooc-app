@@ -12,7 +12,8 @@
     "settings": "Settings",
     "new": "New",
     "expand": "Expand",
-    "collapse": "Collapse"
+    "collapse": "Collapse",
+    "refresh": "Refresh"
   },
   "app": {
     "title": "AI Story Generator",
@@ -29,6 +30,7 @@
     "unnamedConversation": "Unnamed Story",
     "noConversations": "No stories",
     "deleteConversation": "Delete Story",
+    "confirmDeleteConversation": "Are you sure you want to delete this story? This action cannot be undone.",
     "editSettings": "Edit Settings",
     "viewSettings": "View Settings"
   },
@@ -215,7 +217,9 @@
     "thinking": "Thinking...",
     "sending": "Sending...",
     "send": "Send",
-    "inputPlaceholder": "Type your message..."
+    "inputPlaceholder": "Type your message...",
+    "thinkProcess": "Thinking process (collapsed)",
+    "thinkingInProgress": "Thinking..."
   },
   "modelSelector": {
     "noModelsAvailable": "No models available"

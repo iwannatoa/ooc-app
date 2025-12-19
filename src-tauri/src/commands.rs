@@ -252,38 +252,39 @@ pub async fn get_flask_port(
 }
 
 pub(crate) async fn stop_python_server_internal(
-    app_handle: &AppHandle,
+    _: &AppHandle,
     server_state: &TokioMutex<PythonServer>,
 ) -> Result<(), String> {
+    println!("[FLASK_STOP] Starting Flask server stop procedure");
     let mut server = server_state.lock().await;
     
-    if server.process.is_some() {
-        let client = reqwest::Client::new();
-        
-        let port = server.port.unwrap_or_else(|| {
-            if let Some(port_file) = app_handle.path().app_data_dir()
-                .ok()
-                .map(|dir| dir.join("port.txt"))
-            {
-                if let Ok(port_str) = std::fs::read_to_string(&port_file) {
-                    if let Ok(port) = port_str.trim().parse::<u16>() {
-                        return port;
-                    }
-                }
-            }
-            5000
-        });
-
-        let _ = client
-            .post(format!("http://localhost:{}/api/stop", port))
-            .timeout(std::time::Duration::from_secs(2))
-            .send()
-            .await;
-        
-        server.process = None;
-        server.port = None;
+    if let Some(port) = server.port {
+        println!("[FLASK_STOP] Current Flask port: {}", port);
+    } else {
+        println!("[FLASK_STOP] No Flask port recorded");
     }
     
+    if let Some(process) = server.process.take() {
+        println!("[FLASK_STOP] Found Flask process, attempting to kill...");
+        // Kill the process directly by PID instead of using API
+        let kill_result = process.kill();
+        match kill_result {
+            Ok(_) => {
+                println!("[FLASK_STOP] Flask process killed successfully");
+            }
+            Err(e) => {
+                eprintln!("[FLASK_STOP] Failed to kill Flask process: {}", e);
+                return Err(format!("Failed to kill process: {}", e));
+            }
+        }
+        
+        server.port = None;
+        println!("[FLASK_STOP] Cleared Flask port from server state");
+    } else {
+        println!("[FLASK_STOP] No Flask process found, nothing to stop");
+    }
+    
+    println!("[FLASK_STOP] Flask server stop procedure completed");
     Ok(())
 }
 
@@ -292,17 +293,24 @@ pub async fn stop_python_server(
     app_handle: AppHandle,
     server_state: State<'_, TokioMutex<PythonServer>>,
 ) -> Result<ApiResponse<String>, String> {
+    println!("[FLASK_STOP] stop_python_server command invoked");
     match stop_python_server_internal(&app_handle, &server_state).await {
-        Ok(_) => Ok(ApiResponse {
-            success: true,
-            data: Some("Python server stopped".to_string()),
-            error: None,
-        }),
-        Err(e) => Ok(ApiResponse {
-            success: false,
-            data: None,
-            error: Some(e),
-        }),
+        Ok(_) => {
+            println!("[FLASK_STOP] stop_python_server command completed successfully");
+            Ok(ApiResponse {
+                success: true,
+                data: Some("Python server stopped".to_string()),
+                error: None,
+            })
+        }
+        Err(e) => {
+            eprintln!("[FLASK_STOP] stop_python_server command failed: {}", e);
+            Ok(ApiResponse {
+                success: false,
+                data: None,
+                error: Some(e),
+            })
+        }
     }
 }
 

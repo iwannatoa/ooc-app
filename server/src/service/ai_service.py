@@ -98,13 +98,13 @@ class AIService:
             包含响应和模型信息的字典
         """
         try:
-            # 构建完整的 prompt
+            # Build complete prompt
             if system_prompt:
                 full_prompt = f"{system_prompt}\n\n"
             else:
                 full_prompt = ""
             
-            # 如果有消息历史，添加历史对话
+            # Add message history if available
             if messages:
                 for msg in messages:
                     role = msg.get('role', '')
@@ -114,7 +114,7 @@ class AIService:
                     elif role == 'assistant':
                         full_prompt += f"助手：{content}\n\n"
             
-            # 添加当前消息
+            # Add current message
             full_prompt += f"用户：{message}\n\n助手："
             
             result = self.ollama_service.generate(

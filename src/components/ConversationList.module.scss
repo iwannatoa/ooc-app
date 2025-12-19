@@ -68,6 +68,32 @@
   }
 }
 
+.refreshButton {
+  padding: $spacing-xs;
+  background: transparent;
+  border: none;
+  color: $text-secondary;
+  cursor: pointer;
+  font-size: $font-size-lg;
+  transition: all 0.2s;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: $border-radius;
+
+  &:hover {
+    color: $text-primary;
+    background: $bg-darker;
+    transform: rotate(180deg);
+  }
+
+  &:active {
+    transform: rotate(360deg);
+  }
+}
+
 .newButton {
   padding: $spacing-xs $spacing-sm;
   background: $primary-color;

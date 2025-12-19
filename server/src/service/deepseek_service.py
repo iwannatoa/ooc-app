@@ -53,7 +53,7 @@ class DeepSeekService:
         if not api_key:
             raise ValidationError("DeepSeek API key is required", field='apiKey')
         
-        # 使用自定义 URL 或默认 URL
+        # Use custom URL or default URL
         url_base = base_url.rstrip('/') if base_url else self.base_url
         url = f"{url_base}/chat/completions"
         

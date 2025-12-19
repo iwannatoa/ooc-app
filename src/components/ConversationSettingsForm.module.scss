@@ -23,6 +23,25 @@
   max-height: 90vh;
   overflow-y: auto;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  
+  // Custom scrollbar styling
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: $bg-darker;
+    border-radius: 4px;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: $border-color;
+    border-radius: 4px;
+    
+    &:hover {
+      background: darken($border-color, 10%);
+    }
+  }
 }
 
 .header {
@@ -227,6 +246,7 @@
   line-height: 1.6;
   max-height: 300px;
   overflow-y: auto;
+  font-size: $font-size-sm;
 }
 
 .actions {

@@ -12,7 +12,8 @@
     "settings": "设置",
     "new": "新建",
     "expand": "展开",
-    "collapse": "折叠"
+    "collapse": "折叠",
+    "refresh": "刷新"
   },
   "app": {
     "title": "AI 故事生成器",
@@ -29,6 +30,7 @@
     "unnamedConversation": "未命名故事",
     "noConversations": "暂无故事",
     "deleteConversation": "删除故事",
+    "confirmDeleteConversation": "确定要删除这个故事吗？此操作不可撤销。",
     "editSettings": "编辑设置",
     "viewSettings": "查看设定"
   },
@@ -213,7 +215,9 @@
     "thinking": "思考中...",
     "sending": "发送中...",
     "send": "发送",
-    "inputPlaceholder": "输入你的消息..."
+    "inputPlaceholder": "输入你的消息...",
+    "thinkProcess": "思考过程（已折叠）",
+    "thinkingInProgress": "思考中..."
   },
   "modelSelector": {
     "noModelsAvailable": "无可用模型"

@@ -22,15 +22,15 @@ class AIConfigRepository:
             db_path: 数据库文件路径
         """
         self.db_path = db_path
-        # 创建数据库引擎
+        # Create database engine
         self.engine = create_engine(
             f'sqlite:///{db_path}',
             echo=False,
             connect_args={'check_same_thread': False}
         )
-        # 创建会话工厂
+        # Create session factory
         self.SessionLocal = sessionmaker(bind=self.engine)
-        # 创建表（如果不存在）
+        # Create tables (if not exist)
         self._init_database()
     
     def _init_database(self):
@@ -119,7 +119,7 @@ class AIConfigRepository:
             ).first()
             
             if existing:
-                # 更新现有配置
+                # Update existing configuration
                 if model is not None:
                     existing.model = model
                 if api_key is not None:
@@ -136,7 +136,7 @@ class AIConfigRepository:
                 logger.info(f"Updated AI config for provider: {provider}")
                 return existing
             else:
-                # 创建新配置
+                # Create new configuration
                 new_config = AIConfig(
                     provider=provider,
                     model=model,

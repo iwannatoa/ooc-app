@@ -8,21 +8,34 @@ import {
 } from '@/types';
 import { isMockMode, mockConversationClient } from '@/mock';
 import { useFlaskPort } from '@/hooks/useFlaskPort';
+import { useMockMode } from '@/hooks/useMockMode';
 
 export const useConversationClient = () => {
-  const { apiUrl } = useFlaskPort();
+  const { apiUrl, waitForPort } = useFlaskPort();
+  const { mockModeEnabled } = useMockMode();
 
   const API_BASE_URL = useMemo(() => apiUrl, [apiUrl]);
-
-  if (isMockMode()) {
-    return mockConversationClient;
-  }
+  
+  // Helper function to get API URL, waiting for port if needed
+  const getApiUrl = useMemo(() => {
+    return async (): Promise<string> => {
+      if (mockModeEnabled || isMockMode()) {
+        return 'http://localhost:5000'; // Mock mode doesn't need real port
+      }
+      return await waitForPort();
+    };
+  }, [waitForPort, mockModeEnabled]);
 
   return useMemo(() => {
+    if (mockModeEnabled || isMockMode()) {
+      return mockConversationClient;
+    }
+
     const getConversationsList = async (): Promise<
       ConversationWithSettings[]
     > => {
-      const response = await fetch(`${API_BASE_URL}/api/conversations/list`);
+      const url = await getApiUrl();
+      const response = await fetch(`${url}/api/conversations/list`);
       const data = await response.json();
       if (data.success) {
         return data.conversations.map((conv: any) => ({
@@ -48,8 +61,9 @@ export const useConversationClient = () => {
     const getConversationSettings = async (
       conversationId: string
     ): Promise<ConversationSettings | null> => {
+      const url = await getApiUrl();
       const response = await fetch(
-        `${API_BASE_URL}/api/conversation/settings?conversation_id=${conversationId}`
+        `${url}/api/conversation/settings?conversation_id=${conversationId}`
       );
       const data = await response.json();
       if (data.success) {
@@ -77,8 +91,9 @@ export const useConversationClient = () => {
         outline: settings.outline,
       };
 
+      const url = await getApiUrl();
       const response = await fetch(
-        `${API_BASE_URL}/api/conversation/settings`,
+        `${url}/api/conversation/settings`,
         {
           method: 'POST',
           headers: {
@@ -101,8 +116,9 @@ export const useConversationClient = () => {
     const getConversationMessages = async (
       conversationId: string
     ): Promise<any[]> => {
+      const url = await getApiUrl();
       const response = await fetch(
-        `${API_BASE_URL}/api/conversation?conversation_id=${conversationId}`
+        `${url}/api/conversation?conversation_id=${conversationId}`
       );
 
       if (!response.ok) {
@@ -129,7 +145,8 @@ export const useConversationClient = () => {
     const deleteConversation = async (
       conversationId: string
     ): Promise<boolean> => {
-      const response = await fetch(`${API_BASE_URL}/api/conversation`, {
+      const url = await getApiUrl();
+      const response = await fetch(`${url}/api/conversation`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -146,10 +163,26 @@ export const useConversationClient = () => {
       characterPersonality?: Record<string, string>,
       conversationId?: string,
       provider?: string,
-      model?: string
+      model?: string,
+      onChunk?: (chunk: string, accumulated: string) => void
     ): Promise<string> => {
+      // Use streaming endpoint if onChunk callback is provided
+      if (onChunk) {
+        return generateOutlineStream(
+          background,
+          characters,
+          characterPersonality,
+          conversationId,
+          provider,
+          model,
+          onChunk
+        );
+      }
+      
+      // Fallback to non-streaming endpoint
+      const url = await getApiUrl();
       const response = await fetch(
-        `${API_BASE_URL}/api/conversation/generate-outline`,
+        `${url}/api/conversation/generate-outline`,
         {
           method: 'POST',
           headers: {
@@ -172,11 +205,92 @@ export const useConversationClient = () => {
       throw new Error(data.error || 'Failed to generate outline');
     };
 
+    const generateOutlineStream = async (
+      background: string,
+      characters?: string[],
+      characterPersonality?: Record<string, string>,
+      conversationId?: string,
+      provider?: string,
+      model?: string,
+      onChunk?: (chunk: string, accumulated: string) => void
+    ): Promise<string> => {
+      const url = await getApiUrl();
+      const response = await fetch(
+        `${url}/api/conversation/generate-outline-stream`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            conversation_id: conversationId,
+            background,
+            characters,
+            character_personality: characterPersonality,
+            provider,
+            model,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to start stream' }));
+        throw new Error(errorData.error || 'Failed to start outline generation');
+      }
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      let accumulated = '';
+
+      if (!reader) {
+        throw new Error('Stream reader not available');
+      }
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split('\n');
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const dataStr = line.slice(6);
+              try {
+                const data = JSON.parse(dataStr);
+                if (data.error) {
+                  throw new Error(data.error);
+                }
+                if (data.done) {
+                  // Stream finished, return accumulated content
+                  return accumulated;
+                }
+              } catch (e) {
+                // If JSON parse fails, treat as plain text chunk
+                if (!(e instanceof SyntaxError)) {
+                  throw e;
+                }
+                // Plain text chunk
+                accumulated += dataStr;
+                onChunk?.(dataStr, accumulated);
+              }
+            }
+          }
+        }
+
+        return accumulated;
+      } finally {
+        reader.releaseLock();
+      }
+    };
+
     const getSummary = async (
       conversationId: string
     ): Promise<ConversationSummary | null> => {
+      const url = await getApiUrl();
       const response = await fetch(
-        `${API_BASE_URL}/api/conversation/summary?conversation_id=${conversationId}`
+        `${url}/api/conversation/summary?conversation_id=${conversationId}`
       );
       const data = await response.json();
       if (data.success) {
@@ -193,8 +307,9 @@ export const useConversationClient = () => {
       provider: string,
       model?: string
     ): Promise<string> => {
+      const url = await getApiUrl();
       const response = await fetch(
-        `${API_BASE_URL}/api/conversation/summary/generate`,
+        `${url}/api/conversation/summary/generate`,
         {
           method: 'POST',
           headers: {
@@ -218,7 +333,8 @@ export const useConversationClient = () => {
       conversationId: string,
       summary: string
     ): Promise<ConversationSummary> => {
-      const response = await fetch(`${API_BASE_URL}/api/conversation/summary`, {
+      const url = await getApiUrl();
+      const response = await fetch(`${url}/api/conversation/summary`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -238,8 +354,9 @@ export const useConversationClient = () => {
     const getProgress = async (
       conversationId: string
     ): Promise<StoryProgress | null> => {
+      const url = await getApiUrl();
       const response = await fetch(
-        `${API_BASE_URL}/api/conversation/progress?conversation_id=${conversationId}`
+        `${url}/api/conversation/progress?conversation_id=${conversationId}`
       );
       const data = await response.json();
       if (data.success) {
@@ -249,8 +366,9 @@ export const useConversationClient = () => {
     };
 
     const confirmOutline = async (conversationId: string): Promise<boolean> => {
+      const url = await getApiUrl();
       const response = await fetch(
-        `${API_BASE_URL}/api/conversation/progress/confirm-outline`,
+        `${url}/api/conversation/progress/confirm-outline`,
         {
           method: 'POST',
           headers: {
@@ -272,8 +390,9 @@ export const useConversationClient = () => {
       conversationId: string,
       progress: Partial<StoryProgress>
     ): Promise<StoryProgress> => {
+      const url = await getApiUrl();
       const response = await fetch(
-        `${API_BASE_URL}/api/conversation/progress`,
+        `${url}/api/conversation/progress`,
         {
           method: 'POST',
           headers: {
@@ -296,8 +415,9 @@ export const useConversationClient = () => {
       conversationId: string,
       includeUnavailable: boolean = true
     ): Promise<CharacterRecord[]> => {
+      const url = await getApiUrl();
       const response = await fetch(
-        `${API_BASE_URL}/api/conversation/characters?conversation_id=${conversationId}&include_unavailable=${includeUnavailable}`
+        `${url}/api/conversation/characters?conversation_id=${conversationId}&include_unavailable=${includeUnavailable}`
       );
       const data = await response.json();
       if (data.success) {
@@ -315,8 +435,9 @@ export const useConversationClient = () => {
         notes?: string;
       }
     ): Promise<CharacterRecord> => {
+      const url = await getApiUrl();
       const response = await fetch(
-        `${API_BASE_URL}/api/conversation/characters/update`,
+        `${url}/api/conversation/characters/update`,
         {
           method: 'POST',
           headers: {
@@ -340,21 +461,38 @@ export const useConversationClient = () => {
       conversationId: string,
       provider: string,
       model?: string,
-      characterHints?: string
+      characterHints?: string,
+      background?: string,
+      characters?: string[],
+      characterPersonality?: Record<string, string>
     ): Promise<{ name: string; personality: string }> => {
+      const body: Record<string, unknown> = {
+        conversation_id: conversationId,
+        provider,
+        model,
+        character_hints: characterHints,
+      };
+      
+      // Add optional parameters if provided
+      if (background) {
+        body.background = background;
+      }
+      if (characters) {
+        body.characters = characters;
+      }
+      if (characterPersonality) {
+        body.character_personality = characterPersonality;
+      }
+      
+      const url = await getApiUrl();
       const response = await fetch(
-        `${API_BASE_URL}/api/conversation/characters/generate`,
+        `${url}/api/conversation/characters/generate`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            conversation_id: conversationId,
-            provider,
-            model,
-            character_hints: characterHints,
-          }),
+          body: JSON.stringify(body),
         }
       );
       const data = await response.json();
@@ -399,5 +537,5 @@ export const useConversationClient = () => {
       generateCharacter,
       deleteLastMessage,
     };
-  }, [API_BASE_URL]);
+  }, [getApiUrl, mockModeEnabled]);
 };

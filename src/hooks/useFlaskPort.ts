@@ -3,6 +3,7 @@ import { useAppDispatch, useAppSelector } from './redux';
 import { setFlaskPort } from '@/store/slices/serverSlice';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+import { store } from '@/store';
 
 interface ApiResponse<T> {
   success: boolean;
@@ -13,6 +14,8 @@ interface ApiResponse<T> {
 let portFetchPromise: Promise<void> | null = null;
 let eventListenerSetup = false;
 let globalInitialized = false;
+
+const MAX_WAIT_TIME = 10000; // 10 seconds
 
 export const useFlaskPort = () => {
   const dispatch = useAppDispatch();
@@ -40,6 +43,83 @@ export const useFlaskPort = () => {
 
     return portFetchPromise;
   }, [dispatch]);
+
+  // Wait for port to be ready, with maximum wait time of 10 seconds
+  const waitForPort = useCallback(async (): Promise<string> => {
+    // If port is already available, return apiUrl immediately
+    if (flaskPort) {
+      return `http://localhost:${flaskPort}`;
+    }
+
+    // First, try to fetch port immediately
+    await fetchPort();
+
+    // Wait for port to be ready, with timeout
+    const startTime = Date.now();
+    const checkInterval = 100; // Check every 100ms
+
+    return new Promise((resolve, reject) => {
+      let timeoutId: NodeJS.Timeout | null = null;
+      let unsubscribe: (() => void) | null = null;
+      
+      const cleanup = () => {
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+        if (unsubscribe) {
+          unsubscribe();
+          unsubscribe = null;
+        }
+      };
+      
+      // Subscribe to store changes
+      unsubscribe = store.subscribe(() => {
+        const state = store.getState();
+        const currentPort = state.server?.flaskPort;
+        
+        if (currentPort) {
+          cleanup();
+          resolve(`http://localhost:${currentPort}`);
+          return;
+        }
+
+        const elapsed = Date.now() - startTime;
+        if (elapsed >= MAX_WAIT_TIME) {
+          cleanup();
+          // Timeout reached, try to fetch port once more
+          fetchPort().then(() => {
+            // Check again after fetch
+            setTimeout(() => {
+              const finalState = store.getState();
+              const finalPort = finalState.server?.flaskPort;
+              if (finalPort) {
+                resolve(`http://localhost:${finalPort}`);
+              } else {
+                reject(new Error('Failed to get Flask port after 10 seconds'));
+              }
+            }, 100);
+          }).catch(() => {
+            reject(new Error('Failed to get Flask port after 10 seconds'));
+          });
+        }
+      });
+
+      // Also check immediately
+      const state = store.getState();
+      const currentPort = state.server?.flaskPort;
+      if (currentPort) {
+        cleanup();
+        resolve(`http://localhost:${currentPort}`);
+        return;
+      }
+
+      // Set timeout to cleanup subscription
+      timeoutId = setTimeout(() => {
+        cleanup();
+      }, MAX_WAIT_TIME + 1000);
+    });
+  }, [flaskPort, fetchPort]);
 
   useEffect(() => {
     if (globalInitialized) {
@@ -74,5 +154,6 @@ export const useFlaskPort = () => {
     port: flaskPort,
     apiUrl,
     refetch: fetchPort,
+    waitForPort,
   };
 };
