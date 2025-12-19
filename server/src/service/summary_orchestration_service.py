@@ -1,17 +1,17 @@
 """
-总结编排服务层（协调多个服务，处理完整的总结流程）
+总结编排服务层
 """
-from typing import Optional, Dict, List
-from src.service.summary_service import SummaryService
-from src.service.chat_service import ChatService
-from src.service.ai_config_service import AIConfigService
-from src.utils.logger import get_logger
+from typing import Optional, Dict
+from service.summary_service import SummaryService
+from service.chat_service import ChatService
+from service.ai_config_service import AIConfigService
+from utils.logger import get_logger
 
 logger = get_logger(__name__)
 
 
 class SummaryOrchestrationService:
-    """总结编排服务类（协调总结服务、聊天服务、配置服务）"""
+    """总结编排服务类"""
     
     def __init__(
         self,
@@ -38,16 +38,12 @@ class SummaryOrchestrationService:
         model: Optional[str] = None
     ) -> Dict:
         """
-        生成会话总结（完整的流程：获取消息、获取配置、生成总结）
+        生成会话总结
         
         Args:
             conversation_id: 会话ID
             provider: AI 提供商
-            model: 模型名称（可选）
-            api_key: API 密钥（可选）
-            base_url: 基础URL（可选）
-            max_tokens: 最大令牌数（可选）
-            temperature: 温度参数（可选）
+            model: 模型名称
         
         Returns:
             总结字典

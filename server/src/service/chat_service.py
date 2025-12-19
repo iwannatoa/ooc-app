@@ -2,9 +2,8 @@
 聊天记录服务层
 """
 from typing import List, Optional, Dict
-from src.repository.chat_repository import ChatRepository
-from src.model.chat_record import ChatRecord
-from src.utils.logger import get_logger
+from repository.chat_repository import ChatRepository
+from utils.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -124,4 +123,16 @@ class ChatService:
             会话数量
         """
         return self.repository.get_conversation_count()
+    
+    def delete_last_message(self, conversation_id: str) -> Optional[int]:
+        """
+        Delete the last message in a conversation
+        
+        Args:
+            conversation_id: Conversation ID
+        
+        Returns:
+            Deleted message ID or None if no message found
+        """
+        return self.repository.delete_last_message(conversation_id)
 

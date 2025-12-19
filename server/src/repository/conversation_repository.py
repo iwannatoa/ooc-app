@@ -1,41 +1,38 @@
 """
-会话设置数据访问层
+Conversation settings data access layer
 """
 from typing import List, Optional, Dict
 from datetime import datetime
 import json
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
-from src.model.conversation_settings import ConversationSettings, Base
-from src.utils.logger import get_logger
+from model.conversation_settings import ConversationSettings, Base
+from utils.logger import get_logger
 
 logger = get_logger(__name__)
 
 
 class ConversationRepository:
-    """会话设置仓库类"""
+    """Conversation settings repository"""
     
     def __init__(self, db_path: str):
         """
-        初始化仓库
+        Initialize repository
         
         Args:
-            db_path: 数据库文件路径
+            db_path: Database file path
         """
         self.db_path = db_path
-        # 创建数据库引擎
         self.engine = create_engine(
             f'sqlite:///{db_path}',
             echo=False,
             connect_args={'check_same_thread': False}
         )
-        # 创建会话工厂
         self.SessionLocal = sessionmaker(bind=self.engine)
-        # 创建表（如果不存在）
         self._init_database()
     
     def _init_database(self):
-        """初始化数据库，创建表"""
+        """Initialize database, create tables"""
         try:
             Base.metadata.create_all(self.engine)
             logger.info(f"Conversation settings database initialized at: {self.db_path}")
@@ -44,7 +41,6 @@ class ConversationRepository:
             raise
     
     def _get_session(self) -> Session:
-        """获取数据库会话"""
         return self.SessionLocal()
     
     def create_or_update_settings(
@@ -54,7 +50,8 @@ class ConversationRepository:
         background: Optional[str] = None,
         characters: Optional[List[str]] = None,
         character_personality: Optional[Dict[str, str]] = None,
-        outline: Optional[str] = None
+        outline: Optional[str] = None,
+        allow_auto_generate_characters: Optional[bool] = None
     ) -> ConversationSettings:
         """
         创建或更新会话设置
@@ -64,7 +61,7 @@ class ConversationRepository:
             title: 会话标题
             background: 故事背景
             characters: 人物列表
-            character_personality: 人物性格字典
+            character_personality: 人物设定字典
             outline: 大纲
         
         Returns:
@@ -77,7 +74,6 @@ class ConversationRepository:
             ).first()
             
             if settings:
-                # 更新现有设置
                 if title is not None:
                     settings.title = title
                 if background is not None:
@@ -88,9 +84,10 @@ class ConversationRepository:
                     settings.character_personality = json.dumps(character_personality, ensure_ascii=False)
                 if outline is not None:
                     settings.outline = outline
+                if allow_auto_generate_characters is not None:
+                    settings.allow_auto_generate_characters = allow_auto_generate_characters
                 settings.updated_at = datetime.utcnow()
             else:
-                # 创建新设置
                 settings = ConversationSettings(
                     conversation_id=conversation_id,
                     title=title,
@@ -98,6 +95,7 @@ class ConversationRepository:
                     characters=json.dumps(characters, ensure_ascii=False) if characters else None,
                     character_personality=json.dumps(character_personality, ensure_ascii=False) if character_personality else None,
                     outline=outline,
+                    allow_auto_generate_characters=allow_auto_generate_characters if allow_auto_generate_characters is not None else True,
                     created_at=datetime.utcnow(),
                     updated_at=datetime.utcnow()
                 )

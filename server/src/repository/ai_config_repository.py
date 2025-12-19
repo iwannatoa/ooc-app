@@ -5,8 +5,8 @@ from typing import Optional, List
 from datetime import datetime
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
-from src.model.ai_config import AIConfig, Base
-from src.utils.logger import get_logger
+from model.ai_config import AIConfig, Base
+from utils.logger import get_logger
 
 logger = get_logger(__name__)
 

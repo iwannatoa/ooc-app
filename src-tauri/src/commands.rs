@@ -1,6 +1,6 @@
 use reqwest;
 use serde::Serialize;
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_shell::{
     process::{CommandChild, CommandEvent},
     ShellExt,
@@ -15,18 +15,20 @@ pub struct ApiResponse<T> {
     pub error: Option<String>,
 }
 
-// 管理Python进程状态
 pub struct PythonServer {
     pub process: Option<CommandChild>,
+    pub port: Option<u16>,
 }
 
 impl PythonServer {
     pub fn new() -> Self {
-        Self { process: None }
+        Self { 
+            process: None,
+            port: None,
+        }
     }
 }
 
-// 启动Python Flask服务器
 #[tauri::command]
 pub async fn start_python_server(
     app_handle: AppHandle,
@@ -34,68 +36,124 @@ pub async fn start_python_server(
 ) -> Result<ApiResponse<String>, String> {
     let mut server = server_state.lock().await;
 
-    println!("启动Python服务器..., 现有服务: {:?}", server.process);
-    // 如果服务器已经在运行，先停止
     if let Some(_) = server.process {
-        let _ = stop_python_server(server_state.clone()).await;
+        let _ = stop_python_server(app_handle.clone(), server_state.clone()).await;
     }
 
-    // 获取数据库路径
     let db_path = match app_handle.path().app_data_dir() {
         Ok(app_data_dir) => {
-            // 确保目录存在
             if let Err(e) = std::fs::create_dir_all(&app_data_dir) {
-                println!("创建应用数据目录失败: {}", e);
                 return Ok(ApiResponse {
                     success: false,
                     data: None,
-                    error: Some(format!("创建应用数据目录失败: {}", e)),
+                    error: Some(format!("Failed to create app data directory: {}", e)),
                 });
             }
             let db_path = app_data_dir.join("chat.db");
             Some(db_path.to_string_lossy().to_string())
         }
-        Err(e) => {
-            println!("获取应用数据目录失败: {}", e);
+        Err(_) => {
             None
         }
     };
 
-    let command = match app_handle.shell().sidecar("flask-api") {
-        Ok(cmd) => {
-            // 如果获取到数据库路径，设置为环境变量
-            if let Some(path) = &db_path {
-                cmd.env("DB_PATH", path);
-            }
-            cmd
-        }
-        Err(e) => {
-            println!("Flask服务器启动失败: {}", e);
-            return Ok(ApiResponse {
-                success: false,
-                data: None,
-                error: Some(format!("无法找到嵌入的Python服务器可执行文件: {}", e)),
+    let command = if cfg!(debug_assertions) {
+        let project_root = std::env::current_dir()
+            .ok()
+            .and_then(|dir| {
+                if dir.file_name()
+                    .and_then(|name| name.to_str())
+                    .map(|name| name == "src-tauri")
+                    .unwrap_or(false)
+                {
+                    dir.parent().map(|p| p.to_path_buf())
+                } else {
+                    std::env::current_exe()
+                        .ok()
+                        .and_then(|exe| {
+                            exe.parent()
+                                .and_then(|p| p.parent())
+                                .and_then(|p| p.parent())
+                                .and_then(|p| p.parent())
+                                .and_then(|p| p.parent())
+                                .map(|p| p.to_path_buf())
+                        })
+                        .or(Some(dir))
+                }
+            })
+            .unwrap_or_else(|| {
+                std::path::PathBuf::from(".")
             });
+        
+        let run_script = project_root.join("server").join("run.py");
+        
+        let mut cmd = app_handle.shell().command("python");
+        cmd = cmd.args(&[run_script.to_string_lossy().as_ref()]);
+        cmd = cmd.current_dir(&project_root);
+        if let Some(path) = &db_path {
+            cmd = cmd.env("DB_PATH", path);
+        }
+        cmd
+    } else {
+        match app_handle.shell().sidecar("flask-api") {
+            Ok(mut cmd) => {
+                if let Some(path) = &db_path {
+                    cmd = cmd.env("DB_PATH", path);
+                }
+                cmd
+            }
+            Err(e) => {
+                return Ok(ApiResponse {
+                    success: false,
+                    data: None,
+                    error: Some(format!("Cannot find embedded Python server executable: {}", e)),
+                });
+            }
         }
     };
 
-    // 启动Python进程
     match command.spawn() {
         Ok((mut rx, child)) => {
-            println!("Flask服务器启动: {:?}", child.pid());
             server.process = Some(child);
+            
+            let app_handle_clone = app_handle.clone();
+            
             tauri::async_runtime::spawn(async move {
                 while let Some(event) = rx.recv().await {
                     match event {
                         CommandEvent::Stdout(line) => {
-                            println!("Flask: {}", String::from_utf8_lossy(&line));
+                            let line_str = String::from_utf8_lossy(&line);
+                            let trimmed = line_str.trim();
+                            if trimmed.contains("FLASK_PORT:") {
+                                if let Some(port_part) = trimmed.split("FLASK_PORT:").nth(1) {
+                                    let port_str = port_part.split_whitespace().next().unwrap_or(port_part).trim();
+                                    if let Ok(port) = port_str.parse::<u16>() {
+                                        if let Some(window) = app_handle_clone.get_webview_window("main") {
+                                            window.emit("flask-port-ready", port).is_ok()
+                                        } else {
+                                            app_handle_clone.emit("flask-port-ready", port).is_ok()
+                                        };
+                                        
+                                        if let Some(server_state) = app_handle_clone.try_state::<TokioMutex<PythonServer>>() {
+                                            let mut server = server_state.lock().await;
+                                            server.port = Some(port);
+                                            drop(server);
+                                        }
+                                        
+                                        if let Some(window) = app_handle_clone.get_webview_window("main") {
+                                            let _ = window.emit("flask-port-ready", port);
+                                        } else {
+                                            let _ = app_handle_clone.emit("flask-port-ready", port);
+                                        }
+                                    }
+                                }
+                            }
                         }
                         // Flask will send the further log from here.
                         CommandEvent::Stderr(line) => {
                             eprintln!("Flask: {}", String::from_utf8_lossy(&line));
                         }
-                        CommandEvent::Terminated(payload) => {
-                            println!("Flask terminated: {:?}", payload);
+                        CommandEvent::Terminated(_) => {
                             break;
                         }
                         _ => {}
@@ -103,75 +161,163 @@ pub async fn start_python_server(
                 }
             });
 
-            // 等待服务器启动
-            tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
-
             Ok(ApiResponse {
                 success: true,
-                data: Some("Python Flask服务器启动成功".to_string()),
+                data: Some("Python Flask server started successfully".to_string()),
                 error: None,
             })
         }
         Err(e) => {
-            println!("Flask服务器 Failed: {}", e);
             Ok(ApiResponse {
                 success: false,
                 data: None,
-                error: Some(format!("启动Python服务器失败: {}", e)),
+                error: Some(format!("Failed to start Python server: {}", e)),
             })
         }
     }
 }
 
-// 停止Python服务器
+#[tauri::command]
+pub async fn get_flask_port(
+    app_handle: AppHandle,
+    server_state: State<'_, TokioMutex<PythonServer>>,
+) -> Result<ApiResponse<u16>, String> {
+    let server = server_state.lock().await;
+    if let Some(port) = server.port {
+        return Ok(ApiResponse {
+            success: true,
+            data: Some(port),
+            error: None,
+        });
+    }
+    
+    drop(server);
+    tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+    
+    let server = server_state.lock().await;
+    if let Some(port) = server.port {
+        return Ok(ApiResponse {
+            success: true,
+            data: Some(port),
+            error: None,
+        });
+    }
+    
+    drop(server);
+    
+    let client = reqwest::Client::new();
+    let mut tasks = Vec::new();
+    for port in 5000..=5100 {
+        let client_clone = client.clone();
+        let task = tokio::spawn(async move {
+            match client_clone
+                .get(format!("http://localhost:{}/api/health", port))
+                .timeout(std::time::Duration::from_millis(200))
+                .send()
+                .await
+            {
+                Ok(response) => {
+                    if response.status().is_success() {
+                        return Some(port);
+                    }
+                }
+                Err(_) => {}
+            }
+            None
+        });
+        tasks.push(task);
+    }
+    
+    for task in tasks {
+        if let Ok(Some(port)) = task.await {
+            if let Some(server_state_ref) = app_handle.try_state::<TokioMutex<PythonServer>>() {
+                let mut server = server_state_ref.lock().await;
+                server.port = Some(port);
+            }
+            
+            return Ok(ApiResponse {
+                success: true,
+                data: Some(port),
+                error: None,
+            });
+        }
+    }
+    
+    
+    Ok(ApiResponse {
+        success: false,
+        data: None,
+            error: Some("Cannot get port number, server may not be started".to_string()),
+    })
+}
+
+pub(crate) async fn stop_python_server_internal(
+    app_handle: &AppHandle,
+    server_state: &TokioMutex<PythonServer>,
+) -> Result<(), String> {
+    let mut server = server_state.lock().await;
+    
+    if server.process.is_some() {
+        let client = reqwest::Client::new();
+        
+        let port = server.port.unwrap_or_else(|| {
+            if let Some(port_file) = app_handle.path().app_data_dir()
+                .ok()
+                .map(|dir| dir.join("port.txt"))
+            {
+                if let Ok(port_str) = std::fs::read_to_string(&port_file) {
+                    if let Ok(port) = port_str.trim().parse::<u16>() {
+                        return port;
+                    }
+                }
+            }
+            5000
+        });
+
+        let _ = client
+            .post(format!("http://localhost:{}/api/stop", port))
+            .timeout(std::time::Duration::from_secs(2))
+            .send()
+            .await;
+        
+        server.process = None;
+        server.port = None;
+    }
+    
+    Ok(())
+}
+
 #[tauri::command]
 pub async fn stop_python_server(
+    app_handle: AppHandle,
     server_state: State<'_, TokioMutex<PythonServer>>,
 ) -> Result<ApiResponse<String>, String> {
-    let mut server = server_state.lock().await;
-    if let Some(_) = server.process {
-        let client = reqwest::Client::new();
-
-        let result = client.post("http://localhost:5000/api/stop").send().await;
-        match result {
-            Ok(_) => {
-                server.process = None;
-                Ok(ApiResponse {
-                    success: true,
-                    data: Some("Python服务器已停止".to_string()),
-                    error: None,
-                })
-            }
-            Err(e) => Ok(ApiResponse {
-                success: false,
-                data: None,
-                error: Some(format!("停止服务器失败: {}", e)),
-            }),
-        }
-    } else {
-        Ok(ApiResponse {
+    match stop_python_server_internal(&app_handle, &server_state).await {
+        Ok(_) => Ok(ApiResponse {
+            success: true,
+            data: Some("Python server stopped".to_string()),
+            error: None,
+        }),
+        Err(e) => Ok(ApiResponse {
             success: false,
             data: None,
-            error: Some("没有运行的服务器".to_string()),
-        })
+            error: Some(e),
+        }),
     }
 }
 
-// 获取数据库路径
 #[tauri::command]
 pub async fn get_database_path(app_handle: AppHandle) -> Result<ApiResponse<String>, String> {
     match app_handle.path().app_data_dir() {
         Ok(app_data_dir) => {
-            // 确保目录存在
             if let Err(e) = std::fs::create_dir_all(&app_data_dir) {
                 return Ok(ApiResponse {
                     success: false,
                     data: None,
-                    error: Some(format!("创建应用数据目录失败: {}", e)),
+                    error: Some(format!("Failed to create app data directory: {}", e)),
                 });
             }
             
-            // 数据库文件路径
             let db_path = app_data_dir.join("chat.db");
             let db_path_str = db_path.to_string_lossy().to_string();
             
@@ -184,41 +330,59 @@ pub async fn get_database_path(app_handle: AppHandle) -> Result<ApiResponse<Stri
         Err(e) => Ok(ApiResponse {
             success: false,
             data: None,
-            error: Some(format!("获取应用数据目录失败: {}", e)),
+            error: Some(format!("Failed to get app data directory: {}", e)),
         }),
     }
 }
 
-// 检查Python服务器状态
 #[tauri::command]
-pub async fn check_python_server_status() -> ApiResponse<bool> {
+pub async fn check_python_server_status(
+    app_handle: AppHandle,
+    server_state: State<'_, TokioMutex<PythonServer>>,
+) -> Result<ApiResponse<bool>, String> {
+    let server = server_state.lock().await;
+    
+    let port = server.port.unwrap_or_else(|| {
+        if let Some(port_file) = app_handle.path().app_data_dir()
+            .ok()
+            .map(|dir| dir.join("port.txt"))
+        {
+            if let Ok(port_str) = std::fs::read_to_string(&port_file) {
+                if let Ok(port) = port_str.trim().parse::<u16>() {
+                    return port;
+                }
+            }
+        }
+        5000 // 默认端口
+    });
+    
     let client = reqwest::Client::new();
 
     match client
-        .get("http://localhost:5000/api/health")
+        .get(format!("http://localhost:{}/api/health", port))
         .timeout(std::time::Duration::from_secs(3))
         .send()
         .await
     {
         Ok(response) => {
             if response.status().is_success() {
-                ApiResponse {
+                Ok(ApiResponse {
                     success: true,
                     data: Some(true),
                     error: None,
-                }
+                })
             } else {
-                ApiResponse {
+                Ok(ApiResponse {
                     success: false,
                     data: Some(false),
-                    error: Some("服务器响应异常".to_string()),
-                }
+                    error: Some("Server response error".to_string()),
+                })
             }
         }
-        Err(_) => ApiResponse {
+        Err(_) => Ok(ApiResponse {
             success: false,
             data: Some(false),
-            error: Some("无法连接到服务器".to_string()),
-        },
+            error: Some("Cannot connect to server".to_string()),
+        }),
     }
 }

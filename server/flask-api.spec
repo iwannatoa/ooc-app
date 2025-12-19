@@ -13,7 +13,10 @@ a = Analysis(
     [os.path.join(current_dir, 'src', 'app.py')],
     pathex=[str(current_dir)],
     binaries=[],
-    datas=[(os.path.join(current_dir, 'requirements.txt'), '.')],
+    datas=[
+        (os.path.join(current_dir, 'requirements.txt'), '.'),
+        (os.path.join(current_dir, 'src', 'utils', 'prompt_templates'), 'utils/prompt_templates'),
+    ],
     hiddenimports=[
         # Flask 相关
         'flask',
@@ -22,6 +25,9 @@ a = Analysis(
         'injector',
         # 请求库
         'requests',
+        # SQLAlchemy 相关
+        'sqlalchemy',
+        'sqlalchemy.dialects.sqlite',
         # 源代码模块（自动收集所有子模块）
     ] + src_modules,
     hookspath=[],
@@ -52,4 +58,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    onefile=True,
 )

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { ConversationSummary } from '@/types';
+import { useI18n } from '@/i18n';
+import { useToast } from '@/hooks/useToast';
 import styles from './SummaryPrompt.module.scss';
 
 interface SummaryPromptProps {
@@ -11,12 +12,13 @@ interface SummaryPromptProps {
 }
 
 const SummaryPrompt: React.FC<SummaryPromptProps> = ({
-  conversationId,
   messageCount,
   onGenerate,
   onSave,
   onCancel,
 }) => {
+  const { t } = useI18n();
+  const { showError, showWarning } = useToast();
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedSummary, setGeneratedSummary] = useState<string | null>(null);
   const [summary, setSummary] = useState('');
@@ -30,7 +32,9 @@ const SummaryPrompt: React.FC<SummaryPromptProps> = ({
       setSummary(generated);
     } catch (error) {
       console.error('Failed to generate summary:', error);
-      alert(`生成总结失败: ${error instanceof Error ? error.message : '未知错误'}`);
+      showError(t('summaryPrompt.generateFailed', {
+        error: error instanceof Error ? error.message : t('common.error', { defaultValue: '未知错误' })
+      }));
     } finally {
       setIsGenerating(false);
     }
@@ -38,7 +42,7 @@ const SummaryPrompt: React.FC<SummaryPromptProps> = ({
 
   const handleSave = async () => {
     if (!summary.trim()) {
-      alert('请填写总结内容');
+      showWarning(t('summaryPrompt.summaryRequired'));
       return;
     }
     setIsSaving(true);
@@ -46,7 +50,9 @@ const SummaryPrompt: React.FC<SummaryPromptProps> = ({
       await onSave(summary.trim());
     } catch (error) {
       console.error('Failed to save summary:', error);
-      alert(`保存总结失败: ${error instanceof Error ? error.message : '未知错误'}`);
+        showError(t('summaryPrompt.saveFailed', {
+          error: error instanceof Error ? error.message : t('common.error', { defaultValue: '未知错误' })
+        }));
     } finally {
       setIsSaving(false);
     }
@@ -56,7 +62,7 @@ const SummaryPrompt: React.FC<SummaryPromptProps> = ({
     <div className={styles.overlay} onClick={onCancel}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div className={styles.header}>
-          <h2>故事总结</h2>
+          <h2>{t('summaryPrompt.title')}</h2>
           <button className={styles.closeButton} onClick={onCancel}>
             ×
           </button>
@@ -64,11 +70,11 @@ const SummaryPrompt: React.FC<SummaryPromptProps> = ({
         <div className={styles.content}>
           <div className={styles.info}>
             <p>
-              当前会话已有 <strong>{messageCount}</strong> 条消息。
-              为了减少 token 消耗，建议对故事进行总结。
+              {t('summaryPrompt.message', { count: messageCount })}
+              {' '}{t('summaryPrompt.messageNote')}
             </p>
             <p className={styles.note}>
-              总结后，完整的故事内容仍会保存在数据库中，但后续对话将使用总结内容作为上下文，以减少 token 计算。
+              {t('summaryPrompt.note')}
             </p>
           </div>
 
@@ -78,14 +84,14 @@ const SummaryPrompt: React.FC<SummaryPromptProps> = ({
               disabled={isGenerating}
               className={styles.generateButton}
             >
-              {isGenerating ? '生成中...' : 'AI 生成总结'}
+              {isGenerating ? t('summaryPrompt.generating') : t('summaryPrompt.generate')}
             </button>
           </div>
 
           {generatedSummary && (
             <div className={styles.generatedSection}>
               <div className={styles.generatedHeader}>
-                <span>AI 生成的总结：</span>
+                <span>{t('summaryPrompt.aiGeneratedSummary')}</span>
                 <button
                   onClick={() => {
                     setGeneratedSummary(null);
@@ -93,19 +99,19 @@ const SummaryPrompt: React.FC<SummaryPromptProps> = ({
                   }}
                   className={styles.clearButton}
                 >
-                  清除
+                  {t('summaryPrompt.clear')}
                 </button>
               </div>
             </div>
           )}
 
           <div className={styles.field}>
-            <label htmlFor="summary">故事总结 *</label>
+            <label htmlFor="summary">{t('summaryPrompt.summaryLabel')}</label>
             <textarea
               id="summary"
               value={summary}
               onChange={(e) => setSummary(e.target.value)}
-              placeholder="请填写故事总结，或点击上方按钮让 AI 生成..."
+              placeholder={t('summaryPrompt.summaryPlaceholder')}
               rows={10}
               required
             />
@@ -118,14 +124,14 @@ const SummaryPrompt: React.FC<SummaryPromptProps> = ({
               className={styles.cancelButton}
               disabled={isSaving}
             >
-              取消
+              {t('summaryPrompt.cancel')}
             </button>
             <button
               onClick={handleSave}
               disabled={!summary.trim() || isSaving}
               className={styles.saveButton}
             >
-              {isSaving ? '保存中...' : '确认保存'}
+              {isSaving ? t('summaryPrompt.saving') : t('summaryPrompt.save')}
             </button>
           </div>
         </div>

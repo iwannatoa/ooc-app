@@ -5,10 +5,8 @@ from typing import List, Optional
 from datetime import datetime
 from sqlalchemy import create_engine, desc
 from sqlalchemy.orm import sessionmaker, Session
-from src.model.chat_record import ChatRecord
-from src.model.conversation_settings import ConversationSettings
-from src.model.chat_record import Base
-from src.utils.logger import get_logger
+from model.chat_record import ChatRecord, Base
+from utils.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -182,6 +180,36 @@ class ChatRepository:
             return count
         except Exception as e:
             logger.error(f"Failed to get conversation count: {str(e)}")
+            raise
+        finally:
+            session.close()
+    
+    def delete_last_message(self, conversation_id: str) -> Optional[ChatRecord]:
+        """
+        Delete the last message in a conversation
+        
+        Args:
+            conversation_id: Conversation ID
+        
+        Returns:
+            Deleted ChatRecord object or None if no message found
+        """
+        session = self._get_session()
+        try:
+            last_message = session.query(ChatRecord).filter(
+                ChatRecord.conversation_id == conversation_id
+            ).order_by(desc(ChatRecord.created_at)).first()
+            
+            if last_message:
+                message_id = last_message.id
+                session.delete(last_message)
+                session.commit()
+                logger.info(f"Deleted last message: conversation_id={conversation_id}, message_id={message_id}")
+                return message_id
+            return None
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Failed to delete last message: {str(e)}")
             raise
         finally:
             session.close()

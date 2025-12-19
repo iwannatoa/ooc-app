@@ -1,6 +1,7 @@
 // 颜色变量
 $primary-color: #3b82f6;
 $primary-hover: #2563eb;
+$primary-color-hover: $primary-hover; // 别名，保持一致性
 $secondary-color: #6b7280;
 $success-color: #10b981;
 $error-color: #ef4444;
@@ -12,6 +13,7 @@ $bg-darker: #2d2d2d;
 $bg-darkest: #0f0f0f;
 $bg-light: #374151;
 $bg-lighter: #4b5563;
+$bg-hover: #404040; // 悬停背景色
 
 // 文字颜色
 $text-primary: #ffffff;
@@ -37,6 +39,7 @@ $font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 $font-size-xs: 10px;
 $font-size-sm: 12px;
 $font-size-base: 14px;
+$font-size-md: 15px;
 $font-size-lg: 16px;
 $font-size-xl: 18px;
 

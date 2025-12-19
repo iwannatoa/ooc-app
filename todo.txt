@@ -1,3 +1,5 @@
 TODO 
-flask-api has moved in the executable file
-run it with extracting
+- server/data是否应该放到gitignore中？
+- 除了故事背景，用户还可以填写一些额外的设定
+- 手动测试
+

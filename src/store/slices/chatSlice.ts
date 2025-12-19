@@ -167,12 +167,9 @@ const chatSlice = createSlice({
     // 活跃对话
     setActiveConversation: (state, action: PayloadAction<string | null>) => {
       state.activeConversationId = action.payload;
-      if (action.payload) {
-        const conversation = state.conversationHistory.find(
-          (conv) => conv.id === action.payload
-        );
-        state.messages = conversation ? conversation.messages : [];
-      } else {
+      // 不自动从 conversationHistory 加载消息，消息应该由调用者通过 setMessages 显式设置
+      // 只有在设置为 null 时才清空消息
+      if (!action.payload) {
         state.messages = [];
       }
     },

@@ -1,23 +1,37 @@
 import React from 'react';
 import { ChatMessage } from '@/types';
 import MessageList from './MessageList';
-import MessageInput from './MessageInput';
+import StoryActions from './StoryActions';
 import styles from './ChatInterface.module.scss';
 
 interface ChatInterfaceProps {
   messages: ChatMessage[];
-  onSendMessage: (message: string) => void;
+  onGenerate: () => void;
+  onConfirm: () => void;
+  onRewrite: (feedback: string) => void;
+  onModify: (feedback: string) => void;
+  onAddSettings: () => void;
+  onDeleteLastMessage?: () => void;
   loading: boolean;
   disabled: boolean;
-  maxLength: number;
+  canConfirm?: boolean;
+  canGenerate?: boolean;
+  canDeleteLast?: boolean;
 }
 
 const ChatInterface: React.FC<ChatInterfaceProps> = ({
   messages,
-  onSendMessage,
+  onGenerate,
+  onConfirm,
+  onRewrite,
+  onModify,
+  onAddSettings,
+  onDeleteLastMessage,
   loading,
   disabled,
-  maxLength,
+  canConfirm = false,
+  canGenerate = true,
+  canDeleteLast = false,
 }) => {
   return (
     <div className={styles.chatInterface}>
@@ -25,11 +39,18 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         messages={messages}
         loading={loading}
       />
-      <MessageInput
-        onSend={onSendMessage}
+      <StoryActions
+        onGenerate={onGenerate}
+        onConfirm={onConfirm}
+        onRewrite={onRewrite}
+        onModify={onModify}
+        onAddSettings={onAddSettings}
+        onDeleteLastMessage={onDeleteLastMessage}
         loading={loading}
         disabled={disabled}
-        maxLength={maxLength}
+        canConfirm={canConfirm}
+        canGenerate={canGenerate}
+        canDeleteLast={canDeleteLast}
       />
     </div>
   );

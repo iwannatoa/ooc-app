@@ -7,7 +7,7 @@ from typing import Optional
 
 # 延迟导入 Config 以避免循环依赖
 def _get_config():
-    from src.config import Config
+    from config import Config
     return Config
 
 

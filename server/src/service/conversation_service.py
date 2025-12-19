@@ -1,17 +1,17 @@
 """
-会话设置服务层
+Conversation settings service layer
 """
 from typing import List, Optional, Dict
-from src.repository.conversation_repository import ConversationRepository
-from src.service.ai_service import AIService
-from src.service.ai_config_service import AIConfigService
-from src.utils.logger import get_logger
+from repository.conversation_repository import ConversationRepository
+from service.ai_service import AIService
+from service.ai_config_service import AIConfigService
+from utils.logger import get_logger
 
 logger = get_logger(__name__)
 
 
 class ConversationService:
-    """会话设置服务类"""
+    """Conversation settings service"""
     
     def __init__(
         self,
@@ -20,12 +20,12 @@ class ConversationService:
         ai_config_service: AIConfigService
     ):
         """
-        初始化服务
+        Initialize service
         
         Args:
-            conversation_repository: 会话设置仓库实例
-            ai_service: AI 服务实例
-            ai_config_service: AI 配置服务实例
+            conversation_repository: Conversation repository instance
+            ai_service: AI service instance
+            ai_config_service: AI config service instance
         """
         self.repository = conversation_repository
         self.ai_service = ai_service
@@ -38,7 +38,8 @@ class ConversationService:
         background: Optional[str] = None,
         characters: Optional[List[str]] = None,
         character_personality: Optional[Dict[str, str]] = None,
-        outline: Optional[str] = None
+        outline: Optional[str] = None,
+        allow_auto_generate_characters: Optional[bool] = None
     ) -> Dict:
         """
         创建或更新会话设置
@@ -48,7 +49,7 @@ class ConversationService:
             title: 会话标题
             background: 故事背景
             characters: 人物列表
-            character_personality: 人物性格字典
+            character_personality: 人物设定字典
             outline: 大纲
         
         Returns:
@@ -60,7 +61,8 @@ class ConversationService:
             background=background,
             characters=characters,
             character_personality=character_personality,
-            outline=outline
+            outline=outline,
+            allow_auto_generate_characters=allow_auto_generate_characters
         )
         return settings.to_dict()
     
@@ -112,7 +114,7 @@ class ConversationService:
         Args:
             background: 故事背景
             characters: 人物列表
-            character_personality: 人物性格字典
+            character_personality: 人物设定字典
             provider: AI提供商
             model: 模型名称
             api_key: API密钥
@@ -132,7 +134,7 @@ class ConversationService:
             for i, char in enumerate(characters, 1):
                 personality = character_personality.get(char, '') if character_personality else ''
                 if personality:
-                    prompt_parts.append(f"{i}. {char} - 性格：{personality}\n")
+                    prompt_parts.append(f"{i}. {char} - 设定：{personality}\n")
                 else:
                     prompt_parts.append(f"{i}. {char}\n")
             prompt_parts.append("\n")

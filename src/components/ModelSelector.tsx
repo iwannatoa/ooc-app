@@ -1,5 +1,6 @@
 import React from 'react';
 import { OllamaModel } from '@/types';
+import { useI18n } from '@/i18n';
 import styles from './ModelSelector.module.scss';
 
 interface ModelSelectorProps {
@@ -15,6 +16,8 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
   onModelChange,
   disabled = false,
 }) => {
+  const { t } = useI18n();
+  
   return (
     <select
       value={selectedModel}
@@ -23,7 +26,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
       className={styles.modelSelector}
     >
       {models.length === 0 ? (
-        <option value=''>无可用模型</option>
+        <option value=''>{t('modelSelector.noModelsAvailable')}</option>
       ) : (
         models.map((model) => (
           <option

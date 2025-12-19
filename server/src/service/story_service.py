@@ -2,9 +2,9 @@
 故事生成服务层
 """
 from typing import Optional, Dict
-from src.repository.story_progress_repository import StoryProgressRepository
-from src.service.ai_service import AIService
-from src.utils.logger import get_logger
+from repository.story_progress_repository import StoryProgressRepository
+from service.ai_service import AIService
+from utils.logger import get_logger
 
 logger = get_logger(__name__)
 

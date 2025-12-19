@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useI18n } from '@/i18n';
 import styles from './MessageInput.module.scss';
 
 interface MessageInputProps {
@@ -14,9 +15,11 @@ const MessageInput: React.FC<MessageInputProps> = ({
   loading = false,
   disabled = false,
   maxLength = 4000,
-  placeholder = '输入你的消息...',
+  placeholder,
 }) => {
+  const { t } = useI18n();
   const [message, setMessage] = useState('');
+  const defaultPlaceholder = placeholder || t('messages.inputPlaceholder');
 
   const handleSubmit = () => {
     if (message.trim() && !loading && !disabled) {
@@ -38,7 +41,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
         value={message}
         onChange={(e) => setMessage(e.target.value)}
         onKeyPress={handleKeyPress}
-        placeholder={placeholder}
+        placeholder={defaultPlaceholder}
         disabled={disabled || loading}
         rows={3}
         maxLength={maxLength}
@@ -53,7 +56,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
           disabled={!message.trim() || loading || disabled}
           className={styles.sendButton}
         >
-          {loading ? '发送中...' : '发送'}
+          {loading ? t('messages.sending') : t('messages.send')}
         </button>
       </div>
     </div>

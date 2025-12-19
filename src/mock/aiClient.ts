@@ -43,7 +43,7 @@ const generateMockResponse = (userMessage: string): string => {
 export const mockAiClient = {
   sendMessage: async (
     message: string,
-    conversationId?: string
+    _conversationId?: string
   ): Promise<ChatMessage> => {
     // 模拟网络延迟
     await mockDelay(1000 + Math.random() * 1000);

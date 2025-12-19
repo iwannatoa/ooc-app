@@ -3,9 +3,9 @@ Ollama 服务模块
 """
 import requests
 from typing import Dict, List, Optional
-from src.utils.logger import get_logger
-from src.utils.exceptions import ProviderError
-from src.config import Config
+from utils.logger import get_logger
+from utils.exceptions import ProviderError
+from config import Config
 
 logger = get_logger(__name__)
 

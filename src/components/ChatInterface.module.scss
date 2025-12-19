@@ -3,6 +3,7 @@
 
 .chatInterface {
   @include flex-column;
+  flex: 1;
   height: 100%;
   background: $bg-darker;
   border-radius: $border-radius-lg;

@@ -5,6 +5,8 @@ import { ENV_CONFIG } from '@/types/constants';
 import { useServerState } from '@/hooks/useServerState';
 import { useChatState } from '@/hooks/useChatState';
 import { useSettingsState } from '@/hooks/useSettingsState';
+import { useFlaskPort } from '@/hooks/useFlaskPort';
+import { useI18n } from '@/i18n';
 import { isMockMode, mockServerClient } from '@/mock';
 import StatusIndicator from './StatusIndicator';
 import styles from './ServerStatus.module.scss';
@@ -17,49 +19,56 @@ const ServerStatus: React.FC = () => {
     setOllamaStatus,
     setError,
   } = useServerState();
+  const { apiUrl, refetch: refetchPort } = useFlaskPort();
+  const { t } = useI18n();
 
   const { setModels, setSelectedModel } = useChatState();
   const { settings, updateOllamaConfig } = useSettingsState();
   const intervalId = useRef<number | null>(null);
   const hasGetModels = useRef<boolean>(false);
+  const apiUrlRef = useRef<string>(apiUrl);
+
+  useEffect(() => {
+    apiUrlRef.current = apiUrl;
+  }, [apiUrl]);
 
   useEffect(() => {
     initializeCheckServerStatusInterval();
-
     return () => {
       if (intervalId.current) {
         clearInterval(intervalId.current);
         intervalId.current = null;
-        console.log('clear in effect');
       }
     };
-  }, []);
+  }, [apiUrl]);
 
   const initializeCheckServerStatusInterval = async (): Promise<void> => {
-    console.log('init ');
-    if (!intervalId.current) {
-      setPythonServerStatus('started');
-    } else {
-      console.log('clear in init');
+    refetchPort();
+    if (intervalId.current) {
       clearInterval(intervalId.current);
       intervalId.current = null;
     }
+    setPythonServerStatus('started');
     intervalId.current = window.setInterval(() => {
-      console.log('check in interval');
       checkPythonServerStatus();
     }, 5000);
   };
 
   const checkPythonServerStatus = async (): Promise<void> => {
     try {
+      const currentApiUrl = apiUrlRef.current;
+      
       let data: HealthResponse;
       
       if (isMockMode()) {
         data = await mockServerClient.checkHealth();
       } else {
         const response = await fetch(
-          `${ENV_CONFIG.VITE_FLASK_API_URL}/api/health`
+          `${currentApiUrl}/api/health`
         );
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
         data = await response.json();
       }
       
@@ -86,13 +95,14 @@ const ServerStatus: React.FC = () => {
     if (settings.ai.provider !== 'ollama') return;
 
     try {
+      const currentApiUrl = apiUrlRef.current;
       let data: ModelsResponse;
       
       if (isMockMode()) {
         data = await mockServerClient.getModels('ollama');
       } else {
         const response = await fetch(
-          `${ENV_CONFIG.VITE_FLASK_API_URL}/api/models`
+          `${currentApiUrl}/api/models`
         );
         data = await response.json();
       }
@@ -109,7 +119,7 @@ const ServerStatus: React.FC = () => {
         }
       }
     } catch (error) {
-      console.error('获取模型列表失败:', error);
+      console.error(t('serverStatus.fetchModelsFailed'), error);
     }
   };
 
@@ -120,7 +130,7 @@ const ServerStatus: React.FC = () => {
       await invoke<ApiResponse<string>>('start_python_server');
     } catch (error) {
       setPythonServerStatus('error');
-      setError('重启服务器失败');
+      setError(t('serverStatus.restartFailed'));
     }
   };
 
@@ -136,14 +146,14 @@ const ServerStatus: React.FC = () => {
           onClick={restartServer}
           className={styles.retryBtn}
         >
-          重启服务
+          {t('serverStatus.restartServer')}
         </button>
       )}
       {ENV_CONFIG.VITE_DEV_MODE && (
         <>
-          <span className={styles.devBadge}>开发模式</span>
+          <span className={styles.devBadge}>{t('serverStatus.devMode')}</span>
           {isMockMode() && (
-            <span className={styles.mockBadge}>Mock 模式</span>
+            <span className={styles.mockBadge}>{t('serverStatus.mockMode')}</span>
           )}
         </>
       )}
@@ -152,14 +162,14 @@ const ServerStatus: React.FC = () => {
         pythonServerStatus === 'started' &&
         settings.ai.provider === 'ollama' && (
           <div className={styles.connectionHelp}>
-            <h4>无法连接到Ollama</h4>
-            <p>请确保：</p>
+            <h4>{t('serverStatus.cannotConnectToOllama')}</h4>
+            <p>{t('serverStatus.pleaseEnsure')}</p>
             <ul>
-              <li>已安装Ollama</li>
+              <li>{t('serverStatus.ollamaInstalled')}</li>
               <li>
-                Ollama服务正在运行 (运行命令: <code>ollama serve</code>)
+                {t('serverStatus.ollamaRunning')}
               </li>
-              <li>服务运行在默认端口 11434</li>
+              <li>{t('serverStatus.defaultPort')}</li>
             </ul>
           </div>
         )}

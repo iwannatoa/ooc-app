@@ -1,20 +1,25 @@
 """
-会话设置控制器
+Conversation settings controller
 """
 from flask import Flask, request, jsonify
 from injector import inject
-from src.service.conversation_service import ConversationService
-from src.service.story_service import StoryService
-from src.service.ai_service import AIService
-from src.service.ai_config_service import AIConfigService
-from src.utils.logger import get_logger
-from src.utils.exceptions import APIError, ValidationError
+from service.conversation_service import ConversationService
+from service.story_service import StoryService
+from service.ai_service import AIService
+from service.ai_config_service import AIConfigService
+from service.app_settings_service import AppSettingsService
+from service.character_service import CharacterService
+from service.story_generation_service import StoryGenerationService
+from service.chat_service import ChatService
+from utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 logger = get_logger(__name__)
 
 
 class SettingsController:
-    """会话设置控制器类"""
+    """Conversation settings controller"""
     
     @inject
     def __init__(
@@ -22,68 +27,88 @@ class SettingsController:
         conversation_service: ConversationService,
         story_service: StoryService,
         ai_service: AIService,
-        ai_config_service: AIConfigService
+        ai_config_service: AIConfigService,
+        app_settings_service: AppSettingsService,
+        character_service: CharacterService,
+        story_generation_service: StoryGenerationService,
+        chat_service: ChatService
     ):
         """
-        初始化控制器（通过依赖注入）
+        Initialize controller
         
         Args:
-            conversation_service: 会话设置服务实例（自动注入）
-            story_service: 故事服务实例（自动注入）
-            ai_service: AI 服务实例（自动注入）
-            ai_config_service: AI 配置服务实例（自动注入）
+            conversation_service: Conversation service instance
+            story_service: Story service instance
+            ai_service: AI service instance
+            ai_config_service: AI config service instance
         """
         self.conversation_service = conversation_service
         self.story_service = story_service
         self.ai_service = ai_service
         self.ai_config_service = ai_config_service
+        self.app_settings_service = app_settings_service
+        self.character_service = character_service
+        self.story_generation_service = story_generation_service
+        self.chat_service = chat_service
     
     def register_routes(self, app: Flask):
         """
-        注册控制器路由到 Flask 应用
+        Register controller routes to Flask app
         
         Args:
-            app: Flask 应用实例
+            app: Flask app instance
         """
-        # 会话设置相关路由
         @app.route('/api/conversations/list', methods=['GET'])
         def get_conversations_list():
-            """获取所有会话列表（包含设置）"""
             return self.get_conversations_list()
         
         @app.route('/api/conversation/settings', methods=['GET'])
         def get_conversation_settings():
-            """获取会话设置"""
             return self.get_conversation_settings()
         
         @app.route('/api/conversation/settings', methods=['POST'])
         def create_or_update_settings():
-            """创建或更新会话设置"""
             return self.create_or_update_settings()
         
         @app.route('/api/conversation/generate-outline', methods=['POST'])
         def generate_outline():
-            """AI生成大纲"""
             return self.generate_outline()
         
         @app.route('/api/conversation/progress', methods=['GET'])
         def get_progress():
-            """获取故事进度"""
             return self.get_progress()
         
         @app.route('/api/conversation/progress/confirm-outline', methods=['POST'])
         def confirm_outline():
-            """确认大纲"""
             return self.confirm_outline()
         
         @app.route('/api/conversation/progress', methods=['POST'])
         def update_progress():
-            """更新故事进度"""
             return self.update_progress()
+        
+        @app.route('/api/app-settings/language', methods=['GET'])
+        def get_language():
+            return self.get_language()
+        
+        @app.route('/api/app-settings/language', methods=['POST'])
+        def set_language():
+            return self.set_language()
+        
+        @app.route('/api/conversation/characters', methods=['GET'])
+        def get_characters():
+            return self.get_characters()
+        
+        @app.route('/api/conversation/characters/update', methods=['POST'])
+        def update_character():
+            return self.update_character()
+        
+        @app.route('/api/conversation/characters/generate', methods=['POST'])
+        def generate_character():
+            return self.generate_character()
     
     def get_conversations_list(self):
         """
-        获取所有会话列表（包含设置）
+        获取所有会话列表
         
         返回:
             - success: 是否成功
@@ -104,14 +129,14 @@ class SettingsController:
     
     def get_conversation_settings(self):
         """
-        获取会话设置
+        Get conversation settings
         
-        查询参数:
-            - conversation_id: 会话ID（必需）
+        Query params:
+            - conversation_id: Conversation ID
         
-        返回:
-            - success: 是否成功
-            - settings: 设置信息
+        Returns:
+            - success: Success flag
+            - settings: Settings information
         """
         try:
             conversation_id = request.args.get('conversation_id')
@@ -142,19 +167,19 @@ class SettingsController:
     
     def create_or_update_settings(self):
         """
-        创建或更新会话设置
+        Create or update conversation settings
         
-        请求体:
-            - conversation_id: 会话ID（必需）
-            - title: 会话标题（可选）
-            - background: 故事背景（可选）
-            - characters: 人物列表（可选，数组）
-            - character_personality: 人物性格（可选，对象）
-            - outline: 大纲（可选）
+        Request body:
+            - conversation_id: Conversation ID
+            - title: Conversation title
+            - background: Story background
+            - characters: Character list
+            - character_personality: Character personality
+            - outline: Outline
         
-        返回:
-            - success: 是否成功
-            - settings: 保存的设置（不包含 API Key）
+        Returns:
+            - success: Success flag
+            - settings: Saved settings (without API Key)
         """
         try:
             data = request.json or {}
@@ -172,7 +197,8 @@ class SettingsController:
                 background=data.get('background'),
                 characters=data.get('characters'),
                 character_personality=data.get('character_personality'),
-                outline=data.get('outline')
+                outline=data.get('outline'),
+                allow_auto_generate_characters=data.get('allow_auto_generate_characters')
             )
             
             return jsonify({
@@ -189,25 +215,22 @@ class SettingsController:
     
     def generate_outline(self):
         """
-        AI生成故事大纲
+        AI generate story outline
         
-        请求体:
-            - background: 故事背景（必需）
-            - characters: 人物列表（可选，数组）
-            - character_personality: 人物性格（可选，对象）
-            - provider: AI提供商（必需，ollama 或 deepseek）
-            - model: 模型名称（可选，如果不提供则使用全局配置的默认模型）
-            
-        注意：apiKey, baseUrl, maxTokens, temperature 等配置参数将从数据库中的全局配置自动获取，无需前端传递
+        Request body:
+            - background: Story background
+            - characters: Character list
+            - character_personality: Character personality
+            - provider: AI provider (ollama or deepseek)
+            - model: Model name (uses default from global config if not provided)
         
-        返回:
-            - success: 是否成功
-            - outline: 生成的大纲内容
+        Returns:
+            - success: Success flag
+            - outline: Generated outline content
         """
         try:
             data = request.json or {}
             background = data.get('background')
-            conversation_id = data.get('conversation_id')
             
             if not background:
                 return jsonify({
@@ -217,10 +240,13 @@ class SettingsController:
             
             provider = data.get('provider')
             if not provider:
-                return jsonify({
-                    "success": False,
-                    "error": "provider is required (ollama or deepseek)"
-                }), 400
+                # Try to get from app settings, default to deepseek
+                try:
+                    # For now, default to deepseek
+                    # Could be improved to get from app settings if needed
+                    provider = 'deepseek'
+                except Exception:
+                    provider = 'deepseek'
             
             outline = self.conversation_service.generate_outline(
                 background=background,
@@ -244,14 +270,14 @@ class SettingsController:
     
     def get_progress(self):
         """
-        获取故事进度
+        Get story progress
         
-        查询参数:
-            - conversation_id: 会话ID（必需）
+        Query params:
+            - conversation_id: Conversation ID
         
-        返回:
-            - success: 是否成功
-            - progress: 进度信息
+        Returns:
+            - success: Success flag
+            - progress: Progress information
         """
         try:
             conversation_id = request.args.get('conversation_id')
@@ -276,13 +302,13 @@ class SettingsController:
     
     def confirm_outline(self):
         """
-        确认大纲，可以开始生成故事
+        Confirm outline, can start generating story
         
-        请求体:
-            - conversation_id: 会话ID（必需）
+        Request body:
+            - conversation_id: Conversation ID
         
-        返回:
-            - success: 是否成功
+        Returns:
+            - success: Success flag
         """
         try:
             data = request.json or {}
@@ -314,17 +340,17 @@ class SettingsController:
     
     def update_progress(self):
         """
-        更新故事进度
+        Update story progress
         
-        请求体:
-            - conversation_id: 会话ID（必需）
-            - current_section: 当前章节编号（可选）
-            - total_sections: 总章节数（可选）
-            - status: 状态（可选）
+        Request body:
+            - conversation_id: Conversation ID
+            - current_section: Current section number
+            - total_sections: Total sections (optional)
+            - status: Status (optional)
         
-        返回:
-            - success: 是否成功
-            - progress: 更新后的进度
+        Returns:
+            - success: Success flag
+            - progress: Updated progress
         """
         try:
             data = request.json or {}
@@ -353,5 +379,397 @@ class SettingsController:
             return jsonify({
                 "success": False,
                 "error": f"Failed to update progress: {str(e)}"
+            }), 500
+    
+    def get_language(self):
+        """
+        Get language setting
+        
+        Returns:
+            - success: Success flag
+            - language: Language code ('zh' or 'en')
+        """
+        try:
+            language = self.app_settings_service.get_language()
+            return jsonify({
+                "success": True,
+                "language": language
+            })
+        except Exception as e:
+            logger.error(f"Failed to get language: {str(e)}", exc_info=True)
+            return jsonify({
+                "success": False,
+                "error": f"Failed to get language: {str(e)}"
+            }), 500
+    
+    def set_language(self):
+        """
+        Set language setting
+        
+        Request body:
+            - language: Language code ('zh' or 'en')
+        
+        Returns:
+            - success: Success flag
+            - language: Language code
+        """
+        try:
+            data = request.json or {}
+            language = data.get('language')
+            
+            if not language:
+                return jsonify({
+                    "success": False,
+                    "error": "language is required"
+                }), 400
+            
+            if language not in ('zh', 'en'):
+                return jsonify({
+                    "success": False,
+                    "error": "language must be 'zh' or 'en'"
+                }), 400
+            
+            self.app_settings_service.set_language(language)
+            return jsonify({
+                "success": True,
+                "language": language
+            })
+        except ValueError as e:
+            return jsonify({
+                "success": False,
+                "error": str(e)
+            }), 400
+        except Exception as e:
+            logger.error(f"Failed to set language: {str(e)}", exc_info=True)
+            return jsonify({
+                "success": False,
+                "error": f"Failed to set language: {str(e)}"
+            }), 500
+    
+    def get_characters(self):
+        """
+        Get all characters for a conversation
+        
+        Query params:
+            - conversation_id: Conversation ID
+            - include_unavailable: Whether to include unavailable characters (default: true)
+        
+        Returns:
+            - success: Success flag
+            - characters: List of character records
+        """
+        try:
+            conversation_id = request.args.get('conversation_id')
+            include_unavailable = request.args.get('include_unavailable', 'true').lower() == 'true'
+            
+            if not conversation_id:
+                return jsonify({
+                    "success": False,
+                    "error": "conversation_id is required"
+                }), 400
+            
+            characters = self.character_service.get_characters(
+                conversation_id=conversation_id,
+                include_unavailable=include_unavailable
+            )
+            
+            return jsonify({
+                "success": True,
+                "characters": characters
+            })
+        
+        except Exception as e:
+            logger.error(f"Failed to get characters: {str(e)}", exc_info=True)
+            return jsonify({
+                "success": False,
+                "error": f"Failed to get characters: {str(e)}"
+            }), 500
+    
+    def update_character(self):
+        """
+        Update character properties
+        
+        Request body:
+            - conversation_id: Conversation ID
+            - name: Character name
+            - is_main: Whether this is a main character (optional)
+            - is_unavailable: Whether this character is unavailable (optional)
+            - notes: Additional notes (optional)
+        
+        Returns:
+            - success: Success flag
+            - character: Updated character record
+        """
+        try:
+            data = request.json or {}
+            conversation_id = data.get('conversation_id')
+            name = data.get('name')
+            
+            if not conversation_id:
+                return jsonify({
+                    "success": False,
+                    "error": "conversation_id is required"
+                }), 400
+            
+            if not name:
+                return jsonify({
+                    "success": False,
+                    "error": "name is required"
+                }), 400
+            
+            character = self.character_service.update_character(
+                conversation_id=conversation_id,
+                name=name,
+                is_main=data.get('is_main'),
+                is_unavailable=data.get('is_unavailable'),
+                notes=data.get('notes')
+            )
+            
+            if character:
+                return jsonify({
+                    "success": True,
+                    "character": character
+                })
+            else:
+                return jsonify({
+                    "success": False,
+                    "error": "Character not found"
+                }), 404
+        
+        except Exception as e:
+            logger.error(f"Failed to update character: {str(e)}", exc_info=True)
+            return jsonify({
+                "success": False,
+                "error": f"Failed to update character: {str(e)}"
+            }), 500
+    
+    def generate_character(self):
+        """
+        Generate a character using AI
+        
+        Request body:
+            - conversation_id: Conversation ID (required)
+            - provider: AI provider (required)
+            - model: Model name (optional)
+            - character_hints: Optional hints for character generation
+        
+        Returns:
+            - success: Success flag
+            - character: Generated character information (name and personality)
+        """
+        try:
+            data = request.json or {}
+            conversation_id = data.get('conversation_id')
+            
+            if not conversation_id:
+                return jsonify({
+                    "success": False,
+                    "error": "conversation_id is required"
+                }), 400
+            
+            provider = data.get('provider')
+            if not provider:
+                provider = 'deepseek'
+            model = data.get('model')
+            
+            # Get settings from database
+            settings = self.conversation_service.get_settings(conversation_id)
+            if not settings:
+                return jsonify({
+                    "success": False,
+                    "error": "Conversation settings not found. Please save settings first."
+                }), 404
+            
+            background = settings.get('background')
+            if not background:
+                return jsonify({
+                    "success": False,
+                    "error": "Background is required. Please provide background in settings first."
+                }), 400
+            
+            # Get existing characters from settings
+            existing_characters = settings.get('characters', [])
+            
+            # Get appeared characters from database
+            appeared_characters = []
+            if self.character_service:
+                appeared_characters = self.character_service.get_characters(
+                    conversation_id=conversation_id,
+                    include_unavailable=True
+                )
+            
+            # Get recent story content to provide context
+            recent_content = ""
+            try:
+                messages = self.chat_service.get_conversation(conversation_id, limit=10)
+                recent_messages = [msg for msg in messages if msg.get('role') == 'assistant']
+                if recent_messages:
+                    recent_content = "\n".join([msg.get('content', '')[:500] for msg in recent_messages[-3:]])
+            except Exception as e:
+                logger.warning(f"Failed to get recent messages for character generation: {str(e)}")
+            
+            character_hints = data.get('character_hints', '')
+            
+            # Get language setting
+            language = self.app_settings_service.get_language()
+            
+            # Build prompt for character generation
+            prompt_parts = []
+            if language == 'zh':
+                prompt_parts.append("请根据以下故事背景，生成一个合适的新人物。")
+            else:
+                prompt_parts.append("Please generate a suitable new character based on the following story background.")
+            prompt_parts.append("")
+            
+            if language == 'zh':
+                prompt_parts.append("故事背景：")
+            else:
+                prompt_parts.append("Story Background:")
+            prompt_parts.append(background)
+            prompt_parts.append("")
+            
+            # Add existing characters from settings
+            if existing_characters:
+                if language == 'zh':
+                    prompt_parts.append("已有角色（从设定中）：")
+                else:
+                    prompt_parts.append("Existing Characters (from settings):")
+                for char in existing_characters:
+                    prompt_parts.append(f"- {char}")
+                prompt_parts.append("")
+            
+            # Add appeared characters from database
+            if appeared_characters:
+                available_chars = [c for c in appeared_characters if not c.get('is_unavailable', False)]
+                if available_chars:
+                    if language == 'zh':
+                        prompt_parts.append("已出场人物：")
+                    else:
+                        prompt_parts.append("Appeared Characters:")
+                    for char in available_chars:
+                        char_name = char.get('name', '')
+                        is_main = char.get('is_main', False)
+                        main_label = "（主要）" if language == 'zh' else " (Main)" if is_main else ""
+                        prompt_parts.append(f"- {char_name}{main_label}")
+                    prompt_parts.append("")
+            
+            # Add recent story content for context
+            if recent_content:
+                if language == 'zh':
+                    prompt_parts.append("最近的故事内容（供参考）：")
+                else:
+                    prompt_parts.append("Recent Story Content (for reference):")
+                prompt_parts.append(recent_content[:1000])  # Limit to 1000 chars
+                prompt_parts.append("")
+            
+            if character_hints:
+                if language == 'zh':
+                    prompt_parts.append("角色提示：")
+                else:
+                    prompt_parts.append("Character Hints:")
+                prompt_parts.append(character_hints)
+                prompt_parts.append("")
+            
+            if language == 'zh':
+                prompt_parts.append(
+                    "请生成一个新角色的信息，包括：\n"
+                    "1. 角色姓名\n"
+                    "2. 角色性格和设定（简要描述，100字左右）\n\n"
+                    "请按照以下格式返回：\n"
+                    "姓名：[角色姓名]\n"
+                    "设定：[角色性格和设定描述]"
+                )
+            else:
+                prompt_parts.append(
+                    "Please generate information for a new character, including:\n"
+                    "1. Character name\n"
+                    "2. Character personality and settings (brief description, around 100 words)\n\n"
+                    "Please return in the following format:\n"
+                    "Name: [Character Name]\n"
+                    "Setting: [Character personality and setting description]"
+                )
+            
+            prompt = "\n".join(prompt_parts)
+            
+            # Get AI config
+            api_config = self.ai_config_service.get_config_for_api(
+                provider=provider,
+                model=model
+            )
+            
+            # Call AI to generate character
+            result = self.ai_service.chat(
+                provider=api_config['provider'],
+                message=prompt,
+                model=api_config['model'],
+                api_key=api_config['api_key'],
+                base_url=api_config['base_url'],
+                max_tokens=api_config['max_tokens'],
+                temperature=api_config['temperature']
+            )
+            
+            if result.get('success'):
+                response_text = result.get('response', '')
+                
+                # Parse response
+                character_name = None
+                character_personality = None
+                
+                lines = response_text.split('\n')
+                for line in lines:
+                    line = line.strip()
+                    if language == 'zh':
+                        if line.startswith('姓名：') or line.startswith('姓名:'):
+                            character_name = line.split('：', 1)[-1].split(':', 1)[-1].strip()
+                        elif line.startswith('设定：') or line.startswith('设定:'):
+                            character_personality = line.split('：', 1)[-1].split(':', 1)[-1].strip()
+                    else:
+                        if line.startswith('Name:') or line.startswith('Name：'):
+                            character_name = line.split(':', 1)[-1].split('：', 1)[-1].strip()
+                        elif line.startswith('Setting:') or line.startswith('Setting：'):
+                            character_personality = line.split(':', 1)[-1].split('：', 1)[-1].strip()
+                
+                # Fallback: try to extract name from first line if not found
+                if not character_name:
+                    first_line = lines[0].strip() if lines else ''
+                    if first_line:
+                        character_name = first_line.split(':')[0].split('：')[0].strip()
+                        character_name = character_name.replace('姓名', '').replace('Name', '').strip(': ：').strip()
+                        if character_name:
+                            character_personality = '\n'.join(lines[1:]).strip() if len(lines) > 1 else response_text
+                
+                if not character_name:
+                    # Last resort: use first non-empty line
+                    for line in lines:
+                        line = line.strip()
+                        if line and not line.startswith('姓名') and not line.startswith('Name') and not line.startswith('设定') and not line.startswith('Setting'):
+                            character_name = line.split(' ')[0].split('\t')[0]
+                            character_personality = response_text.replace(line, '').strip()
+                            break
+                
+                if character_name:
+                    return jsonify({
+                        "success": True,
+                        "character": {
+                            "name": character_name,
+                            "personality": character_personality or ''
+                        }
+                    })
+                else:
+                    return jsonify({
+                        "success": False,
+                        "error": "Failed to parse character name from AI response"
+                    }), 500
+            else:
+                return jsonify({
+                    "success": False,
+                    "error": result.get('error', 'Failed to generate character')
+                }), 500
+        
+        except Exception as e:
+            logger.error(f"Failed to generate character: {str(e)}", exc_info=True)
+            return jsonify({
+                "success": False,
+                "error": f"Failed to generate character: {str(e)}"
             }), 500
 

@@ -8,6 +8,21 @@
   border-right: 1px solid $border-color;
   width: 250px;
   min-width: 200px;
+  transition: width 0.3s ease;
+
+  &.collapsed {
+    width: 0;
+    min-width: 0;
+    border-right: none;
+
+    .header {
+      display: none;
+    }
+
+    .list {
+      display: none;
+    }
+  }
 }
 
 .header {
@@ -22,6 +37,34 @@
     font-size: $font-size-lg;
     font-weight: 600;
     color: $text-primary;
+    flex: 1;
+  }
+}
+
+.headerActions {
+  @include flex-row;
+  gap: $spacing-xs;
+  align-items: center;
+}
+
+.collapseButton {
+  padding: $spacing-xs;
+  background: transparent;
+  border: none;
+  color: $text-secondary;
+  cursor: pointer;
+  font-size: $font-size-sm;
+  transition: color 0.2s;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    color: $text-primary;
+    background: $bg-darker;
+    border-radius: $border-radius;
   }
 }
 

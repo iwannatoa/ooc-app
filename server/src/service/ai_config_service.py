@@ -2,8 +2,8 @@
 全局 AI 配置服务层
 """
 from typing import Optional, Dict, List
-from src.repository.ai_config_repository import AIConfigRepository
-from src.utils.logger import get_logger
+from repository.ai_config_repository import AIConfigRepository
+from utils.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -22,11 +22,11 @@ class AIConfigService:
     
     def get_config(self, provider: str, include_api_key: bool = True) -> Optional[Dict]:
         """
-        获取指定 provider 的配置（用于调用 AI API）
+        获取指定 provider 的配置
         
         Args:
-            provider: AI提供商（ollama, deepseek）
-            include_api_key: 是否包含 API Key（默认 True，因为需要用于 API 调用）
+            provider: AI提供商，ollama 或 deepseek
+            include_api_key: 是否包含 API Key，默认 True
         
         Returns:
             配置字典，如果不存在则返回 None
@@ -42,7 +42,7 @@ class AIConfigService:
         获取所有 AI 配置
         
         Args:
-            include_api_key: 是否包含 API Key（默认 False，安全考虑）
+            include_api_key: 是否包含 API Key，默认 False
         
         Returns:
             配置列表
@@ -63,7 +63,7 @@ class AIConfigService:
         创建或更新 AI 配置
         
         Args:
-            provider: AI提供商（ollama, deepseek）
+            provider: AI提供商，ollama 或 deepseek
             model: 默认模型名称
             api_key: API密钥
             base_url: 自定义基础URL
@@ -71,7 +71,7 @@ class AIConfigService:
             temperature: 温度参数
         
         Returns:
-            配置字典（不包含 API Key）
+            配置字典，不包含 API Key
         """
         config = self.repository.create_or_update_config(
             provider=provider,
@@ -90,15 +90,15 @@ class AIConfigService:
         **kwargs
     ) -> Dict:
         """
-        获取用于 API 调用的配置（从数据库获取，只接受 provider 和 model）
+        获取用于 API 调用的配置
         
         Args:
-            provider: AI提供商（ollama, deepseek）
-            model: 模型名称（可选，如果提供则覆盖全局配置的默认模型）
-            **kwargs: 其他参数（保留用于未来扩展，但通常不需要）
+            provider: AI提供商，ollama 或 deepseek
+            model: 模型名称，如果提供则覆盖全局配置的默认模型
+            **kwargs: 其他参数，保留用于未来扩展
         
         Returns:
-            配置字典（包含 provider, model, api_key, base_url, max_tokens, temperature）
+            配置字典，包含 provider, model, api_key, base_url, max_tokens, temperature
         """
         global_config = self.get_config(provider, include_api_key=True)
         

@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ConversationWithSettings } from '@/types';
+import { useI18n } from '@/i18n';
 import styles from './ConversationList.module.scss';
 
 interface ConversationListProps {
@@ -8,6 +9,9 @@ interface ConversationListProps {
   onSelectConversation: (id: string) => void;
   onDeleteConversation: (id: string) => void;
   onNewConversation: () => void;
+  onCollapseChange?: (collapsed: boolean) => void;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
 const ConversationList: React.FC<ConversationListProps> = ({
@@ -16,7 +20,23 @@ const ConversationList: React.FC<ConversationListProps> = ({
   onSelectConversation,
   onDeleteConversation,
   onNewConversation,
+  onCollapseChange,
+  isCollapsed: externalCollapsed,
+  onToggleCollapse,
 }) => {
+  const { t } = useI18n();
+  const [internalCollapsed, setInternalCollapsed] = useState(false);
+  const isCollapsed = externalCollapsed !== undefined ? externalCollapsed : internalCollapsed;
+  
+  const handleToggleCollapse = () => {
+    if (onToggleCollapse) {
+      onToggleCollapse();
+    } else {
+      const newCollapsed = !internalCollapsed;
+      setInternalCollapsed(newCollapsed);
+      onCollapseChange?.(newCollapsed);
+    }
+  };
   const formatDate = (dateString?: string) => {
     if (!dateString) return '';
     const date = new Date(dateString);
@@ -29,23 +49,35 @@ const ConversationList: React.FC<ConversationListProps> = ({
   };
 
   return (
-    <div className={styles.conversationList}>
+    <div className={`${styles.conversationList} ${isCollapsed ? styles.collapsed : ''}`}>
       <div className={styles.header}>
-        <h2>会话历史</h2>
-        <button
-          onClick={onNewConversation}
-          className={styles.newButton}
-          title="新建会话"
-        >
-          + 新建
-        </button>
+        <h2>{t('conversation.title')}</h2>
+        <div className={styles.headerActions}>
+          {!isCollapsed && (
+            <button
+              onClick={onNewConversation}
+              className={styles.newButton}
+              title={t('conversation.newConversation')}
+            >
+              + {t('common.new')}
+            </button>
+          )}
+          <button
+            onClick={handleToggleCollapse}
+            className={styles.collapseButton}
+            title={isCollapsed ? t('common.expand') : t('common.collapse')}
+          >
+            {isCollapsed ? '▶' : '▼'}
+          </button>
+        </div>
       </div>
-      <div className={styles.list}>
+      {!isCollapsed && (
+        <div className={styles.list}>
         {conversations.length === 0 ? (
           <div className={styles.empty}>
-            <p>暂无会话</p>
+            <p>{t('conversation.noConversations')}</p>
             <button onClick={onNewConversation} className={styles.emptyButton}>
-              创建新会话
+              {t('conversation.newConversation')}
             </button>
           </div>
         ) : (
@@ -59,7 +91,7 @@ const ConversationList: React.FC<ConversationListProps> = ({
             >
               <div className={styles.itemContent}>
                 <div className={styles.title}>
-                  {conv.settings?.title || conv.title || '未命名会话'}
+                  {conv.settings?.title || conv.title || t('conversation.unnamedConversation')}
                 </div>
                 <div className={styles.meta}>
                   {formatDate(conv.settings?.updated_at || conv.updatedAt.toString())}
@@ -71,14 +103,15 @@ const ConversationList: React.FC<ConversationListProps> = ({
                   e.stopPropagation();
                   onDeleteConversation(conv.id);
                 }}
-                title="删除会话"
+                title={t('conversation.deleteConversation')}
               >
                 ×
               </button>
             </div>
           ))
         )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };

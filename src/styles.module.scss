@@ -27,12 +27,71 @@
   }
 }
 
+.headerRight {
+  @include flex-row;
+  gap: $spacing-sm;
+  align-items: center;
+}
+
+.mockToggleBtn {
+  @include button-reset;
+  padding: $spacing-xs $spacing-sm;
+  border: 1px solid $border-color;
+  border-radius: $border-radius;
+  background: $bg-darker;
+  color: $text-secondary;
+  font-size: $font-size-sm;
+  transition: all $transition-fast;
+  cursor: pointer;
+
+  &:hover {
+    background: $bg-light;
+    border-color: $border-light;
+    color: $text-primary;
+  }
+
+  &.active {
+    background: rgba(76, 175, 80, 0.2);
+    border-color: #4caf50;
+    color: #4caf50;
+  }
+}
+
+.languageBtn {
+  @include button-reset;
+  padding: $spacing-xs $spacing-sm;
+  border: 1px solid $border-color;
+  border-radius: $border-radius;
+  background: $bg-darker;
+  color: $text-secondary;
+  font-size: $font-size-sm;
+  font-weight: 500;
+  min-width: 36px;
+  transition: all $transition-fast;
+  cursor: pointer;
+
+  &:hover {
+    background: $bg-light;
+    border-color: $border-light;
+    color: $text-primary;
+  }
+}
+
 .controls {
   display: flex;
   gap: $spacing-sm;
   margin-bottom: $spacing-lg;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: space-between;
+  position: relative;
+}
+
+.controlsRight {
+  display: flex;
+  gap: $spacing-sm;
+  align-items: center;
+  margin-left: auto;
 }
 
 .modelInfo {
@@ -86,6 +145,61 @@
   background: $bg-darker;
   border-radius: $border-radius-lg;
   border: 1px solid $border-color;
+}
+
+.chatWithSidebar {
+  display: flex;
+  height: 100%;
+  overflow: hidden;
+}
+
+.expandButton {
+  @include button-reset;
+  padding: $spacing-sm $spacing-md;
+  border: 1px solid $border-color;
+  border-radius: $border-radius;
+  background: $bg-darker;
+  color: $text-primary;
+  font-size: $font-size-base;
+  transition: all $transition-fast;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: $bg-light;
+    border-color: $border-light;
+  }
+}
+
+.newButton {
+  @include button-reset;
+  padding: $spacing-sm $spacing-md;
+  border: none;
+  border-radius: $border-radius;
+  background: $primary-color;
+  color: white;
+  font-size: $font-size-base;
+  transition: all $transition-fast;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: $primary-color-hover;
+  }
+}
+
+.conversationTitle {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: $spacing-sm $spacing-md;
+  color: $text-primary;
+  font-size: $font-size-base;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 300px;
+  user-select: none;
+  pointer-events: none;
 }
 
 .editSettingsBtn {

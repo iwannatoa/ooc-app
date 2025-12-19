@@ -1,18 +1,18 @@
 """
-聊天编排服务层（协调多个服务，处理完整的聊天流程）
+聊天编排服务层
 """
 from typing import Optional, Dict
-from src.service.ai_service import AIService
-from src.service.chat_service import ChatService
-from src.service.ai_config_service import AIConfigService
-from src.utils.logger import get_logger
+from service.ai_service import AIService
+from service.chat_service import ChatService
+from service.ai_config_service import AIConfigService
+from utils.logger import get_logger
 import uuid
 
 logger = get_logger(__name__)
 
 
 class ChatOrchestrationService:
-    """聊天编排服务类（协调 AI 服务、配置服务、聊天记录服务）"""
+    """聊天编排服务类"""
     
     def __init__(
         self,
@@ -40,13 +40,13 @@ class ChatOrchestrationService:
         model: Optional[str] = None
     ) -> Dict:
         """
-        处理完整的聊天流程（获取配置、调用 AI、保存消息）
+        处理完整的聊天流程
         
         Args:
             message: 用户消息
-            provider: AI 提供商（必需）
-            conversation_id: 会话ID（可选，如果不提供则自动生成）
-            model: 模型名称（可选，如果不提供则使用全局配置的默认模型）
+            provider: AI 提供商
+            conversation_id: 会话ID，如果不提供则自动生成
+            model: 模型名称，如果不提供则使用全局配置的默认模型
         
         Returns:
             处理结果字典

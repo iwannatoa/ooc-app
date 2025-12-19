@@ -2,6 +2,7 @@ import {
   ConversationWithSettings,
   ConversationSettings,
   ChatMessage,
+  CharacterRecord,
 } from '@/types';
 import {
   mockConversations,
@@ -82,7 +83,7 @@ export const mockConversationClient = {
       updated_at: new Date().toISOString(),
     };
 
-    // 更新或创建会话
+    // 更新或创建故事
     const existingIndex = mockConversationsData.findIndex(
       (c) => c.id === conversationId
     );
@@ -96,7 +97,7 @@ export const mockConversationClient = {
     } else {
       mockConversationsData.push({
         id: conversationId,
-        title: newSettings.title || '未命名会话',
+        title: newSettings.title || '未命名故事',
         messages: [],
         createdAt: Date.now(),
         updatedAt: Date.now(),
@@ -111,7 +112,19 @@ export const mockConversationClient = {
     conversationId: string
   ): Promise<ChatMessage[]> => {
     await mockDelay(200);
-    return mockMessagesData[conversationId] || [];
+    // 返回当前故事的所有消息（包括新添加的）
+    return [...(mockMessagesData[conversationId] || [])];
+  },
+  
+  // 添加消息到故事（用于模拟后端保存）
+  addMessageToConversation: (
+    conversationId: string,
+    message: ChatMessage
+  ): void => {
+    if (!mockMessagesData[conversationId]) {
+      mockMessagesData[conversationId] = [];
+    }
+    mockMessagesData[conversationId].push(message);
   },
 
   deleteConversation: async (conversationId: string): Promise<boolean> => {
@@ -124,7 +137,7 @@ export const mockConversationClient = {
   },
 
   generateOutline: async (
-    background: string,
+    _background: string,
     characters?: string[],
     characterPersonality?: Record<string, string>
   ): Promise<string> => {
@@ -136,7 +149,7 @@ export const mockConversationClient = {
     if (characters && characters.length > 0) {
       customizedOutline += `\n\n## 主要人物\n`;
       characters.forEach((char, index) => {
-        const personality = characterPersonality?.[char] || '待设定';
+        const personality = characterPersonality?.[char] || '待补充';
         customizedOutline += `${index + 1}. ${char} - ${personality}\n`;
       });
     }
@@ -144,18 +157,18 @@ export const mockConversationClient = {
     return customizedOutline;
   },
 
-  getSummary: async (conversationId: string) => {
+  getSummary: async (_conversationId: string) => {
     await mockDelay(200);
     return null;
   },
 
   generateSummary: async (
     conversationId: string,
-    provider: string,
-    model?: string
+    _provider: string,
+    _model?: string
   ): Promise<string> => {
     await mockDelay(2000);
-    return `这是会话 ${conversationId} 的总结内容。总结包含了故事的主要情节发展、关键事件和转折点，以及人物关系和互动。`;
+    return `这是故事 ${conversationId} 的总结内容。总结包含了故事的主要情节发展、关键事件和转折点，以及人物关系和互动。`;
   },
 
   saveSummary: async (
@@ -173,12 +186,12 @@ export const mockConversationClient = {
     };
   },
 
-  getProgress: async (conversationId: string) => {
+  getProgress: async (_conversationId: string) => {
     await mockDelay(200);
     return null;
   },
 
-  confirmOutline: async (conversationId: string): Promise<boolean> => {
+  confirmOutline: async (_conversationId: string): Promise<boolean> => {
     await mockDelay(300);
     return true;
   },
@@ -196,6 +209,60 @@ export const mockConversationClient = {
       status: 'idle',
       ...progress,
     };
+  },
+
+  getCharacters: async (
+    _conversationId: string,
+    _includeUnavailable: boolean = false
+  ): Promise<CharacterRecord[]> => {
+    await mockDelay(200);
+    return [];
+  },
+
+  updateCharacter: async (
+    conversationId: string,
+    name: string,
+    updates: {
+      is_main?: boolean;
+      is_unavailable?: boolean;
+      notes?: string;
+    }
+  ): Promise<CharacterRecord> => {
+    await mockDelay(300);
+    return {
+      id: 1,
+      conversation_id: conversationId,
+      name,
+      is_main: updates.is_main ?? false,
+      is_unavailable: updates.is_unavailable ?? false,
+      first_appeared_message_id: undefined,
+      is_auto_generated: false,
+      notes: updates.notes ?? undefined,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+  },
+
+  generateCharacter: async (
+    _conversationId: string,
+    _provider: string,
+    _model?: string,
+    _characterHints?: string
+  ) => {
+    await mockDelay(2000);
+    return {
+      name: '新角色',
+      personality: '这是一个新生成的角色性格描述。',
+    };
+  },
+
+  deleteLastMessage: async (conversationId: string): Promise<boolean> => {
+    await mockDelay(300);
+    if (mockMessagesData[conversationId] && mockMessagesData[conversationId].length > 0) {
+      mockMessagesData[conversationId].pop();
+      return true;
+    }
+    return false;
   },
 };
 

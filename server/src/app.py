@@ -1,50 +1,61 @@
+# Copyright © 2016-2025 Patrick Zhang.
+# All Rights Reserved.
 """
-Flask 应用主入口
+Flask application entry point
 """
 import sys
+import os
 from pathlib import Path
 
-# 添加 server/src 目录到 Python 路径
+# Add server/src to Python path
 src_dir = Path(__file__).parent
+if str(src_dir) not in sys.path:
+    sys.path.insert(0, str(src_dir))
 server_dir = src_dir.parent
-if str(server_dir) not in sys.path:
-    sys.path.insert(0, str(server_dir))
 
-from flask import Flask
+# Development mode: set DB_PATH if not set
+if not os.getenv('DB_PATH'):
+    is_dev = os.getenv('FLASK_ENV', '').lower() == 'development' or \
+             os.getenv('FLASK_DEBUG', '').lower() == 'true' or \
+             os.getenv('DEV', '').lower() == 'true'
+    
+    if is_dev:
+        local_db_dir = server_dir / 'data' / 'local'
+        local_db_dir.mkdir(parents=True, exist_ok=True)
+        local_db_path = str(local_db_dir / 'chat.db')
+        os.environ['DB_PATH'] = local_db_path
+
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_injector import FlaskInjector
-from injector import inject
-from src.config import get_config
-from src.utils.logger import setup_logger
-from src.di.module import AppModule
-from src.controller.chat_controller import ChatController
-from src.controller.settings_controller import SettingsController
+from config import get_config
+from utils.logger import setup_logger
+from di.module import AppModule
+from controller.chat_controller import ChatController
+from controller.settings_controller import SettingsController
 
-# 设置日志
+# Setup logger
 logger = setup_logger(__name__)
 
-# 创建 Flask 应用
+# Create Flask app
 app = Flask(__name__)
 
-# 加载配置
+# Load config
 config = get_config()
 app.config.from_object(config)
 
-# 启用 CORS
+# Enable CORS
 if config.CORS_ENABLED:
     CORS(app)
 
-# 设置最大内容长度
+# Set max content length
 app.config['MAX_CONTENT_LENGTH'] = config.MAX_CONTENT_LENGTH
 
-# 配置依赖注入（类似 Spring 的 ApplicationContext）
 injector = FlaskInjector(app=app, modules=[AppModule()])
 
 
-# 根路径
 @app.route('/')
 def index():
-    """根路径"""
     return {
         "name": "OOC Flask API",
         "version": "1.0.0",
@@ -52,34 +63,58 @@ def index():
     }
 
 
-# 注册控制器路由（在依赖注入配置后）
-# 从注入器获取 controller 实例并注册路由
+# Register controller routes after dependency injection
 with app.app_context():
-    chat_controller = injector.injector.get(ChatController)
-    chat_controller.register_routes(app)
+    chat_controller_instance = injector.injector.get(ChatController)
+    chat_controller_instance.register_routes(app)
     
     settings_controller = injector.injector.get(SettingsController)
     settings_controller.register_routes(app)
 
 
-# 应用级别的路由（健康检查和停止服务器）
 @app.route('/api/health', methods=['GET'])
-@inject
-def health_check(chat_controller: ChatController):
-    """健康检查"""
-    return chat_controller.health_check()
+def health_check():
+    try:
+        from service.ai_service import AIService
+        
+        provider = request.args.get('provider', 'ollama')
+        
+        # Get AIService from injector
+        with app.app_context():
+            ai_service = injector.injector.get(AIService)
+            result = ai_service.health_check(provider=provider)
+            return jsonify(result)
+    
+    except Exception as e:
+        logger.error(f"Health check error: {str(e)}")
+        return jsonify({
+            "status": "unhealthy",
+            "ollama_available": False,
+            "error": str(e)
+        }), 503
 
 
 @app.route('/api/stop', methods=['POST'])
-@inject
-def stop_server(chat_controller: ChatController):
-    """停止服务器"""
-    return chat_controller.stop_server()
+def stop_server():
+    import threading
+    import time
+    
+    def shutdown():
+        time.sleep(1)
+        func = request.environ.get('werkzeug.server.shutdown')
+        if func is None:
+            raise RuntimeError('Not running with the Werkzeug Server')
+        func()
+    
+    threading.Thread(target=shutdown).start()
+    return jsonify({
+        "success": True,
+        "message": "Server is shutting down"
+    })
 
 
 @app.errorhandler(404)
 def not_found(error):
-    """404 错误处理"""
     return {
         "success": False,
         "error": "Endpoint not found"
@@ -88,7 +123,6 @@ def not_found(error):
 
 @app.errorhandler(500)
 def internal_error(error):
-    """500 错误处理"""
     logger.error(f"Internal server error: {str(error)}", exc_info=True)
     return {
         "success": False,
@@ -99,13 +133,24 @@ def internal_error(error):
 if __name__ == '__main__':
     logger.info("Starting Flask server...")
     logger.info(f"Environment: {config.__class__.__name__}")
-    logger.info(f"Host: {config.HOST}, Port: {config.PORT}")
+    logger.info(f"Host: {config.HOST}")
     logger.info(f"Debug: {config.DEBUG}")
     
-    app.run(
-        host=config.HOST,
-        port=config.PORT,
-        debug=config.DEBUG,
-        use_reloader=False
-    )
+    from werkzeug.serving import make_server
+    import socket
+    requested_port = int(os.getenv('FLASK_PORT', '0'))
+    if requested_port == 0:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.bind(('', 0))
+        requested_port = s.getsockname()[1]
+        s.close()
+    
+    server = make_server(config.HOST, requested_port, app)
+    actual_port = server.server_port
+    
+    print(f"FLASK_PORT:{actual_port}", flush=True)
+    
+    logger.info(f"Server running on http://{config.HOST}:{actual_port}")
+    
+    server.serve_forever()
 

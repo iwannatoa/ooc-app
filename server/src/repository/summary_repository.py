@@ -1,49 +1,54 @@
 """
-会话总结数据访问层
+Conversation summary data access layer
 """
 from typing import Optional
 from datetime import datetime
-from sqlalchemy import create_engine, desc
+from sqlalchemy import create_engine
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import sessionmaker, Session
-from src.model.conversation_summary import ConversationSummary, Base
-from src.utils.logger import get_logger
+from model.conversation_summary import ConversationSummary, Base
+from utils.logger import get_logger
 
 logger = get_logger(__name__)
 
 
 class SummaryRepository:
-    """会话总结仓库类"""
+    """Conversation summary repository"""
     
     def __init__(self, db_path: str):
         """
-        初始化仓库
+        Initialize repository
         
         Args:
-            db_path: 数据库文件路径
+            db_path: Database file path
         """
         self.db_path = db_path
-        # 创建数据库引擎
         self.engine = create_engine(
             f'sqlite:///{db_path}',
             echo=False,
             connect_args={'check_same_thread': False}
         )
-        # 创建会话工厂
         self.SessionLocal = sessionmaker(bind=self.engine)
-        # 创建表（如果不存在）
         self._init_database()
     
     def _init_database(self):
-        """初始化数据库，创建表"""
+        """Initialize database, create tables"""
         try:
-            Base.metadata.create_all(self.engine)
+            Base.metadata.create_all(self.engine, checkfirst=True)
             logger.info(f"Summary database initialized at: {self.db_path}")
+        except OperationalError as e:
+            error_str = str(e).lower()
+            if "index" in error_str and "already exists" in error_str:
+                logger.warning(f"Index already exists, skipping: {str(e)}")
+                logger.info(f"Summary database already initialized at: {self.db_path}")
+            else:
+                logger.error(f"Failed to initialize summary database: {str(e)}")
+                raise
         except Exception as e:
             logger.error(f"Failed to initialize summary database: {str(e)}")
             raise
     
     def _get_session(self) -> Session:
-        """获取数据库会话"""
         return self.SessionLocal()
     
     def create_or_update_summary(
@@ -73,7 +78,6 @@ class SummaryRepository:
             ).first()
             
             if existing:
-                # 更新现有总结
                 existing.summary = summary
                 existing.message_count = message_count
                 existing.token_count = token_count
@@ -83,7 +87,6 @@ class SummaryRepository:
                 logger.info(f"Updated summary for conversation: {conversation_id}")
                 return existing
             else:
-                # 创建新总结
                 new_summary = ConversationSummary(
                     conversation_id=conversation_id,
                     summary=summary,

@@ -1,25 +1,3 @@
-export interface EnvConfig {
-  VITE_APP_NAME: string;
-  VITE_APP_VERSION: string;
-  VITE_APP_DESCRIPTION: string;
-  VITE_FLASK_API_URL: string;
-  VITE_OLLAMA_BASE_URL: string;
-  VITE_DEV_MODE: boolean;
-  VITE_DEBUG: boolean;
-  VITE_LOG_LEVEL: 'debug' | 'info' | 'warn' | 'error';
-  VITE_DEFAULT_MODEL: string;
-  VITE_API_TIMEOUT: number;
-  VITE_HEALTH_CHECK_TIMEOUT: number;
-  VITE_MAX_MESSAGE_LENGTH: number;
-  VITE_ENABLE_STREAMING: boolean;
-  VITE_ENABLE_MODEL_MANAGEMENT: boolean;
-  VITE_ENABLE_CHAT_HISTORY: boolean;
-  VITE_ENABLE_DEV_TOOLS: boolean;
-  VITE_ENABLE_HOT_RELOAD: boolean;
-  VITE_ENABLE_CONSOLE_LOGS: boolean;
-  VITE_ENABLE_COMPRESSION: boolean;
-  VITE_ENABLE_CACHE: boolean;
-}
 
 export interface OllamaModel {
   name: string;
@@ -100,6 +78,21 @@ export interface ConversationSettings {
   characters?: string[];
   character_personality?: Record<string, string>;
   outline?: string;
+  allow_auto_generate_characters?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface CharacterRecord {
+  id?: number;
+  conversation_id: string;
+  name: string;
+  is_main: boolean;
+  is_unavailable: boolean;
+  first_appeared_message_id?: number;
+  first_appeared_at?: string;
+  is_auto_generated: boolean;
+  notes?: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -133,7 +126,6 @@ export interface StoryProgress {
 
 export type StoryActionType = 'auto' | 'generate' | 'confirm' | 'rewrite' | 'modify' | 'add_settings';
 
-// API 响应类型
 export interface ApiResponse<T = any> {
   success: boolean;
   data?: T;
@@ -196,7 +188,6 @@ export interface AISettings {
   ollama: OllamaConfig;
   deepseek: DeepSeekConfig;
 }
-// 服务器状态类型
 export type PythonServerStatus =
   | 'stopped'
   | 'starting'
@@ -208,7 +199,6 @@ export type OllamaStatus = 'checking' | 'connected' | 'disconnected' | 'error';
 
 export type AppStatus = 'initializing' | 'ready' | 'error' | 'offline';
 
-// Tauri 命令类型
 export interface TauriCommands {
   start_python_server: () => Promise<ApiResponse<string>>;
   stop_python_server: () => Promise<ApiResponse<string>>;
@@ -247,7 +237,6 @@ export interface AdvancedSettings {
   enableDiagnostics: boolean;
 }
 
-// 事件类型
 export interface AppEvents {
   'server-status-changed': PythonServerStatus;
   'ollama-status-changed': OllamaStatus;
@@ -265,7 +254,6 @@ export interface ErrorEvent {
   timestamp: number;
 }
 
-// 组件 Props 类型
 export interface ModelSelectorProps {
   models: OllamaModel[];
   selectedModel: string;
@@ -297,7 +285,6 @@ export interface StatusIndicatorProps {
   className?: string;
 }
 
-// 工具函数类型
 export interface Logger {
   debug: (message: string, data?: any) => void;
   info: (message: string, data?: any) => void;
@@ -312,7 +299,6 @@ export interface Storage {
   clear: () => Promise<void>;
 }
 
-// Hook 返回类型
 export interface UseChatReturn {
   messages: ChatMessage[];
   sendMessage: (message: string, model?: string) => Promise<void>;
@@ -338,7 +324,6 @@ export interface UseServerStatusReturn {
   checkStatus: () => Promise<void>;
 }
 
-// 常量类型
 export interface AppConstants {
   DEFAULT_MODEL: string;
   MAX_MESSAGE_LENGTH: number;
@@ -348,7 +333,6 @@ export interface AppConstants {
   LANGUAGES: readonly string[];
 }
 
-// 枚举类型
 export enum ErrorCode {
   NETWORK_ERROR = 1001,
   SERVER_ERROR = 1002,
@@ -372,7 +356,6 @@ export enum Theme {
   AUTO = 'auto',
 }
 
-// 工具类型
 export type Optional<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;
 export type DeepPartial<T> = {
   [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P];
@@ -381,7 +364,6 @@ export type DeepPartial<T> = {
 export type ArrayElement<ArrayType extends readonly unknown[]> =
   ArrayType extends readonly (infer ElementType)[] ? ElementType : never;
 
-// 响应式类型
 export interface ReactiveState<T> {
   value: T;
   set: (value: T) => void;

@@ -1,22 +1,26 @@
 """
-故事生成服务层（处理故事生成相关的业务逻辑）
+Story generation service layer
 """
-from typing import Optional, Dict, List
-from src.service.ai_service import AIService
-from src.service.chat_service import ChatService
-from src.service.conversation_service import ConversationService
-from src.service.summary_service import SummaryService
-from src.service.story_service import StoryService
-from src.service.ai_config_service import AIConfigService
-from src.utils.system_prompt import build_system_prompt, build_feedback_prompt
-from src.config import get_config
-from src.utils.logger import get_logger
+from typing import Optional, Dict, List, TYPE_CHECKING
+from service.ai_service import AIService
+from service.chat_service import ChatService
+from service.conversation_service import ConversationService
+from service.summary_service import SummaryService
+from service.story_service import StoryService
+from service.ai_config_service import AIConfigService
+from service.app_settings_service import AppSettingsService
+from utils.system_prompt import build_system_prompt, build_feedback_prompt
+from config import get_config
+from utils.logger import get_logger
+
+if TYPE_CHECKING:
+    from service.character_service import CharacterService
 
 logger = get_logger(__name__)
 
 
 class StoryGenerationService:
-    """故事生成服务类（处理故事生成的核心业务逻辑）"""
+    """Story generation service"""
     
     def __init__(
         self,
@@ -25,18 +29,21 @@ class StoryGenerationService:
         conversation_service: ConversationService,
         summary_service: SummaryService,
         story_service: StoryService,
-        ai_config_service: AIConfigService
+        ai_config_service: AIConfigService,
+        app_settings_service: AppSettingsService,
+        character_service: Optional['CharacterService'] = None
     ):
         """
-        初始化服务
+        Initialize service
         
         Args:
-            ai_service: AI 服务实例
-            chat_service: 聊天记录服务实例
-            conversation_service: 会话设置服务实例
-            summary_service: 总结服务实例
-            story_service: 故事服务实例
-            ai_config_service: AI 配置服务实例
+            ai_service: AI service instance
+            chat_service: Chat service instance
+            conversation_service: Conversation service instance
+            summary_service: Summary service instance
+            story_service: Story service instance
+            ai_config_service: AI config service instance
+            app_settings_service: App settings service instance
         """
         self.ai_service = ai_service
         self.chat_service = chat_service
@@ -44,7 +51,42 @@ class StoryGenerationService:
         self.summary_service = summary_service
         self.story_service = story_service
         self.ai_config_service = ai_config_service
+        self.app_settings_service = app_settings_service
+        self.character_service = character_service
         self.config = get_config()
+    
+    def _record_characters_from_message(
+        self,
+        conversation_id: str,
+        message_id: int,
+        content: str,
+        settings: Optional[Dict]
+    ):
+        """
+        Record characters from generated message
+        
+        Args:
+            conversation_id: Conversation ID
+            message_id: Message ID
+            content: Message content
+            settings: Conversation settings
+        """
+        if not self.character_service or not settings:
+            return
+        
+        predefined_chars = settings.get('characters', [])
+        allow_auto = settings.get('allow_auto_generate_characters', True)
+        
+        try:
+            self.character_service.record_characters_from_message(
+                conversation_id=conversation_id,
+                message_id=message_id,
+                content=content,
+                predefined_characters=predefined_chars,
+                allow_auto_generate=allow_auto
+            )
+        except Exception as e:
+            logger.warning(f"Failed to record characters: {str(e)}")
     
     def generate_story_section(
         self,
@@ -58,8 +100,7 @@ class StoryGenerationService:
         Args:
             conversation_id: 会话ID
             provider: AI提供商
-            model: 模型名称（可选）
-            model: 模型名称（可选，如果不提供则使用全局配置的默认模型）
+            model: 模型名称，如果不提供则使用全局配置的默认模型
             
         注意：apiKey, baseUrl, maxTokens, temperature 等配置参数将从数据库中的全局配置自动获取
         
@@ -102,12 +143,22 @@ class StoryGenerationService:
             response_content = result.get('response', '')
             
             self.chat_service.save_user_message(conversation_id, user_message)
-            self.chat_service.save_assistant_message(
+            assistant_msg = self.chat_service.save_assistant_message(
                 conversation_id=conversation_id,
                 content=response_content,
                 model=result.get('model'),
                 provider=api_config['provider']
             )
+            
+            # Record characters from generated content
+            settings = self.conversation_service.get_settings(conversation_id)
+            if assistant_msg:
+                self._record_characters_from_message(
+                    conversation_id=conversation_id,
+                    message_id=assistant_msg.get('id'),
+                    content=response_content,
+                    settings=settings
+                )
             
             current_section = progress.get('current_section') or 0
             self.story_service.update_progress(
@@ -132,20 +183,16 @@ class StoryGenerationService:
         model: Optional[str] = None
     ) -> Dict:
         """
-        确认当前部分，生成下一部分
+        Confirm current section, generate next section
         
         Args:
-            conversation_id: 会话ID
-            provider: AI提供商
-            model: 模型名称（可选）
-            model: 模型名称（可选，如果不提供则使用全局配置的默认模型）
-            
-        注意：apiKey, baseUrl, maxTokens, temperature 等配置参数将从数据库中的全局配置自动获取
+            conversation_id: Conversation ID
+            provider: AI provider (ollama or deepseek)
+            model: Model name (uses default from global config if not provided)
         
         Returns:
-            生成结果字典
+            Generation result dictionary
         """
-        # 获取进度
         progress = self.story_service.get_progress(conversation_id)
         if not progress:
             return {
@@ -167,7 +214,10 @@ class StoryGenerationService:
         
         messages, system_prompt = self._prepare_generation_context(conversation_id, current_section=new_section)
         
-        user_message = "请继续生成下一部分故事内容。"
+        language = self.app_settings_service.get_language()
+        from utils.prompt_template_loader import PromptTemplateLoader
+        template = PromptTemplateLoader.get_template(language)
+        user_message = template['user_messages']['continue_story']
         result = self.ai_service.chat(
             provider=api_config['provider'],
             message=user_message,
@@ -184,12 +234,22 @@ class StoryGenerationService:
             response_content = result.get('response', '')
             
             self.chat_service.save_user_message(conversation_id, user_message)
-            self.chat_service.save_assistant_message(
+            assistant_msg = self.chat_service.save_assistant_message(
                 conversation_id=conversation_id,
                 content=response_content,
                 model=result.get('model'),
                 provider=api_config['provider']
             )
+            
+            # Record characters from generated content
+            settings = self.conversation_service.get_settings(conversation_id)
+            if assistant_msg:
+                self._record_characters_from_message(
+                    conversation_id=conversation_id,
+                    message_id=assistant_msg.get('id'),
+                    content=response_content,
+                    settings=settings
+                )
             
             self.story_service.update_progress(
                 conversation_id=conversation_id,
@@ -198,10 +258,8 @@ class StoryGenerationService:
                 status='completed'
             )
             
-            # 检查是否需要总结
             self._check_and_mark_summary_needed(conversation_id, result)
             
-            # 添加进度信息
             updated_progress = self.story_service.get_progress(conversation_id)
             if updated_progress:
                 result['story_progress'] = updated_progress
@@ -216,46 +274,40 @@ class StoryGenerationService:
         model: Optional[str] = None
     ) -> Dict:
         """
-        重写当前部分
+        Rewrite current section
         
         Args:
-            conversation_id: 会话ID
-            feedback: 用户反馈/重写要求
-            provider: AI提供商
-            model: 模型名称（可选）
-            model: 模型名称（可选，如果不提供则使用全局配置的默认模型）
-            
-        注意：apiKey, baseUrl, maxTokens, temperature 等配置参数将从数据库中的全局配置自动获取
+            conversation_id: Conversation ID
+            feedback: User feedback/rewrite request
+            provider: AI provider (ollama or deepseek)
+            model: Model name (uses default from global config if not provided)
         
         Returns:
-            生成结果字典
+            Generation result dictionary
         """
-        # 获取进度和最后生成的内容
         progress = self.story_service.get_progress(conversation_id)
         if not progress:
             return {
                 "success": False,
-                "error": "故事进度不存在"
+                "error": "Story progress not found"
             }
         
         previous_content = progress.get('last_generated_content')
         if not previous_content:
             return {
                 "success": False,
-                "error": "没有可重写的内容"
+                "error": "No content to rewrite"
             }
         
-        # 从数据库获取 API 配置（只需要 provider 和 model）
         api_config = self.ai_config_service.get_config_for_api(
             provider=provider,
             model=model
         )
         
-        # 构建消息和系统提示
         messages, system_prompt = self._prepare_generation_context(conversation_id)
         
-        # 构建重写提示
-        user_message = build_feedback_prompt(feedback, previous_content)
+        language = self.app_settings_service.get_language()
+        user_message = build_feedback_prompt(feedback, previous_content, language)
         
         result = self.ai_service.chat(
             provider=api_config['provider'],
@@ -272,27 +324,32 @@ class StoryGenerationService:
         if result.get('success'):
             response_content = result.get('response', '')
             
-            # 保存消息
             self.chat_service.save_user_message(conversation_id, feedback)
-            self.chat_service.save_assistant_message(
+            assistant_msg = self.chat_service.save_assistant_message(
                 conversation_id=conversation_id,
                 content=response_content,
                 model=result.get('model'),
                 provider=api_config['provider']
             )
             
-            # 更新进度
-            current_section = progress.get('current_section') or 0
+            # Record characters from generated content
+            settings = self.conversation_service.get_settings(conversation_id)
+            if assistant_msg:
+                self._record_characters_from_message(
+                    conversation_id=conversation_id,
+                    message_id=assistant_msg.get('id'),
+                    content=response_content,
+                    settings=settings
+                )
+            
             self.story_service.update_progress(
                 conversation_id=conversation_id,
                 last_generated_content=response_content,
                 status='completed'
             )
             
-            # 检查是否需要总结
             self._check_and_mark_summary_needed(conversation_id, result)
             
-            # 添加进度信息
             updated_progress = self.story_service.get_progress(conversation_id)
             if updated_progress:
                 result['story_progress'] = updated_progress
@@ -307,18 +364,17 @@ class StoryGenerationService:
         model: Optional[str] = None
     ) -> Dict:
         """
-        修改当前部分（与重写类似，但语义上更偏向调整）
+        Modify current section (similar to rewrite, but semantically more like adjustment)
         
         Args:
-            conversation_id: 会话ID
-            feedback: 用户反馈/修改要求
-            provider: AI提供商（必需）
-            model: 模型名称（可选，如果不提供则使用全局配置的默认模型）
+            conversation_id: Conversation ID
+            feedback: User feedback/modification request
+            provider: AI provider (ollama or deepseek)
+            model: Model name (uses default from global config if not provided)
         
         Returns:
-            生成结果字典
+            Generation result dictionary
         """
-        # 重写和修改逻辑相同，只是语义不同
         return self.rewrite_section(
             conversation_id=conversation_id,
             feedback=feedback,
@@ -332,29 +388,37 @@ class StoryGenerationService:
         current_section: Optional[int] = None
     ) -> tuple[List[Dict], str]:
         """
-        准备生成上下文（消息历史和系统提示）
+        准备生成上下文
         
         Args:
             conversation_id: 会话ID
-            current_section: 当前部分编号（可选，如果不提供则从进度中获取）
+            current_section: 当前部分编号，如果不提供则从进度中获取
         
         Returns:
             (消息列表, 系统提示)
         """
-        # 获取会话设置
         settings = self.conversation_service.get_settings(conversation_id)
         
-        # 获取进度
         progress = self.story_service.get_progress(conversation_id)
         if current_section is None:
             current_section = progress.get('current_section') if progress else None
         total_sections = progress.get('total_sections') if progress else None
         
-        # 获取总结
         summary = self.summary_service.get_summary(conversation_id)
         summary_text = summary.get('summary') if summary else None
         
-        # 构建系统提示
+        # Get language setting
+        language = self.app_settings_service.get_language()
+        
+        # Get appeared characters
+        appeared_characters = None
+        if self.character_service:
+            appeared_characters = self.character_service.get_characters(
+                conversation_id=conversation_id,
+                include_unavailable=True
+            )
+        
+        # Build system prompt
         system_prompt = build_system_prompt(
             background=settings.get('background') if settings else None,
             characters=settings.get('characters') if settings else None,
@@ -362,19 +426,17 @@ class StoryGenerationService:
             outline=settings.get('outline') if settings else None,
             summary=summary_text,
             current_section=current_section,
-            total_sections=total_sections
+            total_sections=total_sections,
+            appeared_characters=appeared_characters,
+            language=language
         )
         
-        # 获取消息历史
         all_messages = self.chat_service.get_conversation(conversation_id)
         
-        # 估算系统提示的 token 数量
         estimated_system_tokens = self.summary_service.estimate_tokens(system_prompt)
         
-        # 构建消息历史（考虑 token 限制）
         messages_for_ai = []
         if summary_text:
-            # 如果有总结，只使用总结之后的消息
             recent_count = self.config.RECENT_MESSAGES_WITH_SUMMARY
             recent_messages = all_messages[-recent_count:] if len(all_messages) > recent_count else all_messages
             messages_for_ai = [
@@ -382,11 +444,9 @@ class StoryGenerationService:
                 for msg in recent_messages
             ]
         else:
-            # 没有总结，使用消息历史（但考虑 token 限制）
             max_history = self.config.MAX_MESSAGE_HISTORY
             max_tokens = self.config.MAX_CONTEXT_TOKENS
             
-            # 从最新消息开始，累加 token 直到达到限制
             selected_messages = []
             current_tokens = estimated_system_tokens
             
@@ -394,11 +454,9 @@ class StoryGenerationService:
                 msg_content = msg.get('content', '')
                 msg_tokens = self.summary_service.estimate_tokens(msg_content)
                 
-                # 如果加上这条消息会超过限制，停止添加
                 if current_tokens + msg_tokens > max_tokens and len(selected_messages) > 0:
                     break
                 
-                # 如果已经达到最大消息数，停止添加
                 if len(selected_messages) >= max_history:
                     break
                 
@@ -414,11 +472,11 @@ class StoryGenerationService:
     
     def _check_and_mark_summary_needed(self, conversation_id: str, result: Dict):
         """
-        检查是否需要总结，并在结果中标记
+        Check if summary is needed and mark in result
         
         Args:
-            conversation_id: 会话ID
-            result: 结果字典（会被修改）
+            conversation_id: Conversation ID
+            result: Result dictionary
         """
         updated_messages = self.chat_service.get_conversation(conversation_id)
         message_count = len(updated_messages)

@@ -2,7 +2,7 @@
 故事进度跟踪数据模型
 """
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Text, DateTime, Index, JSON
+from sqlalchemy import Column, Integer, String, Text, DateTime, Index
 from sqlalchemy.ext.declarative import declarative_base
 
 Base = declarative_base()

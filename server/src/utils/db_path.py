@@ -1,41 +1,66 @@
 """
-数据库路径工具
+Database path utility
 """
 import os
 from pathlib import Path
-from src.utils.logger import get_logger
+from utils.logger import get_logger
 
 logger = get_logger(__name__)
 
 
 def get_database_path() -> str:
     """
-    获取数据库路径
+    Get database path
     
-    优先级：
-    1. 环境变量 DB_PATH
-    2. 尝试从 Tauri 获取（如果 Tauri 服务可用）
-    3. 默认路径（server/data/chat.db）
+    Priority:
+    1. DB_PATH environment variable
+    2. Development mode: server/data/local/chat.db
+    3. Default path: server/data/chat.db
     
     Returns:
-        数据库文件路径
+        Database file path
     """
-    # 1. 检查环境变量
     db_path = os.getenv('DB_PATH')
     if db_path:
         logger.info(f"Using database path from environment: {db_path}")
         return db_path
     
-    # 2. 尝试从 Tauri 获取（通过 HTTP API）
-    # 注意：这需要 Tauri 应用已经启动并暴露了获取路径的 API
-    # 由于 Flask 和 Tauri 是独立进程，这里使用默认路径
-    # 实际路径应该由 Tauri 在启动 Flask 时通过环境变量传递
+    is_dev = os.getenv('FLASK_ENV', '').lower() == 'development' or \
+             os.getenv('FLASK_DEBUG', '').lower() == 'true' or \
+             os.getenv('DEV', '').lower() == 'true'
     
-    # 3. 使用默认路径
+    if is_dev:
+        default_dir = Path(__file__).parent.parent.parent / 'data' / 'local'
+        default_dir.mkdir(parents=True, exist_ok=True)
+        db_path = str(default_dir / 'chat.db')
+        logger.info(f"Using development database path: {db_path}")
+        return db_path
+    
     default_dir = Path(__file__).parent.parent.parent / 'data'
     default_dir.mkdir(parents=True, exist_ok=True)
     db_path = str(default_dir / 'chat.db')
     
     logger.info(f"Using default database path: {db_path}")
     return db_path
+
+
+def get_app_data_dir() -> Path:
+    """
+    Get application data directory
+    
+    Infer from DB_PATH environment variable. If DB_PATH is /path/to/app_data/chat.db,
+    return /path/to/app_data
+    
+    Returns:
+        Application data directory path
+    """
+    db_path = os.getenv('DB_PATH')
+    if db_path:
+        db_file = Path(db_path)
+        if db_file.is_file() or db_file.suffix == '.db':
+            return db_file.parent
+        return db_file
+    
+    default_db_path = get_database_path()
+    return Path(default_db_path).parent
 

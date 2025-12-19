@@ -1,4 +1,4 @@
-import { HealthResponse, ModelsResponse, OllamaModel } from '@/types';
+import { HealthResponse, ModelsResponse } from '@/types';
 import { mockModels, mockDelay } from './data';
 
 export const mockServerClient = {

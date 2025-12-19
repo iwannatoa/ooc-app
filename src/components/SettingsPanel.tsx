@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { AIProvider, AISettings, AppSettings } from '@/types';
 import { useSettingsState } from '@/hooks/useSettingsState';
+import { useI18n } from '@/i18n';
 import styles from './SettingsPanel.module.scss';
 
 interface SettingsPanelProps {
@@ -16,11 +17,11 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
   onClose,
   open,
 }) => {
+  const { locale, setLocale, t } = useI18n();
   const {
     updateAiProvider,
     updateOllamaConfig,
     updateDeepSeekConfig,
-    updateGeneralSettings,
     updateAppearanceSettings,
     updateAdvancedSettings,
   } = useSettingsState();
@@ -75,7 +76,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
     <div className={styles.settingsPanelOverlay}>
       <div className={styles.settingsPanel}>
         <div className={styles.settingsHeader}>
-          <h2>设置</h2>
+          <h2>{t('settingsPanel.title')}</h2>
           <button
             onClick={onClose}
             className={styles.closeButton}
@@ -91,7 +92,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
             }`}
             onClick={() => setCurrentTab('general')}
           >
-            通用
+            {t('settingsPanel.tabs.general')}
           </button>
           <button
             className={`${styles.tab} ${
@@ -99,7 +100,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
             }`}
             onClick={() => setCurrentTab('ai')}
           >
-            AI 设置
+            {t('settingsPanel.tabs.ai')}
           </button>
           <button
             className={`${styles.tab} ${
@@ -107,7 +108,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
             }`}
             onClick={() => setCurrentTab('appearance')}
           >
-            外观
+            {t('settingsPanel.tabs.appearance')}
           </button>
           <button
             className={`${styles.tab} ${
@@ -115,25 +116,25 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
             }`}
             onClick={() => setCurrentTab('advanced')}
           >
-            高级
+            {t('settingsPanel.tabs.advanced')}
           </button>
         </div>
 
         <div className={styles.settingsContent}>
           {currentTab === 'general' && (
             <div className={styles.settingsSection}>
-              <h3>通用设置</h3>
+              <h3>{t('settingsPanel.tabs.general')}</h3>
               <div className={styles.settingItem}>
-                <label>语言</label>
+                <label>{t('settingsPanel.language')}</label>
                 <select
-                  value={settings.general.language}
-                  onChange={(e) =>
-                    updateGeneralSettings({ language: e.target.value })
-                  }
+                  value={locale}
+                  onChange={(e) => {
+                    const newLocale = e.target.value as 'zh' | 'en';
+                    setLocale(newLocale);
+                  }}
                 >
-                  <option value='zh-CN'>中文</option>
-                  <option value='en-US'>English</option>
-                  <option value='ja-JP'>日本語</option>
+                  <option value='zh'>{t('language.zh')}</option>
+                  <option value='en'>{t('language.en')}</option>
                 </select>
               </div>
             </div>
@@ -141,39 +142,39 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
 
           {currentTab === 'ai' && (
             <div className={styles.settingsSection}>
-              <h3>AI 提供商</h3>
+              <h3>{t('settingsPanel.provider')}</h3>
               <div className={styles.settingItem}>
-                <label>选择提供商</label>
+                <label>{t('settingsPanel.selectProvider')}</label>
                 <select
                   value={currentProvider}
                   onChange={(e) =>
                     handleProviderChange(e.target.value as AIProvider)
                   }
                 >
-                  <option value='ollama'>Ollama (本地)</option>
-                  <option value='deepseek'>DeepSeek</option>
+                  <option value='ollama'>{t('settingsPanel.providerOllama')}</option>
+                  <option value='deepseek'>{t('settingsPanel.providerDeepSeek')}</option>
                 </select>
               </div>
 
               <div className={styles.providerConfig}>
-                <h4>{currentProvider.toUpperCase()} 配置</h4>
+                <h4>{currentProvider.toUpperCase()} {t('settingsPanel.config')}</h4>
 
                 <div className={styles.settingItem}>
-                  <label>模型</label>
+                  <label>{t('settingsPanel.model')}</label>
                   <input
                     type='text'
                     value={currentConfig.model}
                     onChange={(e) =>
                       handleModelChange(currentProvider, e.target.value)
                     }
-                    placeholder='输入模型名称'
+                    placeholder={t('settingsPanel.modelPlaceholder')}
                   />
                 </div>
 
                 {currentProvider !== 'ollama' && (
                   <>
                     <div className={styles.settingItem}>
-                      <label>API Key</label>
+                      <label>{t('settingsPanel.apiKey')}</label>
                       <input
                         type='password'
                         value={
@@ -183,18 +184,18 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
                         onChange={(e) =>
                           handleApiKeyChange(currentProvider, e.target.value)
                         }
-                        placeholder={`输入 ${currentProvider} API Key`}
+                        placeholder={t('settingsPanel.apiKeyPlaceholder', { provider: currentProvider })}
                       />
                     </div>
                     <div className={styles.settingItem}>
-                      <label>API URL</label>
+                      <label>{t('settingsPanel.apiUrl')}</label>
                       <input
                         type='text'
                         value={currentConfig.baseUrl}
                         onChange={(e) =>
                           handleBaseUrlChange(currentProvider, e.target.value)
                         }
-                        placeholder='API 端点地址'
+                        placeholder={t('settingsPanel.apiUrlPlaceholder')}
                       />
                     </div>
                   </>
@@ -202,7 +203,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
 
                 {currentProvider === 'ollama' && (
                   <div className={styles.settingItem}>
-                    <label>Ollama 地址</label>
+                    <label>{t('settingsPanel.ollamaAddress')}</label>
                     <input
                       type='text'
                       value={currentConfig.baseUrl}
@@ -216,7 +217,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
               </div>
 
               <div className={styles.settingItem}>
-                <label>请求超时 (毫秒)</label>
+                <label>{t('settingsPanel.timeout')}</label>
                 <input
                   type='number'
                   value={currentConfig.timeout}
@@ -231,7 +232,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
               </div>
 
               <div className={styles.settingItem}>
-                <label>最大令牌数</label>
+                <label>{t('settingsPanel.maxTokens')}</label>
                 <input
                   type='number'
                   value={currentConfig.maxTokens}
@@ -247,7 +248,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
 
               <div className={styles.settingItem}>
                 <label>
-                  温度: {currentConfig.temperature}
+                  {t('settingsPanel.temperature')}: {currentConfig.temperature}
                   <input
                     type='range'
                     min='0'
@@ -269,22 +270,22 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
 
           {currentTab === 'appearance' && (
             <div className={styles.settingsSection}>
-              <h3>外观设置</h3>
+              <h3>{t('settingsPanel.tabs.appearance')}</h3>
               <div className={styles.settingItem}>
-                <label>主题</label>
+                <label>{t('settingsPanel.theme')}</label>
                 <select
                   value={settings.appearance.theme}
                   onChange={(e) =>
                     updateAppearanceSettings({ theme: e.target.value as any })
                   }
                 >
-                  <option value='dark'>深色</option>
-                  <option value='light'>浅色</option>
-                  <option value='auto'>跟随系统</option>
+                  <option value='dark'>{t('settingsPanel.themeDark')}</option>
+                  <option value='light'>{t('settingsPanel.themeLight')}</option>
+                  <option value='auto'>{t('settingsPanel.themeAuto')}</option>
                 </select>
               </div>
               <div className={styles.settingItem}>
-                <label>字体大小</label>
+                <label>{t('settingsPanel.fontSize')}</label>
                 <input
                   type='number'
                   value={settings.appearance.fontSize}
@@ -298,14 +299,14 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
                 />
               </div>
               <div className={styles.settingItem}>
-                <label>字体</label>
+                <label>{t('settingsPanel.fontFamily')}</label>
                 <input
                   type='text'
                   value={settings.appearance.fontFamily}
                   onChange={(e) =>
                     updateAppearanceSettings({ fontFamily: e.target.value })
                   }
-                  placeholder='系统字体'
+                  placeholder={t('settingsPanel.fontFamilyPlaceholder')}
                 />
               </div>
               <div className={styles.settingItem}>
@@ -319,7 +320,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
                       })
                     }
                   />
-                  紧凑模式
+                  {t('settingsPanel.compactMode')}
                 </label>
               </div>
             </div>
@@ -327,7 +328,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
 
           {currentTab === 'advanced' && (
             <div className={styles.settingsSection}>
-              <h3>高级设置</h3>
+              <h3>{t('settingsPanel.tabs.advanced')}</h3>
               <div className={styles.settingItem}>
                 <label>
                   <input
@@ -339,11 +340,11 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
                       })
                     }
                   />
-                  启用流式响应
+                  {t('settingsPanel.enableStreaming')}
                 </label>
               </div>
               <div className={styles.settingItem}>
-                <label>API 超时 (毫秒)</label>
+                <label>{t('settingsPanel.apiTimeout')}</label>
                 <input
                   type='number'
                   value={settings.advanced.apiTimeout}
@@ -355,7 +356,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
                 />
               </div>
               <div className={styles.settingItem}>
-                <label>最大重试次数</label>
+                <label>{t('settingsPanel.maxRetries')}</label>
                 <input
                   type='number'
                   value={settings.advanced.maxRetries}
@@ -369,17 +370,17 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
                 />
               </div>
               <div className={styles.settingItem}>
-                <label>日志级别</label>
+                <label>{t('settingsPanel.logLevel')}</label>
                 <select
                   value={settings.advanced.logLevel}
                   onChange={(e) =>
                     updateAdvancedSettings({ logLevel: e.target.value as any })
                   }
                 >
-                  <option value='error'>错误</option>
-                  <option value='warn'>警告</option>
-                  <option value='info'>信息</option>
-                  <option value='debug'>调试</option>
+                  <option value='error'>{t('settingsPanel.logLevelError')}</option>
+                  <option value='warn'>{t('settingsPanel.logLevelWarn')}</option>
+                  <option value='info'>{t('settingsPanel.logLevelInfo')}</option>
+                  <option value='debug'>{t('settingsPanel.logLevelDebug')}</option>
                 </select>
               </div>
               <div className={styles.settingItem}>
@@ -393,7 +394,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
                       })
                     }
                   />
-                  启用诊断信息
+                  {t('settingsPanel.enableDiagnostics')}
                 </label>
               </div>
             </div>
@@ -401,12 +402,12 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
         </div>
 
         <div className={styles.settingsActions}>
-          <button onClick={handleCancel}>取消</button>
+          <button onClick={handleCancel}>{t('common.cancel')}</button>
           <button
             onClick={handleSave}
             className={styles.primary}
           >
-            保存
+            {t('common.save')}
           </button>
         </div>
       </div>

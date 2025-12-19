@@ -1,3 +1,4 @@
+@use 'sass:color';
 @use '../styles/variables' as *;
 @use '../styles/mixins' as *;
 
@@ -139,7 +140,7 @@
   transition: background 0.2s;
 
   &:hover {
-    background: darken($error-color, 10%);
+    background: color.adjust($error-color, $lightness: -10%);
   }
 }
 

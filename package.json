@@ -9,17 +9,27 @@
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
-    "build:python": "cd server && python build.py",
-    "server:dev": "cd server && python run.py",
-    "server:build": "cd server && python build.py",
+    "build:python": "python server/build.py",
+    "server:dev": "python server/run.py",
+    "server:build": "python server/build.py",
     "dist": "npm run build && npm run tauri:build",
     "clean": "rm -rf node_modules src-tauri/target src-tauri/resources/python-api/build",
     "type-check": "tsc --noEmit",
+    "lint": "npm run lint:ts && npm run lint:python",
+    "lint:ts": "tsc --noEmit",
+    "lint:python": "cd server && python -m flake8 src --config=.flake8",
+    "check": "npm run lint && npm run test:python",
+    "check:python": "cd server && python -c \"import sys; sys.path.insert(0, 'src'); from utils.logger import get_logger; print('✓ Python import check passed')\"",
     "env:dev": "cp .env.development .env",
     "env:prod": "cp .env.production .env",
     "env:example": "cp .env.example .env",
     "setup:dev": "npm run env:dev && npm install",
-    "setup:prod": "npm run env:prod && npm install"
+    "setup:prod": "npm run env:prod && npm install",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest --coverage",
+    "test:python": "cd server && pytest",
+    "test:python:coverage": "cd server && pytest --cov=src --cov-report=html"
   },
   "keywords": [
     "Tauri",
@@ -49,6 +59,13 @@
     "sass": "^1.93.3",
     "tailwindcss": "^4.1.17",
     "typescript": "^5.9.3",
-    "vite": "^7.2.2"
+    "vite": "^7.2.2",
+    "@testing-library/react": "^16.1.0",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/user-event": "^14.5.2",
+    "@vitest/ui": "^2.1.8",
+    "jsdom": "^25.0.1",
+    "vitest": "^2.1.8",
+    "@vitest/coverage-v8": "^2.1.8"
   }
 }

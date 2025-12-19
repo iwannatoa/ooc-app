@@ -1,5 +1,6 @@
 import React from 'react';
 import { ChatMessage } from '@/types';
+import { useI18n } from '@/i18n';
 import styles from './MessageList.module.scss';
 
 interface MessageListProps {
@@ -8,6 +9,8 @@ interface MessageListProps {
 }
 
 const MessageList: React.FC<MessageListProps> = ({ messages, loading }) => {
+  const { t } = useI18n();
+  
   return (
     <div className={styles.messageList}>
       {messages.map((message, index) => (
@@ -16,7 +19,7 @@ const MessageList: React.FC<MessageListProps> = ({ messages, loading }) => {
           className={`${styles.message} ${styles[message.role]}`}
         >
           <div className={styles.messageHeader}>
-            <strong>{message.role === 'user' ? '你' : 'AI'}</strong>
+            <strong>{message.role === 'user' ? t('messages.user') : t('messages.ai')}</strong>
             {message.timestamp && (
               <span className={styles.messageTime}>
                 {new Date(message.timestamp).toLocaleTimeString()}
@@ -35,7 +38,7 @@ const MessageList: React.FC<MessageListProps> = ({ messages, loading }) => {
             <span></span>
             <span></span>
           </div>
-          思考中...
+          {t('messages.thinking')}
         </div>
       )}
     </div>

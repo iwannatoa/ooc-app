@@ -79,7 +79,7 @@ python app.py
 ```python
 # src/controller/chat_controller.py
 from injector import inject
-from src.service.ai_service import AIService
+from service.ai_service import AIService
 
 class ChatController:
     @inject

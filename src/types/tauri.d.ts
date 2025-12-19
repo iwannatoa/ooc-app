@@ -13,10 +13,14 @@ declare module '@tauri-apps/api/core' {
 interface Window {
   __TAURI__?: {
     invoke: <T>(cmd: string, args?: any) => Promise<T>;
+    event: {
+      listen: <T>(event: string, handler: (event: { payload: T }) => void) => Promise<() => void>;
+    };
   };
 }
 
 interface ImportMetaEnv {
+  readonly DEV: boolean;
   readonly VITE_APP_NAME: string;
   readonly VITE_APP_VERSION: string;
   readonly VITE_APP_DESCRIPTION: string;

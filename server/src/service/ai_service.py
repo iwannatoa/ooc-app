@@ -1,17 +1,17 @@
 """
-AI 服务统一接口模块
+Unified AI service interface module
 """
 from typing import Dict, Optional
-from src.utils.logger import get_logger
-from src.utils.exceptions import ProviderError, ValidationError
-from src.service.ollama_service import OllamaService
-from src.service.deepseek_service import DeepSeekService
+from utils.logger import get_logger
+from utils.exceptions import ProviderError, ValidationError
+from service.ollama_service import OllamaService
+from service.deepseek_service import DeepSeekService
 
 logger = get_logger(__name__)
 
 
 class AIService:
-    """AI 服务统一接口类"""
+    """Unified AI service interface"""
     
     def __init__(
         self,
@@ -19,11 +19,11 @@ class AIService:
         deepseek_service: DeepSeekService
     ):
         """
-        初始化 AI 服务
+        Initialize AI service
         
         Args:
-            ollama_service: Ollama 服务实例
-            deepseek_service: DeepSeek 服务实例
+            ollama_service: Ollama service instance
+            deepseek_service: DeepSeek service instance
         """
         self.ollama_service = ollama_service
         self.deepseek_service = deepseek_service
@@ -131,7 +131,7 @@ class AIService:
         except ProviderError:
             raise
         except Exception as e:
-            logger.error(f"Unexpected error in Ollama chat: {str(e)}")
+            logger.error(f"Unexpected error in OOC story: {str(e)}")
             raise ProviderError(
                 f"Unexpected error: {str(e)}",
                 provider='ollama',
@@ -150,34 +150,30 @@ class AIService:
         messages: Optional[list] = None
     ) -> Dict:
         """
-        使用 DeepSeek 发送聊天请求
+        Send chat request using DeepSeek
         
         Args:
-            message: 用户消息
-            model: 模型名称
-            api_key: API 密钥
-            base_url: 自定义基础 URL
-            max_tokens: 最大令牌数
-            temperature: 温度参数
+            message: User message
+            model: Model name
+            api_key: API key
+            base_url: Custom base URL
+            max_tokens: Max tokens
+            temperature: Temperature parameter
             system_prompt: System prompt
-            messages: 消息历史
+            messages: Message history
         
         Returns:
-            包含响应和模型信息的字典
+            Dictionary containing response and model information
         """
         try:
-            # 构建消息列表
             message_list = []
             
-            # 添加 System prompt
             if system_prompt:
                 message_list.append({"role": "system", "content": system_prompt})
             
-            # 添加消息历史
             if messages:
                 message_list.extend(messages)
             
-            # 添加当前用户消息
             message_list.append({"role": "user", "content": message})
             
             result = self.deepseek_service.chat_completion(
@@ -189,7 +185,6 @@ class AIService:
                 base_url=base_url
             )
             
-            # 提取响应内容
             choices = result.get('choices', [])
             if choices:
                 response_content = choices[0].get('message', {}).get('content', '')
@@ -264,8 +259,10 @@ class AIService:
                 "ollama_available": is_healthy
             }
         else:
+            # For other providers (e.g., deepseek), return healthy if Flask service is running
+            # They don't require local service
             return {
-                "status": "unknown",
+                "status": "healthy",
                 "ollama_available": False
             }
 

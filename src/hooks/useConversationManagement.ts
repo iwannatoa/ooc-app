@@ -5,11 +5,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useChatState } from './useChatState';
 import { useConversationClient } from './useConversationClient';
-import {
-  ConversationWithSettings,
-  ConversationSettings,
-  StoryActionType,
-} from '@/types';
+import { ConversationWithSettings, ConversationSettings } from '@/types';
 import { useAiClient } from './useAiClient';
 import { useSettingsState } from './useSettingsState';
 
@@ -50,8 +46,27 @@ export const useConversationManagement = () => {
   }, [conversationClient]);
 
   useEffect(() => {
-    loadConversations();
-  }, [loadConversations]);
+    let mounted = true;
+    const load = async () => {
+      try {
+        setLoading(true);
+        const list = await conversationClient.getConversationsList();
+        if (mounted) {
+          setConversations(list);
+        }
+      } catch (error) {
+        console.error('Failed to load conversations:', error);
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    };
+    load();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const handleNewConversation = useCallback(() => {
     const newId = `conv_${Date.now()}_${Math.random()
@@ -66,13 +81,14 @@ export const useConversationManagement = () => {
     async (conversationId: string) => {
       try {
         setLoading(true);
+        setActiveConversation(conversationId);
         const messages = await conversationClient.getConversationMessages(
           conversationId
         );
         setMessages(messages);
-        setActiveConversation(conversationId);
       } catch (error) {
         console.error('Failed to load conversation:', error);
+        setMessages([]);
       } finally {
         setLoading(false);
       }
@@ -84,7 +100,7 @@ export const useConversationManagement = () => {
     async (settingsData: Partial<ConversationSettings>) => {
       try {
         setLoading(true);
-        await conversationClient.createOrUpdateSettings(settingsData, settings);
+        await conversationClient.createOrUpdateSettings(settingsData);
         setShowSettingsForm(false);
         setIsNewConversation(false);
 
@@ -136,7 +152,7 @@ export const useConversationManagement = () => {
     ]
   );
 
-  // 编辑会话设置
+  // 编辑故事设置
   const handleEditSettings = useCallback((conversationId: string) => {
     setPendingConversationId(conversationId);
     setIsNewConversation(false);
@@ -144,17 +160,17 @@ export const useConversationManagement = () => {
   }, []);
 
   const handleSendMessage = useCallback(
-    async (message: string, actionType?: StoryActionType) => {
+    async (message: string) => {
       let convId = activeConversationId;
 
-      // 如果没有活动会话，先创建新会话并显示设置表单
+      // 如果没有活动故事，先创建新故事并显示设置表单
       if (!convId) {
         handleNewConversation();
         return; // 等待用户完成设置后再发送消息
       }
 
       try {
-        const aiMessage = await sendAIMessage(message, convId, actionType);
+        const aiMessage = await sendAIMessage(message, convId);
         // 消息已通过后端保存，重新加载消息
         await handleSelectConversation(convId);
 

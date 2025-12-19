@@ -1,0 +1,200 @@
+@use '../styles/variables' as *;
+@use '../styles/mixins' as *;
+
+.sidebar {
+  @include flex-column;
+  width: 280px;
+  min-width: 200px;
+  background: $bg-dark;
+  border-left: 1px solid $border-color;
+  transition: width 0.3s ease;
+  overflow: hidden;
+
+  &.collapsed {
+    width: 0;
+    min-width: 0;
+    border-left: none;
+
+    .header {
+      display: none;
+    }
+
+    .content {
+      display: none;
+    }
+  }
+}
+
+.header {
+  @include flex-row;
+  justify-content: space-between;
+  align-items: center;
+  padding: $spacing-md;
+  border-bottom: 1px solid $border-color;
+
+  h3 {
+    margin: 0;
+    font-size: $font-size-md;
+    font-weight: 600;
+    color: $text-primary;
+    flex: 1;
+  }
+}
+
+.headerActions {
+  @include flex-row;
+  gap: $spacing-xs;
+  align-items: center;
+}
+
+.editButton {
+  padding: $spacing-xs $spacing-sm;
+  background: $primary-color;
+  color: white;
+  border: none;
+  border-radius: $border-radius;
+  cursor: pointer;
+  font-size: $font-size-xs;
+  transition: background 0.2s;
+
+  &:hover {
+    background: $primary-color-hover;
+  }
+}
+
+.toggleButton {
+  padding: $spacing-xs;
+  background: transparent;
+  border: none;
+  color: $text-secondary;
+  cursor: pointer;
+  font-size: $font-size-sm;
+  transition: color 0.2s;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: $border-radius;
+
+  &:hover {
+    color: $text-primary;
+    background: $bg-darker;
+  }
+}
+
+.content {
+  flex: 1;
+  overflow-y: auto;
+  padding: $spacing-md;
+}
+
+.section {
+  margin-bottom: $spacing-lg;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+
+  h4 {
+    margin: 0 0 $spacing-sm 0;
+    font-size: $font-size-sm;
+    font-weight: 600;
+    color: $text-primary;
+    border-bottom: 1px solid $border-color;
+    padding-bottom: $spacing-xs;
+  }
+
+  p {
+    margin: 0;
+    color: $text-secondary;
+    line-height: 1.5;
+    font-size: $font-size-sm;
+  }
+}
+
+.textContent {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  color: $text-primary;
+}
+
+.charactersList {
+  @include flex-column;
+  gap: $spacing-sm;
+}
+
+.characterItem {
+  @include flex-column;
+  gap: $spacing-xs;
+  padding: $spacing-sm;
+  background: $bg-darker;
+  border-radius: $border-radius;
+  border: 1px solid $border-color;
+
+  strong {
+    color: $text-primary;
+    font-size: $font-size-sm;
+  }
+}
+
+.personality {
+  color: $text-secondary;
+  font-size: $font-size-xs;
+  font-style: italic;
+}
+
+.moreCharacters {
+  color: $text-secondary;
+  font-size: $font-size-xs;
+  font-style: italic;
+  padding: $spacing-xs;
+  text-align: center;
+}
+
+.expandButton {
+  padding: $spacing-xs $spacing-sm;
+  background: transparent;
+  color: $primary-color;
+  border: 1px solid $primary-color;
+  border-radius: $border-radius;
+  cursor: pointer;
+  font-size: $font-size-xs;
+  margin-top: $spacing-xs;
+  transition: all 0.2s;
+
+  &:hover {
+    background: $primary-color;
+    color: white;
+  }
+}
+
+.empty {
+  @include flex-column;
+  align-items: center;
+  justify-content: center;
+  padding: $spacing-xl;
+  text-align: center;
+  color: $text-secondary;
+
+  p {
+    margin-bottom: $spacing-md;
+    font-size: $font-size-sm;
+  }
+}
+
+.addButton {
+  padding: $spacing-sm $spacing-md;
+  background: $primary-color;
+  color: white;
+  border: none;
+  border-radius: $border-radius;
+  cursor: pointer;
+  font-size: $font-size-sm;
+  transition: background 0.2s;
+
+  &:hover {
+    background: $primary-color-hover;
+  }
+}
+

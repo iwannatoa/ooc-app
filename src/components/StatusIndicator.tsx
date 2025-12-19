@@ -1,5 +1,6 @@
 import React from 'react';
 import { PythonServerStatus, OllamaStatus } from '@/types';
+import { useI18n } from '@/i18n';
 import styles from './StatusIndicator.module.scss';
 
 interface StatusIndicatorProps {
@@ -13,18 +14,20 @@ const StatusIndicator: React.FC<StatusIndicatorProps> = ({
   ollamaStatus,
   provider,
 }) => {
+  const { t } = useI18n();
+
   const getStatusMessage = () => {
-    if (pythonStatus === 'starting') return '🟡 启动服务...';
-    if (pythonStatus === 'error') return '🔴 服务错误';
+    if (pythonStatus === 'starting') return `🟡 ${t('serverStatus.status.starting')}`;
+    if (pythonStatus === 'error') return `🔴 ${t('serverStatus.status.serviceError')}`;
 
     if (provider === 'ollama') {
-      if (ollamaStatus === 'connected') return '🟢 服务正常';
-      if (ollamaStatus === 'disconnected') return '🔴 Ollama未连接';
+      if (ollamaStatus === 'connected') return `🟢 ${t('serverStatus.status.serviceNormal')}`;
+      if (ollamaStatus === 'disconnected') return `🔴 ${t('serverStatus.status.ollamaNotConnected')}`;
     } else {
-      if (pythonStatus === 'started') return '🟢 服务正常';
+      if (pythonStatus === 'started') return `🟢 ${t('serverStatus.status.serviceNormal')}`;
     }
 
-    return '🟡 检查状态...';
+    return `🟡 ${t('serverStatus.status.checkingStatus')}`;
   };
 
   const isReady =

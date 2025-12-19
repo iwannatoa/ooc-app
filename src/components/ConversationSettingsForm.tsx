@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { useToast } from '@/hooks/useToast';
 import { ConversationSettings } from '@/types';
 import { useConversationClient } from '@/hooks/useConversationClient';
 import { useSettingsState } from '@/hooks/useSettingsState';
+import { useI18n } from '@/i18n';
 import styles from './ConversationSettingsForm.module.scss';
 
 interface ConversationSettingsFormProps {
@@ -31,12 +33,60 @@ const ConversationSettingsForm: React.FC<ConversationSettingsFormProps> = ({
   const [isGeneratingOutline, setIsGeneratingOutline] = useState(false);
   const [generatedOutline, setGeneratedOutline] = useState<string | null>(null);
   const [outlineConfirmed, setOutlineConfirmed] = useState(false);
+  const [isGeneratingCharacter, setIsGeneratingCharacter] = useState(false);
   
   const conversationClient = useConversationClient();
   const { settings: appSettings } = useSettingsState();
+  const { t } = useI18n();
+  const { showError, showWarning } = useToast();
 
   const handleAddCharacter = () => {
     setCharacters([...characters, '']);
+  };
+
+  const handleGenerateCharacter = async () => {
+    if (!background.trim()) {
+      showWarning(t('conversationSettingsForm.backgroundRequired'));
+      return;
+    }
+
+    setIsGeneratingCharacter(true);
+    try {
+      const provider = appSettings.ai.provider;
+      const config = appSettings.ai[provider];
+      
+      const generated = await conversationClient.generateCharacter(
+        conversationId,
+        provider,
+        config.model
+      );
+      
+      // Add the generated character
+      const newCharacters = [...characters];
+      if (newCharacters[newCharacters.length - 1] === '') {
+        // Replace the last empty character
+        newCharacters[newCharacters.length - 1] = generated.name;
+      } else {
+        // Add new character
+        newCharacters.push(generated.name);
+      }
+      setCharacters(newCharacters);
+      
+      // Set personality if provided
+      if (generated.personality) {
+        setCharacterPersonality({
+          ...characterPersonality,
+          [generated.name]: generated.personality,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to generate character:', error);
+      showError(t('conversationSettingsForm.generateCharacterFailed', {
+        error: error instanceof Error ? error.message : t('common.error', { defaultValue: '未知错误' })
+      }));
+    } finally {
+      setIsGeneratingCharacter(false);
+    }
   };
 
   const handleRemoveCharacter = (index: number) => {
@@ -78,13 +128,13 @@ const ConversationSettingsForm: React.FC<ConversationSettingsFormProps> = ({
 
   const handleGenerateOutline = async () => {
     if (!background.trim()) {
-      alert('请先填写故事背景');
+      showWarning(t('conversationSettingsForm.backgroundRequired'));
       return;
     }
     
     const validCharacters = characters.filter((c) => c.trim() !== '');
     if (validCharacters.length === 0) {
-      alert('请至少添加一个人物');
+      showWarning(t('conversationSettingsForm.atLeastOneCharacter'));
       return;
     }
 
@@ -104,20 +154,18 @@ const ConversationSettingsForm: React.FC<ConversationSettingsFormProps> = ({
         background.trim(),
         validCharacters,
         validPersonality,
-        conversationId,  // 传递 conversationId，使用数据库中的 API 配置
+        conversationId,
         provider,
-        config.model,
-        provider === 'deepseek' ? config.apiKey : '',
-        config.baseUrl,
-        config.maxTokens,
-        config.temperature
+        config.model
       );
       
       setGeneratedOutline(generated);
       setOutlineConfirmed(false);
     } catch (error) {
       console.error('Failed to generate outline:', error);
-      alert(`生成大纲失败: ${error instanceof Error ? error.message : '未知错误'}`);
+      showError(t('conversationSettingsForm.generateOutlineFailed', {
+        error: error instanceof Error ? error.message : t('common.error', { defaultValue: '未知错误' })
+      }));
     } finally {
       setIsGeneratingOutline(false);
     }
@@ -161,15 +209,13 @@ const ConversationSettingsForm: React.FC<ConversationSettingsFormProps> = ({
           validPersonality,
           conversationId,
           provider,
-          config.model,
-          provider === 'deepseek' ? config.apiKey : '',
-          config.baseUrl,
-          config.maxTokens,
-          config.temperature
+          config.model
         );
       } catch (error) {
         console.error('Failed to generate outline:', error);
-        alert(`自动生成大纲失败: ${error instanceof Error ? error.message : '未知错误'}`);
+        showError(t('conversationSettingsForm.autoGenerateOutlineFailed', {
+          error: error instanceof Error ? error.message : t('common.error', { defaultValue: '未知错误' })
+        }));
         setIsGeneratingOutline(false);
         return;
       } finally {
@@ -215,30 +261,30 @@ const ConversationSettingsForm: React.FC<ConversationSettingsFormProps> = ({
     <div className={styles.overlay} onClick={onCancel}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div className={styles.header}>
-          <h2>{isNewConversation ? '新建会话设置' : '编辑会话设置'}</h2>
+          <h2>{isNewConversation ? t('conversationSettingsForm.newConversationTitle') : t('conversationSettingsForm.editConversationTitle')}</h2>
           <button className={styles.closeButton} onClick={onCancel}>
             ×
           </button>
         </div>
         <form onSubmit={handleSubmit} className={styles.form}>
           <div className={styles.field}>
-            <label htmlFor="title">会话标题（可选）</label>
+            <label htmlFor="title">{t('conversationSettingsForm.storyTitle')}</label>
             <input
               id="title"
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="例如：奇幻冒险故事"
+              placeholder={t('conversationSettingsForm.storyTitlePlaceholder')}
             />
           </div>
 
           <div className={styles.field}>
-            <label htmlFor="background">故事背景 *</label>
+            <label htmlFor="background">{t('conversationSettingsForm.background')} *</label>
             <textarea
               id="background"
               value={background}
               onChange={(e) => setBackground(e.target.value)}
-              placeholder="描述故事发生的背景、世界观等..."
+              placeholder={t('conversationSettingsForm.backgroundPlaceholder')}
               rows={4}
               required={isNewConversation}
             />
@@ -246,14 +292,27 @@ const ConversationSettingsForm: React.FC<ConversationSettingsFormProps> = ({
 
           <div className={styles.field}>
             <label>
-              人物 *
-              <button
-                type="button"
-                onClick={handleAddCharacter}
-                className={styles.addButton}
-              >
-                + 添加人物
-              </button>
+              {t('conversationSettingsForm.characters')} *
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={handleAddCharacter}
+                  className={styles.addButton}
+                >
+                  {t('conversationSettingsForm.addCharacter')}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleGenerateCharacter}
+                  disabled={!background.trim() || isGeneratingCharacter}
+                  className={styles.generateButton}
+                  title={!background.trim() ? t('conversationSettingsForm.backgroundRequired') : undefined}
+                >
+                  {isGeneratingCharacter 
+                    ? t('conversationSettingsForm.generatingCharacter')
+                    : t('conversationSettingsForm.generateCharacter')}
+                </button>
+              </div>
             </label>
             {characters.map((char, index) => (
               <div key={index} className={styles.characterRow}>
@@ -261,7 +320,7 @@ const ConversationSettingsForm: React.FC<ConversationSettingsFormProps> = ({
                   type="text"
                   value={char}
                   onChange={(e) => handleCharacterChange(index, e.target.value)}
-                  placeholder="人物名称"
+                  placeholder={t('conversationSettingsForm.characterNamePlaceholder')}
                   required={isNewConversation && index === 0}
                   className={styles.characterInput}
                 />
@@ -272,7 +331,7 @@ const ConversationSettingsForm: React.FC<ConversationSettingsFormProps> = ({
                     onChange={(e) =>
                       handlePersonalityChange(char, e.target.value)
                     }
-                    placeholder="性格描述（可选）"
+                    placeholder={t('conversationSettingsForm.characterSettingPlaceholder')}
                     className={styles.personalityInput}
                   />
                 )}
@@ -282,7 +341,7 @@ const ConversationSettingsForm: React.FC<ConversationSettingsFormProps> = ({
                     onClick={() => handleRemoveCharacter(index)}
                     className={styles.removeButton}
                   >
-                    删除
+                    {t('conversationSettingsForm.remove')}
                   </button>
                 )}
               </div>
@@ -291,7 +350,7 @@ const ConversationSettingsForm: React.FC<ConversationSettingsFormProps> = ({
 
           <div className={styles.field}>
             <label htmlFor="outline">
-              大纲（可选）
+              {t('conversationSettingsForm.outline')}
               {background.trim() && characters.some(c => c.trim()) && (
                 <button
                   type="button"
@@ -299,7 +358,7 @@ const ConversationSettingsForm: React.FC<ConversationSettingsFormProps> = ({
                   disabled={isGeneratingOutline}
                   className={styles.generateButton}
                 >
-                  {isGeneratingOutline ? '生成中...' : 'AI生成大纲'}
+                  {isGeneratingOutline ? t('conversationSettingsForm.generating') : t('conversationSettingsForm.generateOutline')}
                 </button>
               )}
             </label>
@@ -307,14 +366,14 @@ const ConversationSettingsForm: React.FC<ConversationSettingsFormProps> = ({
             {generatedOutline && !outlineConfirmed && (
               <div className={styles.generatedOutline}>
                 <div className={styles.generatedHeader}>
-                  <span>AI生成的大纲：</span>
+                  <span>{t('conversationSettingsForm.aiGeneratedOutline')}</span>
                   <div className={styles.generatedActions}>
                     <button
                       type="button"
                       onClick={handleConfirmOutline}
                       className={styles.confirmButton}
                     >
-                      确认使用
+                      {t('conversationSettingsForm.confirmOutline')}
                     </button>
                     <button
                       type="button"
@@ -322,7 +381,7 @@ const ConversationSettingsForm: React.FC<ConversationSettingsFormProps> = ({
                       disabled={isGeneratingOutline}
                       className={styles.regenerateButton}
                     >
-                      重新生成
+                      {t('conversationSettingsForm.regenerateOutline')}
                     </button>
                   </div>
                 </div>
@@ -339,8 +398,8 @@ const ConversationSettingsForm: React.FC<ConversationSettingsFormProps> = ({
               }}
               placeholder={
                 isNewConversation && !outline.trim()
-                  ? "故事大纲、主要情节等...（留空将自动生成）"
-                  : "故事大纲、主要情节等..."
+                  ? t('conversationSettingsForm.outlinePlaceholderAuto')
+                  : t('conversationSettingsForm.outlinePlaceholder')
               }
               rows={5}
             />
@@ -348,10 +407,10 @@ const ConversationSettingsForm: React.FC<ConversationSettingsFormProps> = ({
 
           <div className={styles.actions}>
             <button type="button" onClick={onCancel} className={styles.cancelButton}>
-              取消
+              {t('conversationSettingsForm.cancel')}
             </button>
             <button type="submit" className={styles.submitButton}>
-              保存
+              {t('conversationSettingsForm.save')}
             </button>
           </div>
         </form>

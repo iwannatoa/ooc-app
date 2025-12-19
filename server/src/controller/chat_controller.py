@@ -1,26 +1,26 @@
 """
-聊天控制器（类似 Spring 的 @RestController）
+Chat controller
 """
 from flask import Flask, request, jsonify
 from injector import inject
 import threading
 import time
 import os
-from src.service.chat_orchestration_service import ChatOrchestrationService
-from src.service.summary_service import SummaryService
-from src.service.summary_orchestration_service import SummaryOrchestrationService
-from src.service.story_generation_service import StoryGenerationService
-from src.service.ai_service import AIService
-from src.service.chat_service import ChatService
-from src.utils.logger import get_logger
-from src.utils.exceptions import APIError, ValidationError, ProviderError
-import uuid
+from service.chat_orchestration_service import ChatOrchestrationService
+from service.summary_service import SummaryService
+from service.summary_orchestration_service import SummaryOrchestrationService
+from service.story_generation_service import StoryGenerationService
+from service.ai_service import AIService
+from service.chat_service import ChatService
+from service.character_service import CharacterService
+from utils.logger import get_logger
+from utils.exceptions import APIError, ValidationError, ProviderError
 
 logger = get_logger(__name__)
 
 
 class ChatController:
-    """聊天控制器类"""
+    """Chat controller"""
     
     @inject
     def __init__(
@@ -30,18 +30,19 @@ class ChatController:
         summary_orchestration_service: SummaryOrchestrationService,
         story_generation_service: StoryGenerationService,
         ai_service: AIService,
-        chat_service: ChatService
+        chat_service: ChatService,
+        character_service: CharacterService
     ):
         """
-        初始化控制器（通过依赖注入）
+        Initialize controller
         
         Args:
-            chat_orchestration_service: 聊天编排服务实例（自动注入，处理完整的聊天流程）
-            summary_service: 总结服务实例（自动注入，用于简单的 get/save 操作）
-            summary_orchestration_service: 总结编排服务实例（自动注入，处理完整的总结生成流程）
-            story_generation_service: 故事生成服务实例（自动注入）
-            ai_service: AI 服务实例（自动注入，用于 get_models 和 health_check）
-            chat_service: 聊天记录服务实例（自动注入，用于 get_conversation 等简单操作）
+            chat_orchestration_service: Chat orchestration service instance
+            summary_service: Summary service instance
+            summary_orchestration_service: Summary orchestration service instance
+            story_generation_service: Story generation service instance
+            ai_service: AI service instance
+            chat_service: Chat record service instance
         """
         self.chat_orchestration_service = chat_orchestration_service
         self.summary_service = summary_service
@@ -49,90 +50,81 @@ class ChatController:
         self.story_generation_service = story_generation_service
         self.ai_service = ai_service
         self.chat_service = chat_service
+        self.character_service = character_service
     
     def register_routes(self, app: Flask):
         """
-        注册控制器路由到 Flask 应用
+        Register controller routes to Flask app
         
         Args:
-            app: Flask 应用实例
+            app: Flask app instance
         """
         @app.route('/api/chat', methods=['POST'])
         def chat():
-            """聊天接口"""
             return self.chat()
         
         @app.route('/api/models', methods=['GET'])
         def get_models():
-            """获取模型列表"""
             return self.get_models()
         
         @app.route('/api/conversations', methods=['GET'])
         def get_all_conversations():
-            """获取所有会话列表"""
             return self.get_all_conversations()
         
         @app.route('/api/conversation', methods=['GET'])
         def get_conversation():
-            """获取会话消息"""
             return self.get_conversation()
         
         @app.route('/api/conversation', methods=['DELETE'])
         def delete_conversation():
-            """删除会话"""
             return self.delete_conversation()
         
         @app.route('/api/conversation/summary', methods=['GET'])
         def get_summary():
-            """获取会话总结"""
             return self.get_summary()
         
         @app.route('/api/conversation/summary/generate', methods=['POST'])
         def generate_summary():
-            """生成会话总结"""
             return self.generate_summary()
         
         @app.route('/api/conversation/summary', methods=['POST'])
         def save_summary():
-            """保存会话总结"""
             return self.save_summary()
         
         @app.route('/api/story/generate', methods=['POST'])
         def generate_story_section():
-            """生成故事部分"""
             return self.generate_story_section()
         
         @app.route('/api/story/confirm', methods=['POST'])
         def confirm_section():
-            """确认当前部分，生成下一部分"""
             return self.confirm_section()
         
         @app.route('/api/story/rewrite', methods=['POST'])
         def rewrite_section():
-            """重写当前部分"""
             return self.rewrite_section()
         
         @app.route('/api/story/modify', methods=['POST'])
         def modify_section():
-            """修改当前部分"""
             return self.modify_section()
+        
+        @app.route('/api/conversation/delete-last-message', methods=['POST'])
+        def delete_last_message():
+            return self.delete_last_message()
     
     def chat(self):
         """
-        普通聊天接口（Controller 只负责参数验证和调用 Service）
+        Regular chat endpoint
         
-        请求体:
-            - provider: AI 提供商（必需，ollama 或 deepseek）
-            - message: 用户消息（必需）
-            - conversation_id: 会话ID（可选）
-            - model: 模型名称（可选，如果不提供则使用全局配置的默认模型）
-            
-        注意：apiKey, baseUrl, maxTokens, temperature 等配置参数将从数据库中的全局配置自动获取，无需前端传递
+        Request body:
+            - provider: AI provider (ollama or deepseek)
+            - message: User message
+            - conversation_id: Conversation ID
+            - model: Model name (uses default from global config if not provided)
         
-        返回:
-            - success: 是否成功
-            - response: AI 响应内容
-            - conversation_id: 会话ID
+        Returns:
+            - success: Success flag
+            - response: AI response content
+            - conversation_id: Conversation ID
         """
         try:
             data = request.json or {}
@@ -178,14 +170,12 @@ class ChatController:
     
     def generate_story_section(self):
         """
-        生成故事部分（由前端按钮触发，业务逻辑在 Service 层）
+        Generate story section
         
-        请求体:
-            - conversation_id: 会话ID（必需）
-            - provider: AI 提供商（必需，ollama 或 deepseek）
-            - model: 模型名称（可选，如果不提供则使用全局配置的默认模型）
-            
-        注意：apiKey, baseUrl, maxTokens, temperature 等配置参数将从数据库中的全局配置自动获取，无需前端传递
+        Request body:
+            - conversation_id: Conversation ID
+            - provider: AI provider (ollama or deepseek)
+            - model: Model name (uses default from global config if not provided)
         """
         try:
             data = request.json or {}
@@ -221,14 +211,12 @@ class ChatController:
     
     def confirm_section(self):
         """
-        确认当前部分，生成下一部分（由前端按钮触发，业务逻辑在 Service 层）
+        Confirm current section, generate next section
         
-        请求体:
-            - conversation_id: 会话ID（必需）
-            - provider: AI 提供商（必需，ollama 或 deepseek）
-            - model: 模型名称（可选，如果不提供则使用全局配置的默认模型）
-            
-        注意：apiKey, baseUrl, maxTokens, temperature 等配置参数将从数据库中的全局配置自动获取，无需前端传递
+        Request body:
+            - conversation_id: Conversation ID
+            - provider: AI provider (ollama or deepseek)
+            - model: Model name (uses default from global config if not provided)
         """
         try:
             data = request.json or {}
@@ -264,17 +252,13 @@ class ChatController:
     
     def rewrite_section(self):
         """
-        重写当前部分（由前端按钮触发，业务逻辑在 Service 层）
+        Rewrite current section
         
-        请求体:
-            - conversation_id: 会话ID（必需）
-            - feedback: 重写要求/反馈（必需）
-            - provider: AI 提供商（必需，ollama 或 deepseek）
-            - model: 模型名称（可选）
-            - apiKey: API 密钥（可选）
-            - baseUrl: 自定义基础 URL（可选）
-            - maxTokens: 最大令牌数（可选）
-            - temperature: 温度参数（可选）
+        Request body:
+            - conversation_id: Conversation ID
+            - feedback: Rewrite requirements/feedback
+            - provider: AI provider (ollama or deepseek)
+            - model: Model name
         """
         try:
             data = request.json or {}
@@ -318,17 +302,13 @@ class ChatController:
     
     def modify_section(self):
         """
-        修改当前部分（由前端按钮触发，业务逻辑在 Service 层）
+        Modify current section
         
-        请求体:
-            - conversation_id: 会话ID（必需）
-            - feedback: 修改要求/反馈（必需）
-            - provider: AI 提供商（必需，ollama 或 deepseek）
-            - model: 模型名称（可选）
-            - apiKey: API 密钥（可选）
-            - baseUrl: 自定义基础 URL（可选）
-            - maxTokens: 最大令牌数（可选）
-            - temperature: 温度参数（可选）
+        Request body:
+            - conversation_id: Conversation ID
+            - feedback: Modification requirements/feedback
+            - provider: AI provider (ollama or deepseek)
+            - model: Model name
         """
         try:
             data = request.json or {}
@@ -372,12 +352,12 @@ class ChatController:
     
     def get_models(self):
         """
-        获取可用模型列表（类似 Spring 的 @GetMapping）
+        获取可用模型列表
         
         返回:
             - success: 是否成功
             - models: 模型列表
-            - error: 错误信息（如果失败）
+            - error: 错误信息
         """
         try:
             provider = request.args.get('provider', 'ollama')
@@ -405,7 +385,7 @@ class ChatController:
         返回:
             - status: 健康状态 (healthy, unhealthy)
             - ollama_available: Ollama 是否可用
-            - error: 错误信息（如果有）
+            - error: 错误信息
         """
         try:
             provider = request.args.get('provider', 'ollama')
@@ -445,14 +425,14 @@ class ChatController:
         获取会话消息列表
         
         查询参数:
-            - conversation_id: 会话ID（必需）
-            - limit: 限制数量（可选）
-            - offset: 偏移量（可选）
+            - conversation_id: 会话ID
+            - limit: 限制数量
+            - offset: 偏移量
         
         返回:
             - success: 是否成功
             - messages: 消息列表
-            - error: 错误信息（如果失败）
+            - error: 错误信息
         """
         try:
             conversation_id = request.args.get('conversation_id')
@@ -512,7 +492,7 @@ class ChatController:
         删除会话
         
         请求体:
-            - conversation_id: 会话ID（必需）
+            - conversation_id: 会话ID
         
         返回:
             - success: 是否成功
@@ -547,7 +527,7 @@ class ChatController:
         获取会话总结
         
         查询参数:
-            - conversation_id: 会话ID（必需）
+            - conversation_id: 会话ID
         
         返回:
             - success: 是否成功
@@ -585,9 +565,9 @@ class ChatController:
         生成会话总结
         
         请求体:
-            - conversation_id: 会话ID（必需）
-            - provider: AI提供商（必需，ollama 或 deepseek）
-            - model: 模型名称（可选，如果不提供则使用全局配置的默认模型）
+            - conversation_id: 会话ID
+            - provider: AI提供商，ollama 或 deepseek
+            - model: 模型名称，如果不提供则使用全局配置的默认模型
             
         注意：apiKey, baseUrl, maxTokens, temperature 等配置参数将从数据库中的全局配置自动获取，无需前端传递
         
@@ -632,11 +612,11 @@ class ChatController:
     
     def save_summary(self):
         """
-        保存会话总结（用户确认或修改后的总结）
+        保存会话总结
         
         请求体:
-            - conversation_id: 会话ID（必需）
-            - summary: 总结内容（必需）
+            - conversation_id: 会话ID
+            - summary: 总结内容
         
         返回:
             - success: 是否成功
@@ -678,5 +658,51 @@ class ChatController:
             return jsonify({
                 "success": False,
                 "error": f"Failed to save summary: {str(e)}"
+            }), 500
+    
+    def delete_last_message(self):
+        """
+        Delete the last message in a conversation
+        
+        Request body:
+            - conversation_id: Conversation ID
+        
+        Returns:
+            - success: Success flag
+            - message: Status message
+        """
+        try:
+            data = request.json or {}
+            conversation_id = data.get('conversation_id')
+            
+            if not conversation_id:
+                return jsonify({
+                    "success": False,
+                    "error": "conversation_id is required"
+                }), 400
+            
+            message_id = self.chat_service.delete_last_message(conversation_id)
+            
+            if message_id:
+                # Handle character records
+                self.character_service.handle_message_deletion(
+                    conversation_id=conversation_id,
+                    message_id=message_id
+                )
+                return jsonify({
+                    "success": True,
+                    "message": "Last message deleted successfully"
+                })
+            else:
+                return jsonify({
+                    "success": False,
+                    "error": "No message found to delete"
+                }), 404
+        
+        except Exception as e:
+            logger.error(f"Failed to delete last message: {str(e)}", exc_info=True)
+            return jsonify({
+                "success": False,
+                "error": f"Failed to delete last message: {str(e)}"
             }), 500
 
