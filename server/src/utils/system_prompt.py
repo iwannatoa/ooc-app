@@ -128,8 +128,16 @@ def build_system_prompt(
     prompt_parts.append(output['title'])
     output_items = output['items'].copy()
     if current_section is None:
-        output_items.pop()
+        # Remove the last item about section generation if no section info
+        output_items = [item for item in output_items if '分段生成' not in item and 'section generation' not in item]
     prompt_parts.extend(output_items)
+    
+    # Add character changes instructions
+    if 'character_changes' in output:
+        char_changes = output['character_changes']
+        prompt_parts.append("")
+        prompt_parts.append(char_changes['intro'])
+        prompt_parts.extend(char_changes['instructions'])
     
     return "\n".join(prompt_parts)
 

@@ -1,55 +1,81 @@
+// ===== Business Logic Hooks =====
+import { useAppLogic } from './hooks/useAppLogic';
 import { useChatState } from '@/hooks/useChatState';
-import { useSettingsState } from '@/hooks/useSettingsState';
 import { useChatActions } from '@/hooks/useChatActions';
-import { useConversationManagement } from '@/hooks/useConversationManagement';
-import { useConversationClient } from '@/hooks/useConversationClient';
-import { useStoryActions } from '@/hooks/useStoryActions';
+import { useSettingsState } from '@/hooks/useSettingsState';
 import { useDialogState } from '@/hooks/useDialogState';
 import { useUIState } from '@/hooks/useUIState';
-import { useI18n } from '@/i18n';
-import ChatInterface from './components/ChatInterface';
+import { useToast } from './hooks/useToast';
+
+// ===== UI Components =====
 import { AppHeader } from './components/AppHeader';
-import SettingsPanel from './components/SettingsPanel';
-import ModelSelector from './components/ModelSelector';
+import { ChatControls } from './components/ChatControls';
+import ChatInterface from './components/ChatInterface';
 import ConversationList from './components/ConversationList';
 import ConversationSettingsForm from './components/ConversationSettingsForm';
 import StorySettingsView from './components/StorySettingsView';
 import StorySettingsSidebar from './components/StorySettingsSidebar';
 import SummaryPrompt from './components/SummaryPrompt';
+import SettingsPanel from './components/SettingsPanel';
 import ConfirmDialog from './components/ConfirmDialog';
 import { ToastContainer } from './components/Toast';
-import { useToast } from './hooks/useToast';
+
+// ===== Styles and Utilities =====
 import styles from './styles.module.scss';
 
+/**
+ * Main application component
+ *
+ * Responsibilities:
+ * - Integrate all business logic and UI state
+ * - Render the main application layout
+ * - Handle dialogs and modals display
+ */
 function App() {
-  const { messages, models, isSending, setMessages } = useChatState();
-  const { settings, isSettingsOpen, setSettingsOpen, updateSettings } =
-    useSettingsState();
-  const { toasts, showError, showSuccess, removeToast } = useToast();
-  const { handleModelChange, getCurrentModel } = useChatActions();
-  const conversationClient = useConversationClient();
-  const { t } = useI18n();
-
+  // ===== Business Logic =====
+  const appLogic = useAppLogic();
   const {
+    messages,
     conversations,
     activeConversationId,
+    currentSettings,
+    settings,
     showSettingsForm,
     isNewConversation,
     pendingConversationId,
     showSummaryPrompt,
     summaryMessageCount,
+    canGenerate,
+    canConfirm,
+    canDeleteLast,
     handleNewConversation,
     handleSelectConversation,
-    handleDeleteConversation: deleteConversationInternal,
+    handleDeleteConversation,
     handleSaveSettings,
     handleGenerateSummary,
     handleSaveSummary,
     setShowSettingsForm,
     setShowSummaryPrompt,
     loadConversations,
-  } = useConversationManagement();
+    handleGenerateStory,
+    handleConfirmSection,
+    handleRewriteSection,
+    handleModifySection,
+    handleDeleteLastMessage,
+    t,
+  } = appLogic;
 
+  // ===== UI State Management =====
+  const { models, isSending } = useChatState();
+  const { isSettingsOpen, setSettingsOpen, updateSettings } =
+    useSettingsState();
+  const { handleModelChange, getCurrentModel } = useChatActions();
   const uiState = useUIState();
+
+  // ===== Toast Notifications =====
+  const { toasts, removeToast } = useToast();
+
+  // ===== Dialog State =====
   const {
     showDeleteLastMessageDialog,
     setShowDeleteLastMessageDialog,
@@ -59,74 +85,17 @@ function App() {
     closeDeleteConversationDialog,
   } = useDialogState();
 
+  // ===== Dialog Handler Functions =====
   const handleConfirmDeleteConversation = async () => {
     if (conversationToDelete) {
       closeDeleteConversationDialog();
-      await deleteConversationInternal(conversationToDelete);
+      await handleDeleteConversation(conversationToDelete);
     }
   };
 
-  const currentSettings = pendingConversationId
-    ? conversations.find((c) => c.id === pendingConversationId)?.settings
-    : conversations.find((c) => c.id === activeConversationId)?.settings;
-
-  const canGenerateStory = !!activeConversationId;
-  const canConfirmSection = !!(
-    activeConversationId &&
-    currentSettings?.outline &&
-    messages.length > 0
-  );
-
-  const {
-    handleGenerateStory,
-    handleConfirmSection,
-    handleRewriteSection,
-    handleModifySection,
-  } = useStoryActions({
-    activeConversationId,
-    messages,
-    setMessages,
-    settings,
-    showError,
-    onConversationSelect: handleSelectConversation,
-  });
-
-  const handleDeleteLastMessage = () => {
-    if (!activeConversationId || messages.length === 0) return;
-    setShowDeleteLastMessageDialog(true);
-  };
-
-  const handleConfirmDeleteLastMessage = async () => {
+  const handleConfirmDeleteLastMessage = () => {
     setShowDeleteLastMessageDialog(false);
-    if (!activeConversationId) return;
-    try {
-      const success = await conversationClient.deleteLastMessage(
-        activeConversationId
-      );
-      if (success) {
-        showSuccess(
-          t('storyActions.deleteLastMessageSuccess', {
-            defaultValue: '删除成功',
-          })
-        );
-        await handleSelectConversation(activeConversationId);
-      } else {
-        showError(
-          t('storyActions.deleteLastMessageFailed', {
-            defaultValue: '删除失败：未找到消息',
-          })
-        );
-      }
-    } catch (error) {
-      console.error('Failed to delete last message:', error);
-      showError(
-        t('storyActions.deleteLastMessageFailed', {
-          defaultValue:
-            '删除最后一条消息失败: ' +
-            (error instanceof Error ? error.message : '未知错误'),
-        })
-      );
-    }
+    handleDeleteLastMessage();
   };
 
   return (
@@ -143,63 +112,31 @@ function App() {
           onRefresh={loadConversations}
           isCollapsed={uiState.conversationListCollapsed}
           onToggleCollapse={() =>
-            uiState.setConversationListCollapsed(!uiState.conversationListCollapsed)
+            uiState.setConversationListCollapsed(
+              !uiState.conversationListCollapsed
+            )
           }
         />
 
         <div className={styles.chatArea}>
-          <div className={styles.controls}>
-            {uiState.conversationListCollapsed && (
-              <button
-                onClick={() => uiState.setConversationListCollapsed(false)}
-                className={styles.expandButton}
-                title={t('common.expand') + ' ' + t('conversation.title')}
-              >
-                ▶ {t('conversation.titleShort')}
-              </button>
-            )}
-            {settings.ai.provider === 'ollama' && (
-              <ModelSelector
-                models={models}
-                selectedModel={getCurrentModel()}
-                onModelChange={handleModelChange}
-                disabled={models.length === 0}
-              />
-            )}
-            {settings.ai.provider !== 'ollama' && (
-              <div className={styles.modelInfo}>
-                {t('settingsPanel.currentModel')}: {getCurrentModel()}
-              </div>
-            )}
-            {uiState.conversationListCollapsed &&
-              activeConversationId &&
-              currentSettings && (
-                <div className={styles.conversationTitle}>
-                  {currentSettings.title ||
-                    t('conversation.unnamedConversation')}
-                </div>
-              )}
-            {uiState.conversationListCollapsed && !activeConversationId && (
-              <button
-                onClick={handleNewConversation}
-                className={styles.newButton}
-                title={t('conversation.newConversation')}
-              >
-                + {t('common.new')}
-              </button>
-            )}
-            {activeConversationId &&
-              currentSettings &&
-              uiState.settingsSidebarCollapsed && (
-                <button
-                  onClick={() => uiState.setSettingsSidebarCollapsed(false)}
-                  className={styles.expandButton}
-                  title={t('common.expand') + ' ' + t('storySettings.title')}
-                >
-                  ▶ {t('storySettings.titleShort')}
-                </button>
-              )}
-          </div>
+          {/* Chat controls bar */}
+          <ChatControls
+            conversationListCollapsed={uiState.conversationListCollapsed}
+            settingsSidebarCollapsed={uiState.settingsSidebarCollapsed}
+            activeConversationId={activeConversationId}
+            currentSettings={currentSettings}
+            appSettings={settings}
+            models={models}
+            currentModel={getCurrentModel()}
+            onModelChange={handleModelChange}
+            onExpandConversationList={() =>
+              uiState.setConversationListCollapsed(false)
+            }
+            onNewConversation={handleNewConversation}
+            onExpandSettingsSidebar={() =>
+              uiState.setSettingsSidebarCollapsed(false)
+            }
+          />
 
           <div className={styles.conversationContainer}>
             <div className={styles.chatWithSidebar}>
@@ -210,19 +147,22 @@ function App() {
                 onRewrite={handleRewriteSection}
                 onModify={handleModifySection}
                 onAddSettings={() => setShowSettingsForm(true)}
-                onDeleteLastMessage={handleDeleteLastMessage}
+                onDeleteLastMessage={() => setShowDeleteLastMessageDialog(true)}
                 loading={isSending}
                 disabled={!activeConversationId}
-                canConfirm={canConfirmSection}
-                canGenerate={canGenerateStory}
-                canDeleteLast={messages.length > 0}
+                canConfirm={canConfirm}
+                canGenerate={canGenerate}
+                canDeleteLast={canDeleteLast}
               />
               {activeConversationId && currentSettings && (
                 <StorySettingsSidebar
                   settings={currentSettings}
                   onEdit={() => setShowSettingsForm(true)}
+                  onViewSettings={() => uiState.setShowSettingsView(true)}
                   onToggle={() =>
-                    uiState.setSettingsSidebarCollapsed(!uiState.settingsSidebarCollapsed)
+                    uiState.setSettingsSidebarCollapsed(
+                      !uiState.settingsSidebarCollapsed
+                    )
                   }
                   collapsed={uiState.settingsSidebarCollapsed}
                 />

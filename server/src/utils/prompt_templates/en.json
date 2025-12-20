@@ -64,12 +64,39 @@
   "output_requirements": {
     "title": "## Output Requirements",
     "items": [
-      "- Directly output story content without additional explanations or markers",
+      "- First, directly output story content without additional explanations or markers",
       "- Use third-person narration",
       "- Maintain appropriate paragraph length for readability",
       "- Use quotation marks for dialogue",
-      "- This is section generation, ensure the current section has appropriate beginning, development, and transition"
-    ]
+      "- This is section generation, ensure the current section has appropriate beginning, development, and transition",
+      "- After the story content, add character change information (if new characters appear or character status changes)"
+    ],
+    "character_changes": {
+      "intro": "## Character Changes",
+      "instructions": [
+        "Please add character change information after the story content, using the following format:",
+        "",
+        "<CHARACTERS>",
+        "New Characters:",
+        "- [Character Name 1]",
+        "- [Character Name 2]",
+        "",
+        "Status Changes:",
+        "- [Character Name 3] - Became Main Character",
+        "- [Character Name 4] - Became Unavailable (death/leave/etc.)",
+        "- [Character Name 5] - Restored to Available",
+        "</CHARACTERS>",
+        "",
+        "Instructions:",
+        "1. New Characters: Only list new character names that first appear in this section's story content.",
+        "2. Status Changes: List significant status changes for existing characters in this section:",
+        "   - Became Main Character: When a character becomes a main character in this section",
+        "   - Became Unavailable: When a character dies, leaves, disappears, etc., and will no longer participate in the story",
+        "   - Restored to Available: When a previously unavailable character reappears",
+        "3. If there are no new characters and no status changes in this section, do not add this section.",
+        "4. Status changes are optional, only record when there are clear significant changes."
+      ]
+    }
   },
   "summary_prompt": {
     "intro": "Please summarize the following story dialogue and generate a concise but complete story progress summary.",

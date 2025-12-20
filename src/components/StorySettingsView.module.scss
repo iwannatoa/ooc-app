@@ -146,16 +146,61 @@
 
 .characterItem {
   @include flex-column;
-  gap: $spacing-xs;
+  gap: $spacing-sm;
   padding: $spacing-md;
   background: $bg-darker;
   border-radius: $border-radius;
   border: 1px solid $border-color;
+}
+
+.characterHeader {
+  @include flex-row;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: $spacing-xs;
 
   strong {
     color: $text-primary;
     font-size: $font-size-md;
+    font-weight: 600;
   }
+}
+
+.characterBadges {
+  @include flex-row;
+  gap: $spacing-xs;
+  flex-wrap: wrap;
+}
+
+.badge {
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: $font-size-xs;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.characterDetails {
+  @include flex-column;
+  gap: $spacing-xs;
+  margin-top: $spacing-xs;
+}
+
+.characterDetailItem {
+  @include flex-row;
+  gap: $spacing-xs;
+  flex-wrap: wrap;
+  font-size: $font-size-sm;
+}
+
+.detailLabel {
+  color: $text-secondary;
+  font-weight: 500;
+}
+
+.detailValue {
+  color: $text-primary;
 }
 
 .personality {

@@ -2,7 +2,7 @@
 Character service layer
 """
 import re
-from typing import List, Optional, Dict, Set, Generator, TYPE_CHECKING
+from typing import List, Optional, Dict, Set, Generator, Tuple, TYPE_CHECKING, Any
 from repository.character_record_repository import CharacterRecordRepository
 from repository.chat_repository import ChatRepository
 from utils.logger import get_logger
@@ -54,11 +54,120 @@ class CharacterService:
         self.ai_config_service = ai_config_service
         self.app_settings_service = app_settings_service
     
+    def parse_story_with_characters(self, content: str) -> Tuple[str, Dict[str, Any]]:
+        """
+        Parse AI-generated story content to extract story text and character information
+        
+        Args:
+            content: Full content from AI (story + character info with <CHARACTERS> tags)
+        
+        Returns:
+            Tuple of (story_content, character_info)
+            story_content: Cleaned story content without character tags
+            character_info: Dictionary with:
+                - "new": List of new character names
+                - "status_changes": Dict mapping character name to status changes dict
+                  (e.g., {"角色名": {"is_main": True}} or {"角色名": {"is_unavailable": True}})
+        """
+        story_content = content
+        character_info = {
+            "new": [],
+            "status_changes": {}
+        }
+        
+        # Extract character information from <CHARACTERS> tags
+        characters_pattern = r'<CHARACTERS>(.*?)</CHARACTERS>'
+        characters_match = re.search(characters_pattern, content, re.DOTALL | re.IGNORECASE)
+        
+        if characters_match:
+            characters_section = characters_match.group(1).strip()
+            
+            # Remove the character section from story content
+            story_content = re.sub(characters_pattern, '', content, flags=re.DOTALL | re.IGNORECASE).strip()
+            
+            # Parse character information from the section
+            lines = characters_section.split('\n')
+            in_new_characters_section = False
+            in_status_changes_section = False
+            
+            for line in lines:
+                line = line.strip()
+                
+                # Skip empty lines
+                if not line:
+                    continue
+                
+                # Check section headers
+                if '新增角色' in line or 'New Characters' in line:
+                    in_new_characters_section = True
+                    in_status_changes_section = False
+                    continue
+                elif '角色状态变化' in line or 'Status Changes' in line:
+                    in_new_characters_section = False
+                    in_status_changes_section = True
+                    continue
+                elif '角色变化' in line or 'Character Changes' in line:
+                    # This is the main header, reset sections
+                    in_new_characters_section = False
+                    in_status_changes_section = False
+                    continue
+                
+                # Extract character name from lines like "- Character Name" or "Character Name"
+                if line.startswith('-') or line.startswith('•') or line.startswith('*'):
+                    line_content = line.lstrip('- •*').strip()
+                else:
+                    line_content = line.strip()
+                
+                # Clean up brackets
+                line_content = re.sub(r'^\[|\]$', '', line_content).strip()
+                
+                if not line_content:
+                    continue
+                
+                # Parse based on section
+                if in_new_characters_section:
+                    # New character - just the name
+                    # Remove brackets if present
+                    char_name = re.sub(r'^\[|\]$', '', line_content).strip()
+                    if char_name and len(char_name) >= 1:
+                        character_info["new"].append(char_name)
+                        
+                elif in_status_changes_section:
+                    # Status change - format: "角色名 - 状态描述" or "[角色名] - 状态描述"
+                    # Parse character name and status change
+                    parts = line_content.split('-', 1)
+                    if len(parts) >= 1:
+                        char_name = parts[0].strip()
+                        # Remove brackets if present
+                        char_name = re.sub(r'^\[|\]$', '', char_name).strip()
+                        status_desc = parts[1].strip() if len(parts) > 1 else ""
+                        
+                        if char_name and len(char_name) >= 1:
+                            # Initialize status changes dict for this character
+                            if char_name not in character_info["status_changes"]:
+                                character_info["status_changes"][char_name] = {}
+                            
+                            # Parse status description
+                            status_desc_lower = status_desc.lower()
+                            
+                            # Check for main character status
+                            if any(keyword in status_desc for keyword in ['成为主要角色', 'became main', 'main character', '主要角色']):
+                                character_info["status_changes"][char_name]["is_main"] = True
+                            
+                            # Check for unavailable status
+                            if any(keyword in status_desc for keyword in ['变为不可用', 'became unavailable', '不可用', 'unavailable', '死亡', 'death', '离开', 'leave', '失踪', 'disappear']):
+                                character_info["status_changes"][char_name]["is_unavailable"] = True
+                            
+                            # Check for restored to available status
+                            if any(keyword in status_desc for keyword in ['恢复可用', 'restored to available', '恢复', 'restored', '重新出现', 'reappear']):
+                                character_info["status_changes"][char_name]["is_unavailable"] = False
+        
+        return story_content, character_info
+    
     def extract_characters_from_text(self, text: str, existing_characters: Set[str]) -> List[str]:
         """
         Extract character names from text
-        This is a simple implementation that looks for common name patterns
-        In production, you might want to use NLP libraries for better accuracy
+        Supports both English and Chinese names
         
         Args:
             text: Text to extract characters from
@@ -70,24 +179,81 @@ class CharacterService:
         characters = []
         existing_lower = {name.lower() for name in existing_characters}
         
-        # Simple pattern: look for names (capitalized words, possibly with common name particles)
-        # This is a basic implementation - could be improved with NLP
-        patterns = [
-            r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b',  # Capitalized names
-        ]
+        # Common words that should not be considered as character names
+        common_words_english = {
+            'the', 'this', 'that', 'they', 'them', 'their', 'there', 'these', 'those',
+            'he', 'she', 'it', 'his', 'her', 'its', 'him', 'has', 'have', 'had',
+            'was', 'were', 'is', 'are', 'be', 'been', 'being', 'what', 'when', 'where',
+            'who', 'which', 'why', 'how', 'from', 'with', 'into', 'onto', 'upon',
+            'than', 'then', 'them', 'through', 'during', 'while', 'after', 'before'
+        }
+        
+        common_words_chinese = {
+            '他', '她', '它', '他们', '她们', '它们', '这', '那', '这个', '那个',
+            '这些', '那些', '这里', '那里', '这时', '那时', '这个', '那个',
+            '是', '的', '了', '在', '有', '和', '与', '或', '但', '而', '也', '都'
+        }
+        
+        # English: Capitalized names (words starting with capital letter)
+        english_pattern = r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b'
+        english_matches = re.findall(english_pattern, text)
+        
+        # Chinese: Typically 2-4 characters (CJK Unified Ideographs)
+        chinese_pattern = r'[\u4e00-\u9fff]{2,4}'
+        chinese_matches = re.findall(chinese_pattern, text)
+        
+        # Collect all potential names and count their occurrences in the full text
+        candidate_names = set()
+        
+        for match in english_matches + chinese_matches:
+            name = match.strip()
+            if len(name) >= 2:
+                candidate_names.add(name)
+        
+        # Count occurrences of each candidate name in the full text
+        name_counts = {}
+        text_lower = text.lower()
+        
+        for name in candidate_names:
+            name_lower = name.lower()
+            
+            # Skip if already exists
+            if name_lower in existing_lower or name in existing_characters:
+                continue
+            
+            # Check against common words
+            if name_lower in common_words_english:
+                continue
+            
+            # Check if all characters are Chinese common words
+            if all(char in common_words_chinese for char in name if '\u4e00' <= char <= '\u9fff'):
+                continue
+            
+            # Skip pure numbers
+            if re.search(r'^\d+$', name):
+                continue
+            
+            # Count actual occurrences in text
+            if re.search(r'[A-Za-z]', name):
+                # English: use word boundary for accurate counting
+                pattern = r'\b' + re.escape(name) + r'\b'
+                count = len(re.findall(pattern, text, re.IGNORECASE))
+            else:
+                # Chinese: count substring occurrences (but this may over-count)
+                # For better accuracy, could use word segmentation, but for now use simple count
+                count = text.count(name)
+            
+            if count > 0:
+                name_counts[name] = count
+        
+        # Filter by frequency: require at least 1 occurrence (can increase to 2 for stricter filtering)
+        min_occurrences = 1
         
         found_names = set()
-        for pattern in patterns:
-            matches = re.findall(pattern, text)
-            for match in matches:
-                name = match.strip()
-                # Skip if too short, contains common words, or already exists
-                if (len(name) >= 2 and 
-                    name.lower() not in ['the', 'this', 'that', 'they', 'them', 'their', 'there'] and
-                    name.lower() not in existing_lower and
-                    name not in found_names):
-                    found_names.add(name)
-                    characters.append(name)
+        for name, count in name_counts.items():
+            if count >= min_occurrences and name not in found_names:
+                found_names.add(name)
+                characters.append(name)
         
         return characters
     
@@ -97,7 +263,9 @@ class CharacterService:
         message_id: int,
         content: str,
         predefined_characters: List[str],
-        allow_auto_generate: bool = True
+        allow_auto_generate: bool = True,
+        ai_extracted_characters: Optional[List[str]] = None,
+        ai_status_changes: Optional[Dict[str, Dict[str, Any]]] = None
     ) -> List[Dict]:
         """
         Record characters that appear in a message
@@ -105,9 +273,11 @@ class CharacterService:
         Args:
             conversation_id: Conversation ID
             message_id: Message ID
-            content: Message content
+            content: Message content (story content, without character tags)
             predefined_characters: List of predefined character names (from settings)
-            allow_auto_generate: Whether to allow auto-generating new characters
+            allow_auto_generate: Whether to allow auto-generating new characters (fallback)
+            ai_extracted_characters: List of character names extracted by AI (from <CHARACTERS> tags, preferred)
+            ai_status_changes: Dict mapping character name to status changes (e.g., {"角色名": {"is_main": True}})
         
         Returns:
             List of created/updated character records
@@ -118,20 +288,64 @@ class CharacterService:
         recorded = []
         
         # Record predefined characters if they appear and aren't recorded yet
+        # Use word boundary matching to avoid false positives (e.g., "Li" matching "like")
+        content_lower = content.lower()
         for char_name in predefined_characters:
-            if char_name not in existing_names and char_name.lower() in content.lower():
-                character = self.repository.create_character(
-                    conversation_id=conversation_id,
-                    name=char_name,
-                    first_appeared_message_id=message_id,
-                    is_main=True,  # Predefined characters are considered main
-                    is_auto_generated=False
-                )
-                recorded.append(character.to_dict())
-                existing_names.add(char_name)
+            if char_name not in existing_names:
+                # Use word boundary for better matching (works for both English and Chinese)
+                # For English: use word boundaries
+                # For Chinese: check if name appears as a standalone word
+                char_name_lower = char_name.lower()
+                
+                # Improved matching: check if character name appears as whole word
+                # For English: use word boundaries
+                if re.search(r'[A-Za-z]', char_name):
+                    # English name: use word boundary
+                    pattern = r'\b' + re.escape(char_name) + r'\b'
+                    if re.search(pattern, content, re.IGNORECASE):
+                        character = self.repository.create_character(
+                            conversation_id=conversation_id,
+                            name=char_name,
+                            first_appeared_message_id=message_id,
+                            is_main=True,  # Predefined characters are considered main
+                            is_auto_generated=False
+                        )
+                        recorded.append(character.to_dict())
+                        existing_names.add(char_name)
+                else:
+                    # Chinese name: check if it appears (Chinese doesn't have word boundaries)
+                    # Use simple containment but be more careful
+                    if char_name in content or char_name_lower in content_lower:
+                        character = self.repository.create_character(
+                            conversation_id=conversation_id,
+                            name=char_name,
+                            first_appeared_message_id=message_id,
+                            is_main=True,  # Predefined characters are considered main
+                            is_auto_generated=False
+                        )
+                        recorded.append(character.to_dict())
+                        existing_names.add(char_name)
         
-        # Auto-generate new characters if allowed
-        if allow_auto_generate:
+        # Record AI-extracted characters (preferred method)
+        if ai_extracted_characters:
+            for char_name in ai_extracted_characters:
+                char_name = char_name.strip()
+                if char_name and char_name not in existing_names:
+                    character = self.repository.create_character(
+                        conversation_id=conversation_id,
+                        name=char_name,
+                        first_appeared_message_id=message_id,
+                        is_main=False,  # AI-extracted characters are not main by default
+                        is_auto_generated=True
+                    )
+                    recorded.append(character.to_dict())
+                    existing_names.add(char_name)
+                    logger.info(f"Recorded AI-extracted character: {char_name} in conversation {conversation_id}")
+        
+        # Fallback: Auto-generate new characters from text if AI extraction is not available
+        # This is a fallback mechanism in case AI doesn't provide character information
+        elif allow_auto_generate:
+            logger.info("AI did not provide character information, falling back to text extraction")
             extracted = self.extract_characters_from_text(content, existing_names)
             for char_name in extracted:
                 if char_name not in existing_names:
@@ -144,6 +358,33 @@ class CharacterService:
                     )
                     recorded.append(character.to_dict())
                     existing_names.add(char_name)
+        
+        # Process status changes for existing characters
+        if ai_status_changes:
+            for char_name, status_changes in ai_status_changes.items():
+                if not char_name or not status_changes:
+                    continue
+                
+                # Check if character exists
+                existing_char = self.repository.get_character(conversation_id, char_name)
+                if existing_char:
+                    # Update character status
+                    is_main = status_changes.get("is_main")
+                    is_unavailable = status_changes.get("is_unavailable")
+                    
+                    updated_char = self.repository.update_character(
+                        conversation_id=conversation_id,
+                        name=char_name,
+                        is_main=is_main,
+                        is_unavailable=is_unavailable
+                    )
+                    
+                    if updated_char:
+                        recorded.append(updated_char.to_dict())
+                        logger.info(f"Updated character status: {char_name} in conversation {conversation_id}, changes: {status_changes}")
+                else:
+                    # Character doesn't exist yet, skip status changes
+                    logger.warning(f"Character {char_name} not found for status update in conversation {conversation_id}")
         
         return recorded
     

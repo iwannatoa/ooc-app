@@ -1,99 +1,98 @@
-# Mock 数据使用说明
+# Mock Data Usage Guide
 
-## 概述
+## Overview
 
-Mock 数据模块用于开发环境，提供模拟的 API 响应，方便前端开发时不需要启动后端服务。
+The Mock data module is used in development environment to provide simulated API responses, allowing frontend development without starting the backend server.
 
-## 启用 Mock 模式
+## Enabling Mock Mode
 
-### 方法 1: 环境变量
+### Method 1: Environment Variable
 
-在 `.env` 或 `.env.local` 文件中设置：
+Set in `.env` or `.env.local` file:
 
 ```env
 VITE_USE_MOCK=true
 ```
 
-### 方法 2: 自动启用（开发模式）
+### Method 2: Auto-Enable (Development Mode)
 
-在开发模式下（`npm run dev`），如果没有明确设置 `VITE_USE_MOCK=false`，会自动启用 Mock 模式。
+In development mode (`npm run dev`), Mock mode will be automatically enabled if `VITE_USE_MOCK=false` is not explicitly set.
 
-## Mock 数据内容
+## Mock Data Content
 
-### 故事数据
+### Story Data
 
-- 3 个预设故事：
-  - 奇幻冒险故事
-  - 科幻未来世界
-  - 现代都市悬疑
+- 3 preset stories:
+  - Fantasy Adventure Story
+  - Sci-Fi Future World
+  - Modern Urban Suspense
 
-### 消息数据
+### Message Data
 
-每个故事都包含一些示例消息，展示对话流程。
+Each story contains some sample messages demonstrating the conversation flow.
 
-### 模型列表
+### Model List
 
-包含以下 Mock 模型：
+Includes the following Mock models:
 - llama2
 - deepseek-chat
 - mistral
 
-## 功能特性
+## Features
 
-### 1. 故事管理
+### 1. Story Management
 
-- ✅ 获取故事列表
-- ✅ 获取故事设置
-- ✅ 创建/更新故事设置
-- ✅ 获取故事消息
-- ✅ 删除故事
+- ✅ Get story list
+- ✅ Get story settings
+- ✅ Create/update story settings
+- ✅ Get story messages
+- ✅ Delete story
 
-### 2. AI 聊天
+### 2. AI Chat
 
-- ✅ 发送消息（模拟延迟 1-2 秒）
-- ✅ 生成智能回复（基于关键词匹配）
+- ✅ Send messages (simulated delay 1-2 seconds)
+- ✅ Generate intelligent replies (based on keyword matching)
 
-### 3. 大纲生成
+### 3. Outline Generation
 
-- ✅ 基于故事背景、人物、性格生成大纲
-- ✅ 模拟生成延迟（1.5 秒）
-- ✅ 提供多个预设大纲模板
+- ✅ Generate outline based on story background, characters, personality
+- ✅ Simulate generation delay (1.5 seconds)
+- ✅ Provide multiple preset outline templates
 
-### 4. 服务器状态
+### 4. Server Status
 
-- ✅ 健康检查
-- ✅ 获取模型列表
+- ✅ Health check
+- ✅ Get model list
 
-## 使用示例
+## Usage Example
 
 ```typescript
 import { isMockMode, mockConversationClient } from '@/mock';
 
 if (isMockMode()) {
-  // 使用 Mock 数据
+  // Use Mock data
   const conversations = await mockConversationClient.getConversationsList();
 } else {
-  // 使用真实 API
+  // Use real API
   const response = await fetch('/api/conversations/list');
 }
 ```
 
-## 注意事项
+## Notes
 
-1. **数据持久化**：Mock 数据在页面刷新后会重置
-2. **延迟模拟**：所有 Mock API 调用都包含模拟延迟，以更真实地模拟网络请求
-3. **生产环境**：Mock 模式不会在生产构建中启用
+1. **Data Persistence**: Mock data will reset after page refresh
+2. **Delay Simulation**: All Mock API calls include simulated delays to more realistically simulate network requests
+3. **Production Environment**: Mock mode will not be enabled in production builds
 
-## 自定义 Mock 数据
+## Customizing Mock Data
 
-可以在 `src/mock/data.ts` 中修改 Mock 数据：
+You can modify Mock data in `src/mock/data.ts`:
 
-- `mockConversations`: 故事列表
-- `mockMessages`: 消息数据
-- `mockModels`: 模型列表
-- `mockOutlines`: 大纲模板
+- `mockConversations`: Story list
+- `mockMessages`: Message data
+- `mockModels`: Model list
+- `mockOutlines`: Outline templates
 
-## 调试
+## Debugging
 
-在控制台中可以看到 Mock 模式的提示信息。所有 Mock API 调用都会在控制台输出日志（如果启用了调试模式）。
-
+You can see Mock mode prompt information in the console. All Mock API calls will output logs to the console (if debug mode is enabled).

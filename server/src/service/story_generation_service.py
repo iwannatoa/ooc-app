@@ -66,32 +66,46 @@ class StoryGenerationService:
         message_id: int,
         content: str,
         settings: Optional[Dict]
-    ):
+    ) -> str:
         """
         Record characters from generated message
         
         Args:
             conversation_id: Conversation ID
             message_id: Message ID
-            content: Message content
+            content: Message content (may include <CHARACTERS> tags)
             settings: Conversation settings
+        
+        Returns:
+            Cleaned story content (without character tags)
         """
         if not self.character_service or not settings:
-            return
+            return content
         
         predefined_chars = settings.get('characters', [])
         allow_auto = settings.get('allow_auto_generate_characters', True)
         
         try:
+            # Parse content to extract story and character information
+            story_content, character_info = self.character_service.parse_story_with_characters(content)
+            
+            # Record characters using AI-extracted information (preferred)
             self.character_service.record_characters_from_message(
                 conversation_id=conversation_id,
                 message_id=message_id,
-                content=content,
+                content=story_content,  # Use cleaned story content
                 predefined_characters=predefined_chars,
-                allow_auto_generate=allow_auto
+                allow_auto_generate=allow_auto,
+                ai_extracted_characters=character_info.get("new") if character_info.get("new") else None,
+                ai_status_changes=character_info.get("status_changes") if character_info.get("status_changes") else None
             )
+            
+            # Return cleaned story content
+            return story_content
         except Exception as e:
             logger.warning(f"Failed to record characters: {str(e)}")
+            # Return original content if parsing fails
+            return content
     
     def generate_story_section(
         self,
@@ -152,35 +166,34 @@ class StoryGenerationService:
         
         if result.get('success'):
             response_content = result.get('response', '')
-            # Remove think content before saving
-            clean_content = self.conversation_service._strip_think_content(response_content)
+            # Remove think content before processing
+            response_content = self.conversation_service._strip_think_content(response_content)
+            
+            # Record characters from generated content and get cleaned story content
+            settings = self.conversation_service.get_settings(conversation_id)
+            clean_content = self._record_characters_from_message(
+                conversation_id=conversation_id,
+                message_id=0,  # Will be set after message is saved
+                content=response_content,
+                settings=settings
+            )
             
             self.chat_service.save_user_message(conversation_id, user_message)
             assistant_msg = self.chat_service.save_assistant_message(
                 conversation_id=conversation_id,
-                content=clean_content,
+                content=clean_content,  # Save cleaned content without character tags
                 model=result.get('model'),
                 provider=api_config['provider']
             )
             
-            # Record characters from generated content (use clean content)
-            settings = self.conversation_service.get_settings(conversation_id)
-            if assistant_msg:
-                self._record_characters_from_message(
-                    conversation_id=conversation_id,
-                    message_id=assistant_msg.get('id'),
-                    content=clean_content,
-                    settings=settings
-                )
-                
-                # Ensure progress is a dict before calling .get()
-                if isinstance(progress, dict):
-                    current_section = progress.get('current_section', 0) or 0
-                else:
-                    current_section = 0
+            # Ensure progress is a dict before calling .get()
+            if isinstance(progress, dict):
+                current_section = progress.get('current_section', 0) or 0
+            else:
+                current_section = 0
             self.story_service.update_progress(
                 conversation_id=conversation_id,
-                last_generated_content=response_content,
+                last_generated_content=clean_content,  # Use cleaned content
                 last_generated_section=current_section,
                 status='completed'
             )
@@ -263,26 +276,25 @@ class StoryGenerationService:
         # Save messages after streaming completes
         if accumulated_content:
             try:
-                # Remove think content before saving
-                clean_content = self.conversation_service._strip_think_content(accumulated_content)
+                # Remove think content before processing
+                accumulated_content = self.conversation_service._strip_think_content(accumulated_content)
+                
+                # Record characters from generated content and get cleaned story content
+                settings = self.conversation_service.get_settings(conversation_id)
+                clean_content = self._record_characters_from_message(
+                    conversation_id=conversation_id,
+                    message_id=0,  # Will be set after message is saved
+                    content=accumulated_content,
+                    settings=settings
+                )
                 
                 self.chat_service.save_user_message(conversation_id, user_message)
                 assistant_msg = self.chat_service.save_assistant_message(
                     conversation_id=conversation_id,
-                    content=clean_content,
+                    content=clean_content,  # Save cleaned content without character tags
                     model=api_config['model'],
                     provider=api_config['provider']
                 )
-                
-                # Record characters from generated content (use clean content)
-                settings = self.conversation_service.get_settings(conversation_id)
-                if assistant_msg:
-                    self._record_characters_from_message(
-                        conversation_id=conversation_id,
-                        message_id=assistant_msg.get('id'),
-                        content=clean_content,
-                        settings=settings
-                    )
                 
                 # Get current section from progress (re-fetch to ensure we have the latest)
                 current_progress = self.story_service.get_progress(conversation_id)
@@ -377,30 +389,29 @@ class StoryGenerationService:
         
         if result.get('success'):
             response_content = result.get('response', '')
-            # Remove think content before saving
-            clean_content = self.conversation_service._strip_think_content(response_content)
+            # Remove think content before processing
+            response_content = self.conversation_service._strip_think_content(response_content)
+            
+            # Record characters from generated content and get cleaned story content
+            settings = self.conversation_service.get_settings(conversation_id)
+            clean_content = self._record_characters_from_message(
+                conversation_id=conversation_id,
+                message_id=0,  # Will be set after message is saved
+                content=response_content,
+                settings=settings
+            )
             
             self.chat_service.save_user_message(conversation_id, user_message)
             assistant_msg = self.chat_service.save_assistant_message(
                 conversation_id=conversation_id,
-                content=clean_content,
+                content=clean_content,  # Save cleaned content without character tags
                 model=result.get('model'),
                 provider=api_config['provider']
             )
             
-            # Record characters from generated content (use clean content)
-            settings = self.conversation_service.get_settings(conversation_id)
-            if assistant_msg:
-                self._record_characters_from_message(
-                    conversation_id=conversation_id,
-                    message_id=assistant_msg.get('id'),
-                    content=clean_content,
-                    settings=settings
-                )
-            
             self.story_service.update_progress(
                 conversation_id=conversation_id,
-                last_generated_content=clean_content,
+                last_generated_content=clean_content,  # Use cleaned content
                 last_generated_section=new_section,
                 status='completed'
             )
@@ -482,30 +493,29 @@ class StoryGenerationService:
         
         if result.get('success'):
             response_content = result.get('response', '')
-            # Remove think content before saving
-            clean_content = self.conversation_service._strip_think_content(response_content)
+            # Remove think content before processing
+            response_content = self.conversation_service._strip_think_content(response_content)
+            
+            # Record characters from generated content and get cleaned story content
+            settings = self.conversation_service.get_settings(conversation_id)
+            clean_content = self._record_characters_from_message(
+                conversation_id=conversation_id,
+                message_id=0,  # Will be set after message is saved
+                content=response_content,
+                settings=settings
+            )
             
             self.chat_service.save_user_message(conversation_id, feedback)
             assistant_msg = self.chat_service.save_assistant_message(
                 conversation_id=conversation_id,
-                content=clean_content,
+                content=clean_content,  # Save cleaned content without character tags
                 model=result.get('model'),
                 provider=api_config['provider']
             )
             
-            # Record characters from generated content (use clean content)
-            settings = self.conversation_service.get_settings(conversation_id)
-            if assistant_msg:
-                self._record_characters_from_message(
-                    conversation_id=conversation_id,
-                    message_id=assistant_msg.get('id'),
-                    content=clean_content,
-                    settings=settings
-                )
-            
             self.story_service.update_progress(
                 conversation_id=conversation_id,
-                last_generated_content=response_content,
+                last_generated_content=clean_content,  # Use cleaned content
                 status='completed'
             )
             
