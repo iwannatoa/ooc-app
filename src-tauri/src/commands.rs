@@ -151,7 +151,9 @@ pub async fn start_python_server(
                         }
                         // Flask will send the further log from here.
                         CommandEvent::Stderr(line) => {
-                            eprintln!("Flask: {}", String::from_utf8_lossy(&line));
+                            let error_msg = format!("Flask: {}", String::from_utf8_lossy(&line));
+                            eprintln!("{}", error_msg);
+                            crate::logger::log_error(&error_msg);
                         }
                         CommandEvent::Terminated(_) => {
                             break;
@@ -252,37 +254,66 @@ pub async fn get_flask_port(
 }
 
 pub(crate) async fn stop_python_server_internal(
-    _: &AppHandle,
+    _app_handle: &AppHandle,
     server_state: &TokioMutex<PythonServer>,
 ) -> Result<(), String> {
     println!("[FLASK_STOP] Starting Flask server stop procedure");
     let mut server = server_state.lock().await;
     
-    if let Some(port) = server.port {
-        println!("[FLASK_STOP] Current Flask port: {}", port);
-    } else {
-        println!("[FLASK_STOP] No Flask port recorded");
+    let port = server.port;
+    let process = server.process.take();
+    
+    if let Some(port_val) = port {
+        println!("[FLASK_STOP] Current Flask port: {}", port_val);
+        
+        // First, try to gracefully shutdown via API
+        let client = reqwest::Client::new();
+        let shutdown_url = format!("http://localhost:{}/api/stop", port_val);
+        
+        println!("[FLASK_STOP] Attempting graceful shutdown via API...");
+        match client
+            .post(&shutdown_url)
+            .timeout(std::time::Duration::from_secs(2))
+            .send()
+            .await
+        {
+            Ok(_) => {
+                println!("[FLASK_STOP] Graceful shutdown API call successful");
+                // Wait a bit for graceful shutdown
+                tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+            }
+            Err(e) => {
+                println!("[FLASK_STOP] Graceful shutdown API call failed: {}, will use process kill", e);
+            }
+        }
     }
     
-    if let Some(process) = server.process.take() {
+    if let Some(process) = process {
         println!("[FLASK_STOP] Found Flask process, attempting to kill...");
-        // Kill the process directly by PID instead of using API
+        
+        // Try to kill the process (this takes ownership of process)
         let kill_result = process.kill();
         match kill_result {
             Ok(_) => {
-                println!("[FLASK_STOP] Flask process killed successfully");
+                println!("[FLASK_STOP] Flask process kill signal sent");
+                // Wait a bit for process to terminate
+                tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+                println!("[FLASK_STOP] Flask process terminated");
             }
             Err(e) => {
-                eprintln!("[FLASK_STOP] Failed to kill Flask process: {}", e);
-                return Err(format!("Failed to kill process: {}", e));
+                let error_msg = format!("[FLASK_STOP] Failed to kill Flask process: {}", e);
+                eprintln!("{}", error_msg);
+                crate::logger::log_error(&error_msg);
+                // Don't return error, just log it - we still want to clear state
             }
         }
-        
-        server.port = None;
-        println!("[FLASK_STOP] Cleared Flask port from server state");
     } else {
         println!("[FLASK_STOP] No Flask process found, nothing to stop");
     }
+    
+    // Clear port and process state
+    server.port = None;
+    println!("[FLASK_STOP] Cleared Flask port from server state");
     
     println!("[FLASK_STOP] Flask server stop procedure completed");
     Ok(())
@@ -304,7 +335,9 @@ pub async fn stop_python_server(
             })
         }
         Err(e) => {
-            eprintln!("[FLASK_STOP] stop_python_server command failed: {}", e);
+            let error_msg = format!("[FLASK_STOP] stop_python_server command failed: {}", e);
+            eprintln!("{}", error_msg);
+            crate::logger::log_error(&error_msg);
             Ok(ApiResponse {
                 success: false,
                 data: None,

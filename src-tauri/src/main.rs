@@ -4,6 +4,7 @@
 )]
 
 mod commands;
+mod logger;
 
 use commands::{check_python_server_status, get_database_path, get_flask_port, start_python_server, stop_python_server, PythonServer};
 use tauri::Manager;
@@ -25,6 +26,11 @@ fn main() {
         ])
         .setup(|app| {
             let app_handle = app.app_handle().clone();
+            
+            // Initialize logger
+            if let Ok(app_data_dir) = app_handle.path().app_data_dir() {
+                let _ = logger::init_logger(Some(&app_data_dir));
+            }
             
             tauri::async_runtime::spawn(async move {
                 let _ = start_python_server(
@@ -70,15 +76,17 @@ fn main() {
                                 println!("[WINDOW_CLOSE] Flask server stopped successfully");
                             }
                             Err(e) => {
-                                eprintln!("[WINDOW_CLOSE] Error stopping Flask server: {}", e);
+                                let error_msg = format!("[WINDOW_CLOSE] Error stopping Flask server: {}", e);
+                                eprintln!("{}", error_msg);
+                                logger::log_error(&error_msg);
                             }
                         }
                     } else {
                         println!("[WINDOW_CLOSE] No server state found, skipping Flask server shutdown");
                     }
                     
-                    // 等待一小段时间确保清理完成
-                    tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
+                    // 等待一段时间确保清理完成（增加等待时间以确保进程终止）
+                    tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
                     println!("[WINDOW_CLOSE] Cleanup delay completed");
                     
                     // 清理完成后直接退出应用，而不是关闭窗口（避免再次触发事件）

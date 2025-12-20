@@ -16,7 +16,7 @@ const initialState: ServerState = {
   isServerLoading: false,
   serverError: null,
   flaskPort: null,
-  apiUrl: 'http://localhost:5000',
+  apiUrl: '', // Will be set when port is available
 };
 
 const serverSlice = createSlice({
@@ -46,7 +46,7 @@ const serverSlice = createSlice({
       if (action.payload) {
         state.apiUrl = `http://localhost:${action.payload}`;
       } else {
-        state.apiUrl = 'http://localhost:5000';
+        state.apiUrl = ''; // Clear API URL when port is not available
       }
     },
   },

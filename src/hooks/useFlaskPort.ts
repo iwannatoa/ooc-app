@@ -33,9 +33,8 @@ export const useFlaskPort = () => {
           dispatch(setFlaskPort(response.data));
         }
       } catch (err) {
-        if (err instanceof Error && err.message.includes('Tauri')) {
-          dispatch(setFlaskPort(5000));
-        }
+        // Don't set fallback port, let it remain null so we can retry
+        console.error('Failed to fetch Flask port:', err);
       } finally {
         portFetchPromise = null;
       }
