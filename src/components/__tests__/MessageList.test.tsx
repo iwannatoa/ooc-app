@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
-import MessageList from '../MessageList';
 import { ChatMessage } from '@/types';
+import { render, screen } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import MessageList from '../MessageList';
 
 // Mock useI18n hook
 vi.mock('@/i18n', async () => {
@@ -23,17 +23,22 @@ vi.mock('@/i18n', async () => {
       return {
         locale: 'zh',
         setLocale: vi.fn(),
-        t: (key: string) => getNestedValue(zhLocale.default || zhLocale, key),
+        t: (key: string) => getNestedValue(zhLocale, key),
       };
     },
-    I18nProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+    I18nProvider: ({ children }: { children: React.ReactNode }) => (
+      <>{children}</>
+    ),
   };
 });
 
 // Mock ThinkContent component
 vi.mock('../ThinkContent', () => ({
   default: ({ content, isOpen }: { content: string; isOpen: boolean }) => (
-    <div data-testid="think-content" data-is-open={isOpen}>
+    <div
+      data-testid='think-content'
+      data-is-open={isOpen}
+    >
       {content}
     </div>
   ),
@@ -47,7 +52,7 @@ describe('MessageList', () => {
   it('should render empty when no messages', () => {
     const messages: ChatMessage[] = [];
     render(<MessageList messages={messages} />);
-    
+
     expect(screen.queryByText('AI')).not.toBeInTheDocument();
   });
 
@@ -64,9 +69,9 @@ describe('MessageList', () => {
         content: 'Assistant message',
       },
     ];
-    
+
     render(<MessageList messages={messages} />);
-    
+
     expect(screen.queryByText('User message')).not.toBeInTheDocument();
     expect(screen.getByText('Assistant message')).toBeInTheDocument();
   });
@@ -80,9 +85,9 @@ describe('MessageList', () => {
         timestamp: Date.now(),
       },
     ];
-    
+
     render(<MessageList messages={messages} />);
-    
+
     expect(screen.getByText('Hello world')).toBeInTheDocument();
   });
 
@@ -95,9 +100,9 @@ describe('MessageList', () => {
         timestamp: Date.now(),
       },
     ];
-    
+
     render(<MessageList messages={messages} />);
-    
+
     // Should render think content
     expect(screen.getByTestId('think-content')).toBeInTheDocument();
     expect(screen.getByText('thinking')).toBeInTheDocument();
@@ -115,9 +120,9 @@ describe('MessageList', () => {
         timestamp: Date.now(),
       },
     ];
-    
+
     render(<MessageList messages={messages} />);
-    
+
     const thinkContent = screen.getByTestId('think-content');
     expect(thinkContent).toBeInTheDocument();
     expect(thinkContent.getAttribute('data-is-open')).toBe('true');
@@ -125,16 +130,26 @@ describe('MessageList', () => {
 
   it('should render loading indicator when loading is true', () => {
     const messages: ChatMessage[] = [];
-    render(<MessageList messages={messages} loading={true} />);
-    
+    render(
+      <MessageList
+        messages={messages}
+        loading={true}
+      />
+    );
+
     // Should show loading indicator (thinking text)
     expect(screen.getByText(/思考中/)).toBeInTheDocument();
   });
 
   it('should not render loading indicator when loading is false', () => {
     const messages: ChatMessage[] = [];
-    render(<MessageList messages={messages} loading={false} />);
-    
+    render(
+      <MessageList
+        messages={messages}
+        loading={false}
+      />
+    );
+
     expect(screen.queryByText(/思考中/)).not.toBeInTheDocument();
   });
 
@@ -147,9 +162,9 @@ describe('MessageList', () => {
         timestamp: Date.now(),
       },
     ];
-    
+
     render(<MessageList messages={messages} />);
-    
+
     // Message should still be rendered but content area should be empty
     expect(screen.getByText('AI')).toBeInTheDocument();
   });
@@ -163,9 +178,9 @@ describe('MessageList', () => {
         timestamp: Date.now(),
       },
     ];
-    
+
     render(<MessageList messages={messages} />);
-    
+
     expect(screen.getByTestId('think-content')).toBeInTheDocument();
   });
 
@@ -178,9 +193,9 @@ describe('MessageList', () => {
         timestamp: Date.now(),
       },
     ];
-    
+
     render(<MessageList messages={messages} />);
-    
+
     const thinkContents = screen.getAllByTestId('think-content');
     expect(thinkContents.length).toBe(2);
     expect(screen.getByText('Start')).toBeInTheDocument();
@@ -198,9 +213,9 @@ describe('MessageList', () => {
         timestamp,
       },
     ];
-    
+
     render(<MessageList messages={messages} />);
-    
+
     const timeString = new Date(timestamp).toLocaleTimeString();
     expect(screen.getByText(timeString)).toBeInTheDocument();
   });
@@ -213,13 +228,12 @@ describe('MessageList', () => {
         content: 'Hello',
       },
     ];
-    
+
     render(<MessageList messages={messages} />);
-    
+
     expect(screen.getByText('Hello')).toBeInTheDocument();
     // Time should not be rendered
     const timeElements = screen.queryAllByText(/\d{1,2}:\d{2}:\d{2}/);
     expect(timeElements.length).toBe(0);
   });
 });
-

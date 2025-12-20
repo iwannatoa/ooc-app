@@ -1,6 +1,5 @@
 /**
- * 移除AI响应中的think部分（已废弃，请使用 parseThinkContent.tsx 中的 stripThinkContent）
- * @deprecated 请使用 @/utils/parseThinkContent 中的 stripThinkContent
+ * 移除AI响应中的think部分
  */
 export const stripThinkContent = (text: string): string => {
   // Remove <think>...</think> tags

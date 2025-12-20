@@ -1,6 +1,4 @@
-// @ts-ignore - Testing library types may not be installed during type check
 import '@testing-library/jest-dom';
-// @ts-ignore - Vitest types may not be installed during type check
 import { vi } from 'vitest';
 
 // Mock Tauri API
@@ -26,4 +24,3 @@ global.console = {
   warn: vi.fn(),
   error: vi.fn(),
 };
-

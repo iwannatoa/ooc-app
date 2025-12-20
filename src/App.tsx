@@ -1,14 +1,14 @@
-import { useState, useEffect, useRef } from 'react';
 import { useChatState } from '@/hooks/useChatState';
 import { useSettingsState } from '@/hooks/useSettingsState';
 import { useChatActions } from '@/hooks/useChatActions';
 import { useConversationManagement } from '@/hooks/useConversationManagement';
-import { useStoryClient } from '@/hooks/useStoryClient';
 import { useConversationClient } from '@/hooks/useConversationClient';
-import { useMockMode } from '@/hooks/useMockMode';
+import { useStoryActions } from '@/hooks/useStoryActions';
+import { useDialogState } from '@/hooks/useDialogState';
+import { useUIState } from '@/hooks/useUIState';
 import { useI18n } from '@/i18n';
 import ChatInterface from './components/ChatInterface';
-import ServerStatus from './components/ServerStatus';
+import { AppHeader } from './components/AppHeader';
 import SettingsPanel from './components/SettingsPanel';
 import ModelSelector from './components/ModelSelector';
 import ConversationList from './components/ConversationList';
@@ -23,20 +23,12 @@ import styles from './styles.module.scss';
 
 function App() {
   const { messages, models, isSending, setMessages } = useChatState();
-
-  // Use ref to store latest messages for callback
-  const messagesRef = useRef(messages);
-  useEffect(() => {
-    messagesRef.current = messages;
-  }, [messages]);
   const { settings, isSettingsOpen, setSettingsOpen, updateSettings } =
     useSettingsState();
   const { toasts, showError, showSuccess, removeToast } = useToast();
   const { handleModelChange, getCurrentModel } = useChatActions();
-  const storyClient = useStoryClient(settings);
   const conversationClient = useConversationClient();
-  const { mockModeEnabled, toggleMockMode, isDev } = useMockMode();
-  const { locale, setLocale, t } = useI18n();
+  const { t } = useI18n();
 
   const {
     conversations,
@@ -57,29 +49,20 @@ function App() {
     loadConversations,
   } = useConversationManagement();
 
-  const [showSettingsView, setShowSettingsView] = useState(false);
-  const [settingsSidebarCollapsed, setSettingsSidebarCollapsed] =
-    useState(false);
-  const [conversationListCollapsed, setConversationListCollapsed] =
-    useState(false);
-  const [showDeleteLastMessageDialog, setShowDeleteLastMessageDialog] =
-    useState(false);
-  const [showDeleteConversationDialog, setShowDeleteConversationDialog] =
-    useState(false);
-  const [conversationToDelete, setConversationToDelete] = useState<
-    string | null
-  >(null);
-
-  const handleDeleteConversation = (conversationId: string) => {
-    setConversationToDelete(conversationId);
-    setShowDeleteConversationDialog(true);
-  };
+  const uiState = useUIState();
+  const {
+    showDeleteLastMessageDialog,
+    setShowDeleteLastMessageDialog,
+    showDeleteConversationDialog,
+    conversationToDelete,
+    openDeleteConversationDialog,
+    closeDeleteConversationDialog,
+  } = useDialogState();
 
   const handleConfirmDeleteConversation = async () => {
     if (conversationToDelete) {
-      setShowDeleteConversationDialog(false);
+      closeDeleteConversationDialog();
       await deleteConversationInternal(conversationToDelete);
-      setConversationToDelete(null);
     }
   };
 
@@ -93,171 +76,20 @@ function App() {
     currentSettings?.outline &&
     messages.length > 0
   );
-  const handleGenerateStory = async () => {
-    if (!activeConversationId) return;
-    try {
-      // 立即添加一个 loading 消息
-      const loadingMessageId = `loading_${Date.now()}_${Math.random()}`;
-      const currentMessages = messagesRef.current;
-      setMessages([
-        ...currentMessages,
-        {
-          role: 'assistant',
-          content: '',
-          timestamp: Date.now(),
-          id: loadingMessageId,
-        },
-      ]);
 
-      let assistantMessageId: string | null = loadingMessageId;
-      let isFirstChunk = true;
-
-      await storyClient.generateStory(
-        activeConversationId,
-        (_chunk: string, accumulated: string) => {
-          // 实时更新消息内容
-          // 获取当前消息列表（使用 ref 获取最新值）
-          const currentMessages = messagesRef.current;
-
-          if (isFirstChunk) {
-            // 使用预创建的 loading 消息，更新其内容
-            const updatedMessages = currentMessages.map((msg) =>
-              msg.id === assistantMessageId
-                ? { ...msg, content: accumulated }
-                : msg
-            );
-            setMessages(updatedMessages);
-            isFirstChunk = false;
-          } else {
-            // 后续chunk，找到assistant消息并更新
-            if (assistantMessageId) {
-              const assistantIndex = currentMessages.findIndex(
-                (msg) => msg.id === assistantMessageId
-              );
-              if (assistantIndex !== -1) {
-                // 更新找到的消息 - 创建新对象
-                const updatedMessages = currentMessages.map((msg, index) =>
-                  index === assistantIndex
-                    ? { ...msg, content: accumulated }
-                    : msg
-                );
-                setMessages(updatedMessages);
-              } else {
-                // 如果找不到，尝试使用最后一条assistant消息
-                const lastAssistantIndex = currentMessages
-                  .map((msg, idx) => (msg.role === 'assistant' ? idx : -1))
-                  .filter((idx) => idx !== -1)
-                  .pop();
-
-                if (
-                  lastAssistantIndex !== undefined &&
-                  lastAssistantIndex !== -1
-                ) {
-                  assistantMessageId =
-                    currentMessages[lastAssistantIndex].id ||
-                    assistantMessageId;
-                  const updatedMessages = currentMessages.map((msg, index) =>
-                    index === lastAssistantIndex
-                      ? { ...msg, content: accumulated }
-                      : msg
-                  );
-                  setMessages(updatedMessages);
-                } else {
-                  // 如果还是没有，添加新消息
-                  setMessages([
-                    ...currentMessages,
-                    {
-                      role: 'assistant',
-                      content: accumulated,
-                      timestamp: Date.now(),
-                      id: assistantMessageId,
-                    },
-                  ]);
-                }
-              }
-            }
-          }
-        }
-      );
-      // Note: We don't need to reload messages here because streaming already updated them
-      // handleSelectConversation would overwrite the streamed updates
-    } catch (error) {
-      console.error('Failed to generate story:', error);
-      showError(
-        'Failed to generate story: ' +
-          (error instanceof Error ? error.message : String(error))
-      );
-    }
-  };
-
-  const handleConfirmSection = async () => {
-    if (!activeConversationId) return;
-    try {
-      // 立即添加一个 loading 消息
-      const loadingMessageId = `loading_${Date.now()}_${Math.random()}`;
-      const currentMessages = messagesRef.current;
-      setMessages([
-        ...currentMessages,
-        {
-          role: 'assistant',
-          content: '',
-          timestamp: Date.now(),
-          id: loadingMessageId,
-        },
-      ]);
-
-      const result = await storyClient.confirmSection(activeConversationId);
-
-      if (result.success && result.response) {
-        // 更新 loading 消息的内容
-        const finalMessages = messagesRef.current;
-        const updatedMessages = finalMessages.map((msg) =>
-          msg.id === loadingMessageId
-            ? { ...msg, content: result.response || '' }
-            : msg
-        );
-        setMessages(updatedMessages);
-      }
-    } catch (error) {
-      console.error('Failed to confirm section:', error);
-      showError(
-        'Failed to confirm section: ' +
-          (error instanceof Error ? error.message : String(error))
-      );
-    }
-  };
-
-  const handleRewriteSection = async (feedback: string) => {
-    if (!activeConversationId) return;
-    try {
-      const result = await storyClient.rewriteSection(
-        activeConversationId,
-        feedback
-      );
-      if (result.success && result.response) {
-        await new Promise((resolve) => setTimeout(resolve, 300));
-        await handleSelectConversation(activeConversationId);
-      }
-    } catch (error) {
-      console.error('Failed to rewrite section:', error);
-    }
-  };
-
-  const handleModifySection = async (feedback: string) => {
-    if (!activeConversationId) return;
-    try {
-      const result = await storyClient.modifySection(
-        activeConversationId,
-        feedback
-      );
-      if (result.success && result.response) {
-        await new Promise((resolve) => setTimeout(resolve, 300));
-        await handleSelectConversation(activeConversationId);
-      }
-    } catch (error) {
-      console.error('Failed to modify section:', error);
-    }
-  };
+  const {
+    handleGenerateStory,
+    handleConfirmSection,
+    handleRewriteSection,
+    handleModifySection,
+  } = useStoryActions({
+    activeConversationId,
+    messages,
+    setMessages,
+    settings,
+    showError,
+    onConversationSelect: handleSelectConversation,
+  });
 
   const handleDeleteLastMessage = () => {
     if (!activeConversationId || messages.length === 0) return;
@@ -299,60 +131,27 @@ function App() {
 
   return (
     <div className={styles.app}>
-      <div className={styles.header}>
-        <h1>{t('app.title')}</h1>
-        <div className={styles.headerRight}>
-          {isDev && (
-            <button
-              onClick={toggleMockMode}
-              className={`${styles.mockToggleBtn} ${
-                mockModeEnabled ? styles.active : ''
-              }`}
-              title={
-                mockModeEnabled
-                  ? t('app.mockModeTooltipOn')
-                  : t('app.mockModeTooltipOff')
-              }
-            >
-              {mockModeEnabled ? t('app.mockModeOn') : t('app.mockModeOff')}
-            </button>
-          )}
-          <button
-            onClick={() => setLocale(locale === 'zh' ? 'en' : 'zh')}
-            className={styles.languageBtn}
-            title={locale === 'zh' ? 'Switch to English' : '切换到中文'}
-          >
-            {locale === 'zh' ? 'EN' : '中'}
-          </button>
-          <ServerStatus />
-          <button
-            onClick={() => setSettingsOpen(true)}
-            className={styles.settingsBtn}
-          >
-            {t('common.settings')}
-          </button>
-        </div>
-      </div>
+      <AppHeader onOpenSettings={() => setSettingsOpen(true)} />
 
       <div className={styles.mainContent}>
         <ConversationList
           conversations={conversations}
           activeConversationId={activeConversationId}
           onSelectConversation={handleSelectConversation}
-          onDeleteConversation={handleDeleteConversation}
+          onDeleteConversation={openDeleteConversationDialog}
           onNewConversation={handleNewConversation}
           onRefresh={loadConversations}
-          isCollapsed={conversationListCollapsed}
+          isCollapsed={uiState.conversationListCollapsed}
           onToggleCollapse={() =>
-            setConversationListCollapsed(!conversationListCollapsed)
+            uiState.setConversationListCollapsed(!uiState.conversationListCollapsed)
           }
         />
 
         <div className={styles.chatArea}>
           <div className={styles.controls}>
-            {conversationListCollapsed && (
+            {uiState.conversationListCollapsed && (
               <button
-                onClick={() => setConversationListCollapsed(false)}
+                onClick={() => uiState.setConversationListCollapsed(false)}
                 className={styles.expandButton}
                 title={t('common.expand') + ' ' + t('conversation.title')}
               >
@@ -372,7 +171,7 @@ function App() {
                 {t('settingsPanel.currentModel')}: {getCurrentModel()}
               </div>
             )}
-            {conversationListCollapsed &&
+            {uiState.conversationListCollapsed &&
               activeConversationId &&
               currentSettings && (
                 <div className={styles.conversationTitle}>
@@ -380,7 +179,7 @@ function App() {
                     t('conversation.unnamedConversation')}
                 </div>
               )}
-            {conversationListCollapsed && !activeConversationId && (
+            {uiState.conversationListCollapsed && !activeConversationId && (
               <button
                 onClick={handleNewConversation}
                 className={styles.newButton}
@@ -391,9 +190,9 @@ function App() {
             )}
             {activeConversationId &&
               currentSettings &&
-              settingsSidebarCollapsed && (
+              uiState.settingsSidebarCollapsed && (
                 <button
-                  onClick={() => setSettingsSidebarCollapsed(false)}
+                  onClick={() => uiState.setSettingsSidebarCollapsed(false)}
                   className={styles.expandButton}
                   title={t('common.expand') + ' ' + t('storySettings.title')}
                 >
@@ -423,9 +222,9 @@ function App() {
                   settings={currentSettings}
                   onEdit={() => setShowSettingsForm(true)}
                   onToggle={() =>
-                    setSettingsSidebarCollapsed(!settingsSidebarCollapsed)
+                    uiState.setSettingsSidebarCollapsed(!uiState.settingsSidebarCollapsed)
                   }
-                  collapsed={settingsSidebarCollapsed}
+                  collapsed={uiState.settingsSidebarCollapsed}
                 />
               )}
             </div>
@@ -457,15 +256,15 @@ function App() {
         />
       )}
 
-      {showSettingsView && currentSettings && activeConversationId && (
+      {uiState.showSettingsView && currentSettings && activeConversationId && (
         <StorySettingsView
           conversationId={activeConversationId}
           settings={currentSettings}
           onEdit={() => {
-            setShowSettingsView(false);
+            uiState.setShowSettingsView(false);
             setShowSettingsForm(true);
           }}
-          onClose={() => setShowSettingsView(false)}
+          onClose={() => uiState.setShowSettingsView(false)}
         />
       )}
 
@@ -498,10 +297,7 @@ function App() {
           defaultValue: '确定要删除这个故事吗？此操作不可撤销。',
         })}
         onConfirm={handleConfirmDeleteConversation}
-        onCancel={() => {
-          setShowDeleteConversationDialog(false);
-          setConversationToDelete(null);
-        }}
+        onCancel={closeDeleteConversationDialog}
         confirmButtonStyle='danger'
       />
     </div>

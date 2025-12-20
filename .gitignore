@@ -20,7 +20,10 @@ node_modules/
 logs/
 
 # 编辑器
-.vscode/
+# 保留共享的 VS Code 配置，只排除用户特定设置
+.vscode/launch.json
+.vscode/tasks.json
+.vscode/*.code-workspace
 .idea/
 *.swp
 *.swo
@@ -41,3 +44,13 @@ __pycache__/
 *$py.class
 *.so
 .Python
+
+# Test coverage
+coverage/
+*.coverage
+.coverage
+htmlcov/
+.coverage.*
+coverage.xml
+coverage-final.json
+*.lcov

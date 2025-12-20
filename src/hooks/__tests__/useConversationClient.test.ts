@@ -1,23 +1,29 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { renderHook } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useConversationClient } from '../useConversationClient';
-import * as useFlaskPort from '../useFlaskPort';
 
 // Mock useFlaskPort
 vi.mock('../useFlaskPort', () => ({
-  useFlaskPort: vi.fn(() => ({ apiUrl: 'http://localhost:5000' })),
+  useFlaskPort: vi.fn(() => ({
+    apiUrl: 'http://localhost:5000',
+    waitForPort: vi.fn(() => Promise.resolve('http://localhost:5000')),
+  })),
 }));
 
-// Mock isMockMode
+// Mock @/mock module
 vi.mock('@/mock', () => ({
   isMockMode: () => false,
   mockConversationClient: {},
+  setMockModeEnabled: vi.fn(),
 }));
 
-// Mock isMockMode
-vi.mock('@/mock', () => ({
-  isMockMode: () => false,
-  mockConversationClient: {},
+// Mock useMockMode
+vi.mock('../useMockMode', () => ({
+  useMockMode: () => ({
+    mockModeEnabled: false,
+    toggleMockMode: vi.fn(),
+    isDev: false,
+  }),
 }));
 
 describe('useConversationClient', () => {
@@ -154,4 +160,3 @@ describe('useConversationClient', () => {
     );
   });
 });
-

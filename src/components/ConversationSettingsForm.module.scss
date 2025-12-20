@@ -39,7 +39,7 @@
     border-radius: 4px;
     
     &:hover {
-      background: darken($border-color, 10%);
+      background: color.adjust($border-color, $lightness: -10%);
     }
   }
 }

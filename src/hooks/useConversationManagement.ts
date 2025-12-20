@@ -2,13 +2,16 @@
  * Copyright © 2016-2025 Patrick Zhang.
  * All Rights Reserved.
  */
-import { useState, useEffect, useCallback, useRef } from 'react';
+import {
+  ChatMessage,
+  ConversationSettings,
+  ConversationWithSettings,
+} from '@/types';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useAiClient } from './useAiClient';
 import { useChatState } from './useChatState';
 import { useConversationClient } from './useConversationClient';
-import { ConversationWithSettings, ConversationSettings } from '@/types';
-import { useAiClient } from './useAiClient';
 import { useSettingsState } from './useSettingsState';
-import { ChatMessage } from '@/types';
 
 export const useConversationManagement = () => {
   const [conversations, setConversations] = useState<
@@ -30,16 +33,16 @@ export const useConversationManagement = () => {
     removeConversation,
     messages,
   } = useChatState();
-  
+
   // Use ref to store latest messages for callback
   const messagesRef = useRef<ChatMessage[]>(messages);
-  
+
   useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
 
   const { settings } = useSettingsState();
-  const { sendMessage: sendAIMessage, sendMessageStream } = useAiClient(settings);
+  const { sendMessageStream } = useAiClient(settings);
   const conversationClient = useConversationClient();
 
   const loadConversations = useCallback(async () => {
@@ -180,23 +183,20 @@ export const useConversationManagement = () => {
 
       try {
         // 使用流式接口发送消息
-        let accumulatedContent = '';
         let assistantMessageId: string | null = null;
-        
+
         const aiMessage = await sendMessageStream(
           message,
           convId,
-          (chunk: string, accumulated: string) => {
-            // 实时更新消息内容
-            accumulatedContent = accumulated;
-            
+          (_: string, accumulated: string) => {
             // 获取当前消息列表（使用 ref 获取最新值）
             const currentMessages = messagesRef.current;
             const lastMessage = currentMessages[currentMessages.length - 1];
-            
+
             if (lastMessage && lastMessage.role === 'assistant') {
               // 更新现有消息 - 创建新对象而不是修改现有对象
-              assistantMessageId = lastMessage.id || `msg_${Date.now()}_${Math.random()}`;
+              assistantMessageId =
+                lastMessage.id || `msg_${Date.now()}_${Math.random()}`;
               const updatedMessages = currentMessages.map((msg, index) =>
                 index === currentMessages.length - 1
                   ? { ...msg, content: accumulated }
@@ -218,7 +218,7 @@ export const useConversationManagement = () => {
             }
           }
         );
-        
+
         // 消息已通过后端保存（已过滤think部分），重新加载消息
         await handleSelectConversation(convId);
 

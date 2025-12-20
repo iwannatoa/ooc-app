@@ -1,9 +1,9 @@
-import { useState, useCallback } from 'react';
-import { AppSettings } from '@/types';
-import { isMockMode, mockStoryClient } from '@/mock';
 import { useFlaskPort } from '@/hooks/useFlaskPort';
 import { useMockMode } from '@/hooks/useMockMode';
+import { isMockMode, mockStoryClient } from '@/mock';
+import { AppSettings } from '@/types';
 import { stripThinkContent } from '@/utils/stripThinkContent';
+import { useCallback, useState } from 'react';
 
 export interface StoryActionResponse {
   success: boolean;
@@ -14,7 +14,7 @@ export interface StoryActionResponse {
 
 export const useStoryClient = (settings: AppSettings) => {
   const [loading, setLoading] = useState(false);
-  const { apiUrl, waitForPort } = useFlaskPort();
+  const { waitForPort } = useFlaskPort();
   const { mockModeEnabled } = useMockMode();
 
   const generateStory = useCallback(
@@ -44,8 +44,12 @@ export const useStoryClient = (settings: AppSettings) => {
         });
 
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ error: 'Failed to start stream' }));
-          throw new Error(errorData.error || 'Failed to start story generation stream');
+          const errorData = await response
+            .json()
+            .catch(() => ({ error: 'Failed to start stream' }));
+          throw new Error(
+            errorData.error || 'Failed to start story generation stream'
+          );
         }
 
         const reader = response.body?.getReader();
@@ -218,4 +222,3 @@ export const useStoryClient = (settings: AppSettings) => {
     loading,
   };
 };
-

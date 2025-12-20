@@ -1,8 +1,7 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { ToastContainer } from '../Toast';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Toast } from '../Toast';
+import { ToastContainer } from '../Toast';
 
 describe('ToastContainer', () => {
   const mockToasts: Toast[] = [
@@ -18,36 +17,59 @@ describe('ToastContainer', () => {
     },
   ];
 
+  afterEach(() => {
+    cleanup();
+  });
+
   it('should render toasts', () => {
     const onClose = vi.fn();
-    render(<ToastContainer toasts={mockToasts} onClose={onClose} />);
+    render(
+      <ToastContainer
+        toasts={mockToasts}
+        onClose={onClose}
+      />
+    );
 
-    expect(screen.getByText('Success message')).toBeInTheDocument();
-    expect(screen.getByText('Error message')).toBeInTheDocument();
+    const successMessages = screen.getAllByText('Success message');
+    const errorMessages = screen.getAllByText('Error message');
+    expect(successMessages.length).toBeGreaterThan(0);
+    expect(errorMessages.length).toBeGreaterThan(0);
   });
 
   it('should call onClose when close button is clicked', async () => {
-    const user = userEvent.setup();
+    vi.useFakeTimers();
     const onClose = vi.fn();
-    render(<ToastContainer toasts={mockToasts} onClose={onClose} />);
+    render(
+      <ToastContainer
+        toasts={mockToasts}
+        onClose={onClose}
+      />
+    );
 
     const closeButtons = screen.getAllByText('×');
-    await user.click(closeButtons[0]);
+    // Use fireEvent instead of userEvent to avoid clipboard issues
+    fireEvent.click(closeButtons[0]);
 
-    await waitFor(() => {
-      expect(onClose).toHaveBeenCalledWith('1');
-    });
+    // Toast has a 300ms delay before calling onClose
+    await vi.advanceTimersByTimeAsync(300);
+
+    expect(onClose).toHaveBeenCalledWith('1');
+    vi.useRealTimers();
   });
 
   it('should apply correct CSS classes for toast types', () => {
     const onClose = vi.fn();
     render(
-      <ToastContainer toasts={mockToasts} onClose={onClose} />
+      <ToastContainer
+        toasts={mockToasts}
+        onClose={onClose}
+      />
     );
 
     // Note: CSS module classes are hashed, so we check for content instead
-    expect(screen.getByText('Success message')).toBeInTheDocument();
-    expect(screen.getByText('Error message')).toBeInTheDocument();
+    const successMessages = screen.getAllByText('Success message');
+    const errorMessages = screen.getAllByText('Error message');
+    expect(successMessages.length).toBeGreaterThan(0);
+    expect(errorMessages.length).toBeGreaterThan(0);
   });
 });
-

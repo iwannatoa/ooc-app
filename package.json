@@ -26,9 +26,11 @@
     "env:example": "cp .env.example .env",
     "setup:dev": "npm run env:dev && npm install",
     "setup:prod": "npm run env:prod && npm install",
-    "test": "vitest",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "test:ui": "vitest --ui",
-    "test:coverage": "vitest --coverage",
+    "test:coverage": "vitest run --coverage",
+    "test:coverage:watch": "vitest --coverage",
     "test:python": "cd server && pytest",
     "test:python:coverage": "cd server && pytest --cov=src --cov-report=html"
   },

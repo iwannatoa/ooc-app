@@ -97,7 +97,9 @@ export const stripThinkContent = (text: string): string => {
   result = result.replace(/```think\s*\n.*?\n```/gis, '');
   // Remove standalone ```think``` markers
   result = result.replace(/```think\s*```/gi, '');
-  // Clean up extra whitespace
+  // Clean up extra whitespace - replace multiple spaces with single space
+  result = result.replace(/ +/g, ' ');
+  // Clean up extra newlines
   result = result.replace(/\n\s*\n\s*\n+/g, '\n\n');
   return result.trim();
 };

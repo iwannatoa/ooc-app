@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { AIProvider, AISettings, AppSettings } from '@/types';
 import { useSettingsState } from '@/hooks/useSettingsState';
-import { useI18n } from '@/i18n';
+import { useI18n, availableLocales } from '@/i18n';
 import styles from './SettingsPanel.module.scss';
 
 interface SettingsPanelProps {
@@ -129,12 +129,17 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
                 <select
                   value={locale}
                   onChange={(e) => {
-                    const newLocale = e.target.value as 'zh' | 'en';
-                    setLocale(newLocale);
+                    const newLocale = e.target.value;
+                    if (availableLocales.includes(newLocale as any)) {
+                      setLocale(newLocale as any);
+                    }
                   }}
                 >
-                  <option value='zh'>{t('language.zh')}</option>
-                  <option value='en'>{t('language.en')}</option>
+                  {availableLocales.map((loc) => (
+                    <option key={loc} value={loc}>
+                      {loc === 'zh' ? '中文' : loc === 'en' ? 'English' : loc.toUpperCase()}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>

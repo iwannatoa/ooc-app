@@ -1,4 +1,4 @@
 TODO 
-- Close window doesn't stop the flask server successfully
 - Some wrong request in front which called the api with port 5000 
 - Rust and Python's error log should be write into the disk. And there should be max size for all log file.
+- Close window doesn't stop the flask server successfully
