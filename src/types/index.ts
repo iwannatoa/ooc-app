@@ -217,9 +217,8 @@ export interface GeneralSettings {
 
 export interface AppearanceSettings {
   theme: 'light' | 'dark' | 'auto';
-  fontSize: number;
+  fontSize: 'small' | 'medium' | 'large';
   fontFamily: string;
-  compactMode: boolean;
 }
 
 export interface ModelSettings {

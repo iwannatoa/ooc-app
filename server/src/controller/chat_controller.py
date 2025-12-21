@@ -17,6 +17,8 @@ from service.chat_service import ChatService
 from service.character_service import CharacterService
 from service.ai_config_service import AIConfigService
 from service.app_settings_service import AppSettingsService
+from service.conversation_service import ConversationService
+from service.story_service import StoryService
 from utils.logger import get_logger
 from utils.exceptions import APIError, ValidationError, ProviderError
 from utils.stream_response import create_stream_response
@@ -42,7 +44,9 @@ class ChatController:
         chat_service: ChatService,
         character_service: CharacterService,
         ai_config_service: AIConfigService,
-        app_settings_service: AppSettingsService
+        app_settings_service: AppSettingsService,
+        conversation_service: ConversationService,
+        story_service: StoryService
     ):
         """
         Initialize controller
@@ -57,6 +61,9 @@ class ChatController:
             chat_service: Chat record service instance
             character_service: Character service instance
             ai_config_service: AI config service instance
+            app_settings_service: App settings service instance
+            conversation_service: Conversation service instance
+            story_service: Story service instance
         """
         self.chat_orchestration_service = chat_orchestration_service
         self.summary_service = summary_service
@@ -68,6 +75,8 @@ class ChatController:
         self.character_service = character_service
         self.ai_config_service = ai_config_service
         self.app_settings_service = app_settings_service
+        self.conversation_service = conversation_service
+        self.story_service = story_service
     
     def register_routes(self, app: Flask):
         """
@@ -639,7 +648,7 @@ class ChatController:
     @handle_errors
     def delete_conversation(self):
         """
-        删除会话
+        删除会话及其所有相关数据
         
         请求体:
             - conversation_id: 会话ID
@@ -655,12 +664,64 @@ class ChatController:
         if not conversation_id:
             return error_response(language, 'error_messages.conversation_id_required')
         
-        deleted = self.chat_service.delete_conversation(conversation_id)
+        # Delete all related data for the conversation
+        deleted_messages = False
+        deleted_settings = False
+        deleted_summary = False
+        deleted_characters = 0
+        deleted_progress = False
         
-        return jsonify({
-            "success": deleted,
-            "message": "Conversation deleted" if deleted else "Conversation not found"
-        })
+        try:
+            # 1. Delete chat messages
+            deleted_messages = self.chat_service.delete_conversation(conversation_id)
+            
+            # 2. Delete conversation settings
+            try:
+                deleted_settings = self.conversation_service.delete_settings(conversation_id)
+            except Exception as e:
+                logger.warning(f"Failed to delete settings for conversation {conversation_id}: {str(e)}")
+            
+            # 3. Delete conversation summary
+            try:
+                deleted_summary = self.summary_service.delete_summary(conversation_id)
+            except Exception as e:
+                logger.warning(f"Failed to delete summary for conversation {conversation_id}: {str(e)}")
+            
+            # 4. Delete character records
+            try:
+                deleted_characters = self.character_service.delete_conversation_characters(conversation_id)
+            except Exception as e:
+                logger.warning(f"Failed to delete characters for conversation {conversation_id}: {str(e)}")
+            
+            # 5. Delete story progress
+            try:
+                deleted_progress = self.story_service.delete_progress(conversation_id)
+            except Exception as e:
+                logger.warning(f"Failed to delete progress for conversation {conversation_id}: {str(e)}")
+            
+            # Consider deletion successful if at least messages were deleted
+            # (other data might not exist)
+            success = deleted_messages
+            
+            logger.info(
+                f"Deleted conversation {conversation_id}: "
+                f"messages={deleted_messages}, settings={deleted_settings}, "
+                f"summary={deleted_summary}, characters={deleted_characters}, "
+                f"progress={deleted_progress}"
+            )
+            
+            return jsonify({
+                "success": success,
+                "message": "Conversation deleted" if success else "Conversation not found"
+            })
+            
+        except Exception as e:
+            logger.error(f"Error deleting conversation {conversation_id}: {str(e)}", exc_info=True)
+            error_msg = get_i18n_text(language, 'error_messages.server_error')
+            return jsonify({
+                "success": False,
+                "error": f"{error_msg}: {str(e)}"
+            }), 500
     
     @handle_errors
     def get_summary(self):
@@ -786,13 +847,15 @@ class ChatController:
             if not conversation_id:
                 return error_response(language, 'error_messages.conversation_id_required')
             
-            message_id = self.chat_service.delete_last_message(conversation_id)
+            deleted_message = self.chat_service.delete_last_message(conversation_id)
             
-            if message_id:
+            if deleted_message:
                 # Handle character records
                 self.character_service.handle_message_deletion(
                     conversation_id=conversation_id,
-                    message_id=message_id
+                    message_id=deleted_message.get('id'),
+                    message_content=deleted_message.get('content') if deleted_message.get('role') == 'assistant' else None,
+                    message_role=deleted_message.get('role')
                 )
                 return jsonify({
                     "success": True,

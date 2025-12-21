@@ -198,4 +198,16 @@ class SummaryService:
         
         estimated = int(chinese_chars * 1.5 + english_words * 1.3)
         return estimated
+    
+    def delete_summary(self, conversation_id: str) -> bool:
+        """
+        删除会话总结
+        
+        Args:
+            conversation_id: 会话ID
+        
+        Returns:
+            是否成功删除
+        """
+        return self.repository.delete_summary(conversation_id)
 

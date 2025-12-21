@@ -10,7 +10,11 @@ import { useStoryActions } from './useStoryActions';
 import { useSettingsState } from './useSettingsState';
 import { useToast } from './useToast';
 import { useI18n } from '@/i18n';
-import { ConversationWithSettings, ConversationSettings } from '@/types';
+import {
+  ConversationWithSettings,
+  ConversationSettings,
+  ChatMessage,
+} from '@/types';
 
 /**
  * Calculate the current conversation's settings
@@ -53,11 +57,28 @@ function canConfirmSection(
  */
 export const useAppLogic = () => {
   // ===== State Management Hooks =====
-  const { messages, setMessages } = useChatState();
+  const { messages, setMessages: setMessagesRedux } = useChatState();
   const { settings } = useSettingsState();
   const { showError, showSuccess } = useToast();
   const { t } = useI18n();
   const conversationClient = useConversationClient();
+
+  // ===== Wrapper for setMessages to support function updater =====
+  const setMessages = useCallback(
+    (
+      messagesOrUpdater:
+        | ChatMessage[]
+        | ((prev: ChatMessage[]) => ChatMessage[])
+    ) => {
+      if (typeof messagesOrUpdater === 'function') {
+        const newMessages = messagesOrUpdater(messages);
+        setMessagesRedux(newMessages);
+      } else {
+        setMessagesRedux(messagesOrUpdater);
+      }
+    },
+    [messages, setMessagesRedux]
+  );
 
   // ===== Conversation Management Logic =====
   const conversationManagement = useConversationManagement();

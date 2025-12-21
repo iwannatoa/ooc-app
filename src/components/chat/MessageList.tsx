@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { ChatMessage } from '@/types';
 import { useI18n } from '@/i18n';
 import { parseThinkContent } from '@/utils/parseThinkContent';
-import ThinkContent from './ThinkContent';
+import ThinkContent from '../ThinkContent';
 import styles from './MessageList.module.scss';
 
 interface MessageListProps {

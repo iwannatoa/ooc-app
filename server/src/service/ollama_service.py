@@ -66,6 +66,7 @@ class OllamaService:
             if response.status_code == 200:
                 result = response.json()
                 logger.info("Ollama API call successful")
+                logger.debug(f" - {response.text}")
                 return result
             else:
                 error_msg = f"Ollama API error: {response.status_code}"

@@ -184,6 +184,29 @@ class ChatRepository:
         finally:
             session.close()
     
+    def get_last_assistant_message(self, conversation_id: str) -> Optional[ChatRecord]:
+        """
+        Get the last assistant message in a conversation
+        
+        Args:
+            conversation_id: Conversation ID
+        
+        Returns:
+            Last assistant ChatRecord or None if not found
+        """
+        session = self._get_session()
+        try:
+            last_message = session.query(ChatRecord).filter(
+                ChatRecord.conversation_id == conversation_id,
+                ChatRecord.role == 'assistant'
+            ).order_by(desc(ChatRecord.created_at)).first()
+            return last_message
+        except Exception as e:
+            logger.error(f"Failed to get last assistant message: {str(e)}")
+            raise
+        finally:
+            session.close()
+    
     def delete_last_message(self, conversation_id: str) -> Optional[ChatRecord]:
         """
         Delete the last message in a conversation
@@ -192,7 +215,7 @@ class ChatRepository:
             conversation_id: Conversation ID
         
         Returns:
-            Deleted ChatRecord object or None if no message found
+            Deleted ChatRecord object (with id and content) or None if no message found
         """
         session = self._get_session()
         try:
@@ -201,11 +224,21 @@ class ChatRepository:
             ).order_by(desc(ChatRecord.created_at)).first()
             
             if last_message:
+                # Store message info before deletion
+                message_info = ChatRecord(
+                    id=last_message.id,
+                    conversation_id=last_message.conversation_id,
+                    role=last_message.role,
+                    content=last_message.content,
+                    model=last_message.model,
+                    provider=last_message.provider,
+                    created_at=last_message.created_at
+                )
                 message_id = last_message.id
                 session.delete(last_message)
                 session.commit()
                 logger.info(f"Deleted last message: conversation_id={conversation_id}, message_id={message_id}")
-                return message_id
+                return message_info
             return None
         except Exception as e:
             session.rollback()

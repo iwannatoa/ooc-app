@@ -105,6 +105,18 @@ class StoryService:
         
         return progress.to_dict()
     
+    def delete_progress(self, conversation_id: str) -> bool:
+        """
+        删除故事进度
+        
+        Args:
+            conversation_id: 会话ID
+        
+        Returns:
+            是否成功删除
+        """
+        return self.repository.delete_progress(conversation_id)
+    
     def should_generate_next_section(self, conversation_id: str) -> bool:
         """
         判断是否应该生成下一部分

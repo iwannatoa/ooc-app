@@ -8,6 +8,7 @@
     "4. Ensure character settings and behaviors conform to the settings",
     "",
     "**IMPORTANT**: All story content, dialogue, and narration must be written in English.",
+    "**IMPORTANT**: Story content must be output in plain text format, do not use any Markdown formatting (such as bold, italic, headings, lists, etc.).",
     ""
   ],
   "sections": {
@@ -15,7 +16,8 @@
     "characters": "## Main Characters",
     "outline": "## Story Outline",
     "summary": "## Story Progress Summary",
-    "appeared_characters": "## Appeared Characters"
+    "appeared_characters": "## Appeared Characters",
+    "supplement": "## Additional Settings"
   },
   "appeared_characters": {
     "available_label": "**Available Characters**:",
@@ -32,10 +34,11 @@
         "- Generate the story content for the current section based on the outline",
         "- Ensure plot continuity with previous sections",
         "- Each section should have appropriate length and completeness",
-        "- Leave a natural transition for the next section"
+        "- Leave a natural transition for the next section",
+        "- **IMPORTANT**: Control the story's pacing and progress the plot progressively. The current section should focus on the development of the current stage, avoiding premature revelation of the ending, rushing to the climax, or jumping directly to the conclusion. Maintain an appropriate narrative rhythm, let the plot unfold naturally, and preserve development space for subsequent sections."
       ]
     },
-    "without_progress": "**Note**: Follow the rhythm and structure of the outline to develop the story, but adjust as needed for the plot."
+    "without_progress": "**Note**: Follow the rhythm and structure of the outline to develop the story, but adjust as needed for the plot. **IMPORTANT**: Control the story's pacing and progress the plot progressively. Avoid premature revelation of the ending or rushing to the climax and conclusion. Focus on the development of the current stage, maintain an appropriate narrative rhythm, and preserve development space for subsequent sections."
   },
   "summary": {
     "intro": "Below is a summary of the previous story content. Please continue creating based on this:",
@@ -65,8 +68,9 @@
     "title": "## Output Requirements",
     "items": [
       "- First, directly output story content without additional explanations or markers",
+      "- **IMPORTANT**: Story content must be in plain text format, do not use any Markdown formatting (such as **bold**, *italic*, # headings, list symbols, etc.)",
       "- Use third-person narration",
-      "- Maintain appropriate paragraph length for readability",
+      "- Maintain appropriate paragraph length for readability (use blank lines to separate paragraphs)",
       "- Use quotation marks for dialogue",
       "- This is section generation, ensure the current section has appropriate beginning, development, and transition",
       "- After the story content, add character change information (if new characters appear or character status changes)"
@@ -78,8 +82,8 @@
         "",
         "<CHARACTERS>",
         "New Characters:",
-        "- [Character Name 1]",
-        "- [Character Name 2]",
+        "- [Character Name 1] - Setting: [Character personality and setting description]",
+        "- [Character Name 2] - Setting: [Character personality and setting description]",
         "",
         "Status Changes:",
         "- [Character Name 3] - Became Main Character",
@@ -88,13 +92,14 @@
         "</CHARACTERS>",
         "",
         "Instructions:",
-        "1. New Characters: Only list new character names that first appear in this section's story content.",
-        "2. Status Changes: List significant status changes for existing characters in this section:",
+        "1. New Characters: Only list new character names that first appear in this section's story content, **must also provide character setting** (personality, background, etc., 50-100 words).",
+        "2. **IMPORTANT**: All character names must be in English.",
+        "3. Status Changes: List significant status changes for existing characters in this section:",
         "   - Became Main Character: When a character becomes a main character in this section",
         "   - Became Unavailable: When a character dies, leaves, disappears, etc., and will no longer participate in the story",
         "   - Restored to Available: When a previously unavailable character reappears",
-        "3. If there are no new characters and no status changes in this section, do not add this section.",
-        "4. Status changes are optional, only record when there are clear significant changes."
+        "4. If there are no new characters and no status changes in this section, do not add this section.",
+        "5. Status changes are optional, only record when there are clear significant changes."
       ]
     }
   },
@@ -122,8 +127,8 @@
     }
   },
   "user_messages": {
-    "continue_story": "Please continue generating the next section of the story.",
-    "generate_current_section": "Please generate the current section of the story based on the outline."
+    "continue_story": "Please continue generating the next section of the story. Control the story's pacing and progress the plot progressively, avoiding premature revelation of the ending or rushing to the climax and conclusion. Focus on the development of the current section and maintain an appropriate narrative rhythm.",
+    "generate_current_section": "Please generate the current section of the story based on the outline. Control the story's pacing and progress the plot progressively, avoiding premature revelation of the ending or rushing to the climax and conclusion. Focus on the development of the current section and maintain an appropriate narrative rhythm."
   },
   "error_messages": {
     "outline_required": "Please set the story outline first",
@@ -161,7 +166,7 @@
     }
   },
   "character_generation": {
-    "intro": "Please generate a suitable new character based on the following story background.",
+    "intro": "Please generate suitable new character(s) based on the following story background and character hints (one or multiple, depending on user requirements).",
     "sections": {
       "background": "Story Background:",
       "existing_characters_from_settings": "Existing Characters (from settings):",
@@ -169,10 +174,7 @@
       "recent_content": "Recent Story Content (for reference):",
       "character_hints": "Character Hints:"
     },
-    "instructions": {
-      "zh": "请生成一个新角色的信息，包括：\n1. 角色姓名\n2. 角色性格和设定（简要描述，100字左右）\n\n请按照以下格式返回：\n姓名：[角色姓名]\n设定：[角色性格和设定描述]",
-      "en": "Please generate information for a new character, including:\n1. Character name\n2. Character personality and settings (brief description, around 100 words)\n\nPlease return in the following format:\nName: [Character Name]\nSetting: [Character personality and setting description]"
-    }
+    "instructions": "Please follow these steps to generate characters:\n\nStep 1: Based on the story background and character hints, determine how many characters to generate (if the user requests multiple characters, generate multiple; otherwise generate one).\nStep 2: For each character, based on the story background, generate a suitable character (can be from any cultural background, not limited to English-speaking countries).\nStep 3: Translate each character's name into English (if the original name is not in English, translate it to an English-style name that fits the character's cultural background; if it's already in English, keep it as is).\nStep 4: Provide each character's personality and settings (brief description, around 100 words).\n\n**IMPORTANT**:\n- The character can be from any cultural background (Western, Eastern, fantasy, sci-fi, etc.), not limited to English-speaking people\n- The name must be in English, but should be appropriately translated based on the character's cultural background\n- For example: If the character is a Western knight, the name could be \"Arthur\" rather than \"John Smith\"; if it's a Japanese samurai, the name could be \"Takeshi\" rather than \"Bob Johnson\"\n- If the user requests multiple characters, please generate information for each character separately\n\nPlease return in the following format (if generating multiple characters, repeat this format for each character):\nName: [English Character Name]\nSetting: [Character personality and setting description]\n\n---(separate multiple characters with three dashes)"
   },
   "outline_generation": {
     "intro": "Please generate a detailed story outline based on the following information:",

@@ -6,19 +6,20 @@ import { useSettingsState } from '@/hooks/useSettingsState';
 import { useDialogState } from '@/hooks/useDialogState';
 import { useUIState } from '@/hooks/useUIState';
 import { useToast } from './hooks/useToast';
+import { useAppearance } from './hooks/useAppearance';
+import { useAppSettings } from './hooks/useAppSettings';
 
 // ===== UI Components =====
-import { AppHeader } from './components/AppHeader';
-import { ChatControls } from './components/ChatControls';
-import ChatInterface from './components/ChatInterface';
-import ConversationList from './components/ConversationList';
-import ConversationSettingsForm from './components/ConversationSettingsForm';
-import StorySettingsView from './components/StorySettingsView';
-import StorySettingsSidebar from './components/StorySettingsSidebar';
-import SummaryPrompt from './components/SummaryPrompt';
+import { TitleBar, AppHeader, ConversationList } from './components';
+import { ChatControls, ChatInterface } from './components/chat';
+import {
+  ConversationSettingsForm,
+  StorySettingsView,
+  StorySettingsSidebar,
+  SummaryPrompt,
+} from './components/story';
 import SettingsPanel from './components/SettingsPanel';
-import ConfirmDialog from './components/ConfirmDialog';
-import { ToastContainer } from './components/Toast';
+import { ConfirmDialog, ToastContainer } from './components/common';
 
 // ===== Styles and Utilities =====
 import styles from './styles.module.scss';
@@ -72,6 +73,12 @@ function App() {
   const { handleModelChange, getCurrentModel } = useChatActions();
   const uiState = useUIState();
 
+  // Load app settings from backend
+  useAppSettings();
+
+  // Apply appearance settings
+  useAppearance();
+
   // ===== Toast Notifications =====
   const { toasts, removeToast } = useToast();
 
@@ -100,73 +107,78 @@ function App() {
 
   return (
     <div className={styles.app}>
-      <AppHeader onOpenSettings={() => setSettingsOpen(true)} />
+      <TitleBar />
+      <div className={styles.appContent}>
+        <AppHeader onOpenSettings={() => setSettingsOpen(true)} />
 
-      <div className={styles.mainContent}>
-        <ConversationList
-          conversations={conversations}
-          activeConversationId={activeConversationId}
-          onSelectConversation={handleSelectConversation}
-          onDeleteConversation={openDeleteConversationDialog}
-          onNewConversation={handleNewConversation}
-          onRefresh={loadConversations}
-          isCollapsed={uiState.conversationListCollapsed}
-          onToggleCollapse={() =>
-            uiState.setConversationListCollapsed(
-              !uiState.conversationListCollapsed
-            )
-          }
-        />
-
-        <div className={styles.chatArea}>
-          {/* Chat controls bar */}
-          <ChatControls
-            conversationListCollapsed={uiState.conversationListCollapsed}
-            settingsSidebarCollapsed={uiState.settingsSidebarCollapsed}
+        <div className={styles.mainContent}>
+          <ConversationList
+            conversations={conversations}
             activeConversationId={activeConversationId}
-            currentSettings={currentSettings}
-            appSettings={settings}
-            models={models}
-            currentModel={getCurrentModel()}
-            onModelChange={handleModelChange}
-            onExpandConversationList={() =>
-              uiState.setConversationListCollapsed(false)
-            }
+            onSelectConversation={handleSelectConversation}
+            onDeleteConversation={openDeleteConversationDialog}
             onNewConversation={handleNewConversation}
-            onExpandSettingsSidebar={() =>
-              uiState.setSettingsSidebarCollapsed(false)
+            onRefresh={loadConversations}
+            isCollapsed={uiState.conversationListCollapsed}
+            onToggleCollapse={() =>
+              uiState.setConversationListCollapsed(
+                !uiState.conversationListCollapsed
+              )
             }
           />
 
-          <div className={styles.conversationContainer}>
-            <div className={styles.chatWithSidebar}>
-              <ChatInterface
-                messages={messages}
-                onGenerate={handleGenerateStory}
-                onConfirm={handleConfirmSection}
-                onRewrite={handleRewriteSection}
-                onModify={handleModifySection}
-                onAddSettings={() => setShowSettingsForm(true)}
-                onDeleteLastMessage={() => setShowDeleteLastMessageDialog(true)}
-                loading={isSending}
-                disabled={!activeConversationId}
-                canConfirm={canConfirm}
-                canGenerate={canGenerate}
-                canDeleteLast={canDeleteLast}
-              />
-              {activeConversationId && currentSettings && (
-                <StorySettingsSidebar
-                  settings={currentSettings}
-                  onEdit={() => setShowSettingsForm(true)}
-                  onViewSettings={() => uiState.setShowSettingsView(true)}
-                  onToggle={() =>
-                    uiState.setSettingsSidebarCollapsed(
-                      !uiState.settingsSidebarCollapsed
-                    )
+          <div className={styles.chatArea}>
+            {/* Chat controls bar */}
+            <ChatControls
+              conversationListCollapsed={uiState.conversationListCollapsed}
+              settingsSidebarCollapsed={uiState.settingsSidebarCollapsed}
+              activeConversationId={activeConversationId}
+              currentSettings={currentSettings}
+              appSettings={settings}
+              models={models}
+              currentModel={getCurrentModel()}
+              onModelChange={handleModelChange}
+              onExpandConversationList={() =>
+                uiState.setConversationListCollapsed(false)
+              }
+              onNewConversation={handleNewConversation}
+              onExpandSettingsSidebar={() =>
+                uiState.setSettingsSidebarCollapsed(false)
+              }
+            />
+
+            <div className={styles.conversationContainer}>
+              <div className={styles.chatWithSidebar}>
+                <ChatInterface
+                  messages={messages}
+                  onGenerate={handleGenerateStory}
+                  onConfirm={handleConfirmSection}
+                  onRewrite={handleRewriteSection}
+                  onModify={handleModifySection}
+                  onAddSettings={() => setShowSettingsForm(true)}
+                  onDeleteLastMessage={() =>
+                    setShowDeleteLastMessageDialog(true)
                   }
-                  collapsed={uiState.settingsSidebarCollapsed}
+                  loading={isSending}
+                  disabled={!activeConversationId}
+                  canConfirm={canConfirm}
+                  canGenerate={canGenerate}
+                  canDeleteLast={canDeleteLast}
                 />
-              )}
+                {activeConversationId && currentSettings && (
+                  <StorySettingsSidebar
+                    settings={currentSettings}
+                    onEdit={() => setShowSettingsForm(true)}
+                    onViewSettings={() => uiState.setShowSettingsView(true)}
+                    onToggle={() =>
+                      uiState.setSettingsSidebarCollapsed(
+                        !uiState.settingsSidebarCollapsed
+                      )
+                    }
+                    collapsed={uiState.settingsSidebarCollapsed}
+                  />
+                )}
+              </div>
             </div>
           </div>
         </div>

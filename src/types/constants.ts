@@ -13,9 +13,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   },
   appearance: {
     theme: 'dark',
-    fontSize: 14,
+    fontSize: 'medium',
     fontFamily: 'system-ui, -apple-system, sans-serif',
-    compactMode: false,
   },
   ai: {
     provider: 'ollama',

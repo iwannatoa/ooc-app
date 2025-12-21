@@ -1,7 +1,7 @@
 import React from 'react';
 import { ChatMessage } from '@/types';
 import MessageList from './MessageList';
-import StoryActions from './StoryActions';
+import { StoryActions } from '../story';
 import styles from './ChatInterface.module.scss';
 
 interface ChatInterfaceProps {

@@ -1,5 +1,5 @@
-@use '../styles/variables' as *;
-@use '../styles/mixins' as *;
+@use '@/styles/variables' as *;
+@use '@/styles/mixins' as *;
 
 .statusIndicator {
   padding: $spacing-sm $spacing-md;
@@ -9,14 +9,14 @@
   border: 1px solid transparent;
 
   &.connected {
-    background: rgba($success-color, 0.1);
+    background: $success-color-light;
     color: $success-color;
-    border-color: rgba($success-color, 0.3);
+    border-color: $success-color-border;
   }
 
   &.disconnected {
-    background: rgba($error-color, 0.1);
+    background: $error-color-light;
     color: $error-color;
-    border-color: rgba($error-color, 0.3);
+    border-color: $error-color-border;
   }
 }

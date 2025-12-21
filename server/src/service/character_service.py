@@ -66,12 +66,14 @@ class CharacterService:
             story_content: Cleaned story content without character tags
             character_info: Dictionary with:
                 - "new": List of new character names
+                - "new_with_settings": Dict mapping character name to setting description
                 - "status_changes": Dict mapping character name to status changes dict
                   (e.g., {"角色名": {"is_main": True}} or {"角色名": {"is_unavailable": True}})
         """
         story_content = content
         character_info = {
             "new": [],
+            "new_with_settings": {},
             "status_changes": {}
         }
         
@@ -126,11 +128,24 @@ class CharacterService:
                 
                 # Parse based on section
                 if in_new_characters_section:
-                    # New character - just the name
-                    # Remove brackets if present
-                    char_name = re.sub(r'^\[|\]$', '', line_content).strip()
-                    if char_name and len(char_name) >= 1:
-                        character_info["new"].append(char_name)
+                    # New character - format: "角色名 - 设定：设定描述" or "角色名"
+                    # Try to parse character name and setting
+                    if ' - 设定：' in line_content or ' - 设定:' in line_content or ' - Setting:' in line_content or ' - Setting：' in line_content:
+                        # Has setting
+                        parts = re.split(r' - (?:设定|Setting)[：:]', line_content, 1)
+                        if len(parts) >= 1:
+                            char_name = parts[0].strip()
+                            char_name = re.sub(r'^\[|\]$', '', char_name).strip()
+                            setting = parts[1].strip() if len(parts) > 1 else ""
+                            if char_name and len(char_name) >= 1:
+                                character_info["new"].append(char_name)
+                                if setting:
+                                    character_info["new_with_settings"][char_name] = setting
+                    else:
+                        # Just the name (backward compatibility)
+                        char_name = re.sub(r'^\[|\]$', '', line_content).strip()
+                        if char_name and len(char_name) >= 1:
+                            character_info["new"].append(char_name)
                         
                 elif in_status_changes_section:
                     # Status change - format: "角色名 - 状态描述" or "[角色名] - 状态描述"
@@ -264,7 +279,9 @@ class CharacterService:
         content: str,
         predefined_characters: List[str],
         allow_auto_generate: bool = True,
+        allow_auto_generate_main: bool = True,
         ai_extracted_characters: Optional[List[str]] = None,
+        ai_extracted_characters_with_settings: Optional[Dict[str, str]] = None,
         ai_status_changes: Optional[Dict[str, Dict[str, Any]]] = None
     ) -> List[Dict]:
         """
@@ -275,8 +292,10 @@ class CharacterService:
             message_id: Message ID
             content: Message content (story content, without character tags)
             predefined_characters: List of predefined character names (from settings)
-            allow_auto_generate: Whether to allow auto-generating new characters (fallback)
+            allow_auto_generate: Whether to allow auto-generating new characters (any role, fallback)
+            allow_auto_generate_main: Whether to allow auto-generating main characters
             ai_extracted_characters: List of character names extracted by AI (from <CHARACTERS> tags, preferred)
+            ai_extracted_characters_with_settings: Dict mapping character name to setting description
             ai_status_changes: Dict mapping character name to status changes (e.g., {"角色名": {"is_main": True}})
         
         Returns:
@@ -331,16 +350,35 @@ class CharacterService:
             for char_name in ai_extracted_characters:
                 char_name = char_name.strip()
                 if char_name and char_name not in existing_names:
+                    # Check if this should be a main character based on status changes
+                    is_main = False
+                    if ai_status_changes and char_name in ai_status_changes:
+                        is_main = ai_status_changes[char_name].get("is_main", False)
+                    
+                    # Check if we should allow this character based on settings
+                    if is_main and not allow_auto_generate_main:
+                        logger.info(f"Skipping auto-generated main character {char_name} (not allowed)")
+                        continue
+                    if not is_main and not allow_auto_generate:
+                        logger.info(f"Skipping auto-generated character {char_name} (not allowed)")
+                        continue
+                    
+                    # Get character setting if available
+                    character_setting = None
+                    if ai_extracted_characters_with_settings and char_name in ai_extracted_characters_with_settings:
+                        character_setting = ai_extracted_characters_with_settings[char_name]
+                    
                     character = self.repository.create_character(
                         conversation_id=conversation_id,
                         name=char_name,
                         first_appeared_message_id=message_id,
-                        is_main=False,  # AI-extracted characters are not main by default
-                        is_auto_generated=True
+                        is_main=is_main,
+                        is_auto_generated=True,
+                        notes=character_setting  # Store setting in notes field
                     )
                     recorded.append(character.to_dict())
                     existing_names.add(char_name)
-                    logger.info(f"Recorded AI-extracted character: {char_name} in conversation {conversation_id}")
+                    logger.info(f"Recorded AI-extracted character: {char_name} (main={is_main}) in conversation {conversation_id}")
         
         # Fallback: Auto-generate new characters from text if AI extraction is not available
         # This is a fallback mechanism in case AI doesn't provide character information
@@ -349,6 +387,7 @@ class CharacterService:
             extracted = self.extract_characters_from_text(content, existing_names)
             for char_name in extracted:
                 if char_name not in existing_names:
+                    # Only create non-main characters in fallback (main characters should be explicitly marked)
                     character = self.repository.create_character(
                         conversation_id=conversation_id,
                         name=char_name,
@@ -442,20 +481,63 @@ class CharacterService:
     def handle_message_deletion(
         self,
         conversation_id: str,
-        message_id: int
+        message_id: int,
+        message_content: Optional[str] = None,
+        message_role: Optional[str] = None
     ) -> int:
         """
         Handle character records when a message is deleted
         Deletes characters that first appeared in this message
+        Also reverts character status changes that occurred in this message
         
         Args:
             conversation_id: Conversation ID
             message_id: Message ID that was deleted
+            message_content: Optional message content (if assistant message, used to revert status changes)
+            message_role: Optional message role (to determine if we need to revert status changes)
         
         Returns:
             Number of character records deleted
         """
-        return self.repository.delete_characters_by_message_id(message_id)
+        deleted_count = self.repository.delete_characters_by_message_id(message_id)
+        
+        # If it's an assistant message with content, try to revert status changes
+        if message_role == 'assistant' and message_content:
+            try:
+                # Parse the deleted message to find character status changes
+                story_content, character_info = self.parse_story_with_characters(message_content)
+                
+                # Revert status changes that occurred in this message
+                if character_info.get("status_changes"):
+                    for char_name, status_changes in character_info["status_changes"].items():
+                        existing_char = self.repository.get_character(conversation_id, char_name)
+                        if existing_char:
+                            # Revert status changes
+                            updates = {}
+                            if "is_main" in status_changes:
+                                # Revert to previous state (assume False if was set to True)
+                                # In a more sophisticated implementation, we could track previous states
+                                if status_changes["is_main"]:
+                                    updates["is_main"] = False
+                            if "is_unavailable" in status_changes:
+                                # Revert to previous state
+                                if status_changes["is_unavailable"]:
+                                    updates["is_unavailable"] = False
+                                else:
+                                    updates["is_unavailable"] = True
+                            
+                            if updates:
+                                self.repository.update_character(
+                                    conversation_id=conversation_id,
+                                    name=char_name,
+                                    **updates
+                                )
+                                logger.info(f"Reverted status changes for character {char_name} after message deletion")
+            except Exception as e:
+                logger.warning(f"Failed to revert character status changes: {str(e)}")
+                # Don't fail the deletion if status reversion fails
+        
+        return deleted_count
     
     def delete_conversation_characters(self, conversation_id: str) -> int:
         """
@@ -537,61 +619,113 @@ class CharacterService:
             prompt_parts.append(character_hints)
             prompt_parts.append("")
         
-        instructions_key = language
-        prompt_parts.append(char_template['instructions'].get(instructions_key, char_template['instructions']['en']))
+        prompt_parts.append(char_template['instructions'])
         
         return "\n".join(prompt_parts)
     
-    def _parse_character_response(self, response_text: str, language: str) -> Dict[str, Optional[str]]:
+    def _parse_character_response(self, response_text: str, language: str) -> List[Dict[str, Optional[str]]]:
         """
-        Parse AI response to extract character name and personality
+        Parse AI response to extract character name(s) and personality(ies)
+        Supports parsing multiple characters separated by '---'
         
         Args:
             response_text: AI response text
             language: Language code
         
         Returns:
-            Dictionary with 'name' and 'personality' keys
+            List of dictionaries, each with 'name' and 'personality' keys
         """
-        character_name = None
-        character_personality = None
+        characters = []
         
-        lines = response_text.split('\n')
-        for line in lines:
-            line = line.strip()
-            if language == 'zh':
-                if line.startswith('姓名：') or line.startswith('姓名:'):
-                    character_name = line.split('：', 1)[-1].split(':', 1)[-1].strip()
-                elif line.startswith('设定：') or line.startswith('设定:'):
-                    character_personality = line.split('：', 1)[-1].split(':', 1)[-1].strip()
-            else:
-                if line.startswith('Name:') or line.startswith('Name：'):
-                    character_name = line.split(':', 1)[-1].split('：', 1)[-1].strip()
-                elif line.startswith('Setting:') or line.startswith('Setting：'):
-                    character_personality = line.split(':', 1)[-1].split('：', 1)[-1].strip()
+        # Split by '---' to handle multiple characters
+        # Use regex to handle '---' with optional whitespace around it
+        parts = re.split(r'\s*---\s*', response_text)
         
-        # Fallback: try to extract name from first line if not found
-        if not character_name:
-            first_line = lines[0].strip() if lines else ''
-            if first_line:
-                character_name = first_line.split(':')[0].split('：')[0].strip()
-                character_name = character_name.replace('姓名', '').replace('Name', '').strip(': ：').strip()
-                if character_name:
-                    character_personality = '\n'.join(lines[1:]).strip() if len(lines) > 1 else response_text
-        
-        if not character_name:
-            # Last resort: use first non-empty line
-            for line in lines:
+        for part in parts:
+            part = part.strip()
+            if not part:
+                continue
+                
+            character_name = None
+            character_personality = None
+            
+            lines = part.split('\n')
+            personality_lines = []
+            in_personality_section = False
+            
+            for i, line in enumerate(lines):
                 line = line.strip()
-                if line and not line.startswith('姓名') and not line.startswith('Name') and not line.startswith('设定') and not line.startswith('Setting'):
-                    character_name = line.split(' ')[0].split('\t')[0]
-                    character_personality = response_text.replace(line, '').strip()
-                    break
+                if not line:
+                    continue
+                    
+                if language == 'zh':
+                    if line.startswith('姓名：') or line.startswith('姓名:'):
+                        # Extract name
+                        character_name = line.split('：', 1)[-1].split(':', 1)[-1].strip()
+                        in_personality_section = False
+                    elif line.startswith('设定：') or line.startswith('设定:'):
+                        # Start of personality section
+                        personality_text = line.split('：', 1)[-1].split(':', 1)[-1].strip()
+                        if personality_text:
+                            personality_lines = [personality_text]
+                        in_personality_section = True
+                    elif in_personality_section:
+                        # Continue collecting personality lines until next character or end
+                        # Stop if we encounter another "姓名：" or "Name:"
+                        if line.startswith('姓名：') or line.startswith('姓名:') or line.startswith('Name:') or line.startswith('Name：'):
+                            break
+                        personality_lines.append(line)
+                else:
+                    if line.startswith('Name:') or line.startswith('Name：'):
+                        # Extract name
+                        character_name = line.split(':', 1)[-1].split('：', 1)[-1].strip()
+                        in_personality_section = False
+                    elif line.startswith('Setting:') or line.startswith('Setting：'):
+                        # Start of personality section
+                        personality_text = line.split(':', 1)[-1].split('：', 1)[-1].strip()
+                        if personality_text:
+                            personality_lines = [personality_text]
+                        in_personality_section = True
+                    elif in_personality_section:
+                        # Continue collecting personality lines until next character or end
+                        # Stop if we encounter another "姓名：" or "Name:"
+                        if line.startswith('姓名：') or line.startswith('姓名:') or line.startswith('Name:') or line.startswith('Name：'):
+                            break
+                        personality_lines.append(line)
+            
+            # Combine personality lines
+            if personality_lines:
+                character_personality = '\n'.join(personality_lines).strip()
+            
+            # Fallback: try to extract name from first line if not found
+            if not character_name:
+                first_line = lines[0].strip() if lines else ''
+                if first_line:
+                    character_name = first_line.split(':')[0].split('：')[0].strip()
+                    character_name = character_name.replace('姓名', '').replace('Name', '').strip(': ：').strip()
+                    if character_name:
+                        # Use remaining lines as personality
+                        if not character_personality:
+                            character_personality = '\n'.join(lines[1:]).strip()
+            
+            if not character_name:
+                # Last resort: use first non-empty line
+                for line in lines:
+                    line = line.strip()
+                    if line and not line.startswith('姓名') and not line.startswith('Name') and not line.startswith('设定') and not line.startswith('Setting'):
+                        character_name = line.split(' ')[0].split('\t')[0]
+                        if not character_personality:
+                            character_personality = part.replace(line, '').strip()
+                        break
+            
+            if character_name:
+                characters.append({
+                    'name': character_name,
+                    'personality': character_personality or ''
+                })
         
-        return {
-            'name': character_name,
-            'personality': character_personality or ''
-        }
+        # If no characters found, return empty list (will be handled by caller)
+        return characters
     
     def generate_character(
         self,
@@ -697,20 +831,18 @@ class CharacterService:
         
         if result.get('success'):
             response_text = result.get('response', '')
-            parsed = self._parse_character_response(response_text, language)
+            parsed_characters = self._parse_character_response(response_text, language)
             
-            if parsed['name']:
+            if parsed_characters:
+                # Return list of characters (supporting multiple)
                 return {
                     "success": True,
-                    "character": {
-                        "name": parsed['name'],
-                        "personality": parsed['personality']
-                    }
+                    "characters": parsed_characters
                 }
             else:
                 return {
                     "success": False,
-                    "error": "Failed to parse character name from AI response"
+                    "error": "Failed to parse character name(s) from AI response"
                 }
         else:
             return {

@@ -8,6 +8,9 @@ use tauri_plugin_shell::{
 
 use tokio::sync::Mutex as TokioMutex;
 
+#[cfg(target_os = "windows")]
+use kill_tree::blocking::kill_tree;
+
 #[derive(Debug, Serialize)]
 pub struct ApiResponse<T> {
     pub success: bool,
@@ -18,6 +21,7 @@ pub struct ApiResponse<T> {
 pub struct PythonServer {
     pub process: Option<CommandChild>,
     pub port: Option<u16>,
+    pub pid: Option<u32>,
 }
 
 impl PythonServer {
@@ -25,6 +29,7 @@ impl PythonServer {
         Self { 
             process: None,
             port: None,
+            pid: None,
         }
     }
 }
@@ -90,6 +95,9 @@ pub async fn start_python_server(
         let mut cmd = app_handle.shell().command("python");
         cmd = cmd.args(&[run_script.to_string_lossy().as_ref()]);
         cmd = cmd.current_dir(&project_root);
+        // Enable debug logging in development mode (debug_assertions means dev build)
+        cmd = cmd.env("LOG_LEVEL_DEBUG", "true");
+        cmd = cmd.env("FLASK_ENV", "development");
         if let Some(path) = &db_path {
             cmd = cmd.env("DB_PATH", path);
         }
@@ -137,6 +145,16 @@ pub async fn start_python_server(
                                         if let Some(server_state) = app_handle_clone.try_state::<TokioMutex<PythonServer>>() {
                                             let mut server = server_state.lock().await;
                                             server.port = Some(port);
+                                            
+                                            // Try to find and store PID by port on Windows
+                                            #[cfg(target_os = "windows")]
+                                            {
+                                                if let Some(pid) = find_pid_by_port(port) {
+                                                    server.pid = Some(pid);
+                                                    println!("[FLASK_START] Found and stored Flask process PID: {} for port: {}", pid, port);
+                                                }
+                                            }
+                                            
                                             drop(server);
                                         }
                                         
@@ -253,7 +271,35 @@ pub async fn get_flask_port(
     })
 }
 
-pub(crate) async fn stop_python_server_internal(
+// Helper function to find PID by port on Windows
+#[cfg(target_os = "windows")]
+fn find_pid_by_port(port: u16) -> Option<u32> {
+    use std::process::Command;
+    
+    // Use netstat to find process using the port
+    // netstat -ano | findstr :PORT
+    let output = Command::new("netstat")
+        .args(&["-ano"])
+        .output()
+        .ok()?;
+    
+    let output_str = String::from_utf8_lossy(&output.stdout);
+    let port_str = format!(":{}", port);
+    
+    for line in output_str.lines() {
+        if line.contains(&port_str) && line.contains("LISTENING") {
+            // Extract PID (last number in the line)
+            if let Some(pid_part) = line.split_whitespace().last() {
+                if let Ok(pid) = pid_part.parse::<u32>() {
+                    return Some(pid);
+                }
+            }
+        }
+    }
+    None
+}
+
+pub async fn stop_python_server_internal(
     _app_handle: &AppHandle,
     server_state: &TokioMutex<PythonServer>,
 ) -> Result<(), String> {
@@ -262,6 +308,7 @@ pub(crate) async fn stop_python_server_internal(
     
     let port = server.port;
     let process = server.process.take();
+    let stored_pid = server.pid;
     
     if let Some(port_val) = port {
         println!("[FLASK_STOP] Current Flask port: {}", port_val);
@@ -280,7 +327,7 @@ pub(crate) async fn stop_python_server_internal(
             Ok(_) => {
                 println!("[FLASK_STOP] Graceful shutdown API call successful");
                 // Wait a bit for graceful shutdown
-                tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+                tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
             }
             Err(e) => {
                 println!("[FLASK_STOP] Graceful shutdown API call failed: {}, will use process kill", e);
@@ -288,8 +335,57 @@ pub(crate) async fn stop_python_server_internal(
         }
     }
     
+    // Try to kill using stored PID or find PID by port
+    let pid_to_kill = stored_pid.or_else(|| {
+        #[cfg(target_os = "windows")]
+        {
+            if let Some(port_val) = port {
+                println!("[FLASK_STOP] Attempting to find PID by port: {}", port_val);
+                find_pid_by_port(port_val)
+            } else {
+                None
+            }
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+            None
+        }
+    });
+    
+    // Use kill_tree to terminate process tree on Windows
+    #[cfg(target_os = "windows")]
+    {
+        if let Some(pid) = pid_to_kill {
+            println!("[FLASK_STOP] Found PID: {}, using kill_tree to terminate process tree", pid);
+            match kill_tree(pid) {
+                Ok(outputs) => {
+                    for output in outputs {
+                        match output {
+                            kill_tree::Output::Killed { process_id, name, .. } => {
+                                println!("[FLASK_STOP] Killed process {}: {}", process_id, name);
+                            }
+                            kill_tree::Output::MaybeAlreadyTerminated { process_id, .. } => {
+                                println!("[FLASK_STOP] Process {} was already terminated", process_id);
+                            }
+                        }
+                    }
+                    println!("[FLASK_STOP] Process tree terminated successfully");
+                    // Wait a bit to ensure termination
+                    tokio::time::sleep(tokio::time::Duration::from_millis(300)).await;
+                }
+                Err(e) => {
+                    let error_msg = format!("[FLASK_STOP] Failed to kill process tree (PID {}): {}", pid, e);
+                    eprintln!("{}", error_msg);
+                    crate::logger::log_error(&error_msg);
+                    // Fall through to try process.kill()
+                }
+            }
+        }
+    }
+    
+    // Fallback: Try to kill the process using CommandChild.kill()
     if let Some(process) = process {
-        println!("[FLASK_STOP] Found Flask process, attempting to kill...");
+        println!("[FLASK_STOP] Found Flask process, attempting to kill using CommandChild.kill()...");
         
         // Try to kill the process (this takes ownership of process)
         let kill_result = process.kill();
@@ -311,9 +407,10 @@ pub(crate) async fn stop_python_server_internal(
         println!("[FLASK_STOP] No Flask process found, nothing to stop");
     }
     
-    // Clear port and process state
+    // Clear port, process, and PID state
     server.port = None;
-    println!("[FLASK_STOP] Cleared Flask port from server state");
+    server.pid = None;
+    println!("[FLASK_STOP] Cleared Flask port and PID from server state");
     
     println!("[FLASK_STOP] Flask server stop procedure completed");
     Ok(())

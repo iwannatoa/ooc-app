@@ -6,7 +6,7 @@ import React from 'react';
 import { useI18n } from '@/i18n';
 import { AppSettings, ConversationSettings, OllamaModel } from '@/types';
 import ModelSelector from './ModelSelector';
-import styles from '../styles.module.scss';
+import styles from '../../styles.module.scss';
 
 interface ChatControlsProps {
   /** Whether the conversation list is collapsed */
@@ -106,3 +106,5 @@ export const ChatControls: React.FC<ChatControlsProps> = ({
     </div>
   );
 };
+
+export default ChatControls;

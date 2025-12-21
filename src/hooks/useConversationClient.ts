@@ -465,7 +465,7 @@ export const useConversationClient = () => {
       background?: string,
       characters?: string[],
       characterPersonality?: Record<string, string>
-    ): Promise<{ name: string; personality: string }> => {
+    ): Promise<{ characters?: Array<{ name: string; personality: string }>; character?: { name: string; personality: string } }> => {
       const body: Record<string, unknown> = {
         conversation_id: conversationId,
         provider,
@@ -497,7 +497,11 @@ export const useConversationClient = () => {
       );
       const data = await response.json();
       if (data.success) {
-        return data.character;
+        // Support both new 'characters' format and old 'character' format for backward compatibility
+        return {
+          characters: data.characters,
+          character: data.character
+        };
       }
       throw new Error(data.error || 'Failed to generate character');
     };

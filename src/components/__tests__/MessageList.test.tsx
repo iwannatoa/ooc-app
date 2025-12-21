@@ -1,7 +1,7 @@
 import { ChatMessage } from '@/types';
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import MessageList from '../MessageList';
+import MessageList from '../chat/MessageList';
 
 // Mock useI18n hook
 vi.mock('@/i18n', async () => {

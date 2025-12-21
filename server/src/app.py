@@ -7,6 +7,23 @@ import sys
 import os
 from pathlib import Path
 
+# Set UTF-8 encoding for stdout/stderr to support Chinese characters
+# This must be done before any imports that might use logging
+if sys.platform == 'win32':
+    # On Windows, set default encoding to UTF-8
+    if hasattr(sys.stdout, 'reconfigure'):
+        try:
+            sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+        except Exception:
+            pass
+    if hasattr(sys.stderr, 'reconfigure'):
+        try:
+            sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+        except Exception:
+            pass
+    # Set environment variable for subprocesses
+    os.environ['PYTHONIOENCODING'] = 'utf-8'
+
 # Add server/src to Python path
 src_dir = Path(__file__).parent
 if str(src_dir) not in sys.path:
@@ -24,6 +41,9 @@ if not os.getenv('DB_PATH'):
         local_db_dir.mkdir(parents=True, exist_ok=True)
         local_db_path = str(local_db_dir / 'chat.db')
         os.environ['DB_PATH'] = local_db_path
+        # Enable debug logging in development mode
+        if not os.getenv('LOG_LEVEL_DEBUG'):
+            os.environ['LOG_LEVEL_DEBUG'] = 'true'
 
 from flask import Flask, jsonify, request
 from flask_cors import CORS

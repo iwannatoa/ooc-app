@@ -84,6 +84,9 @@ class StoryGenerationService:
         
         predefined_chars = settings.get('characters', [])
         allow_auto = settings.get('allow_auto_generate_characters', True)
+        # Get more granular control from additional_settings
+        additional_settings = settings.get('additional_settings', {}) or {}
+        allow_auto_main = additional_settings.get('allow_auto_generate_main_characters', True)
         
         try:
             # Parse content to extract story and character information
@@ -96,7 +99,9 @@ class StoryGenerationService:
                 content=story_content,  # Use cleaned story content
                 predefined_characters=predefined_chars,
                 allow_auto_generate=allow_auto,
+                allow_auto_generate_main=allow_auto_main,
                 ai_extracted_characters=character_info.get("new") if character_info.get("new") else None,
+                ai_extracted_characters_with_settings=character_info.get("new_with_settings") if character_info.get("new_with_settings") else None,
                 ai_status_changes=character_info.get("status_changes") if character_info.get("status_changes") else None
             )
             
@@ -496,6 +501,42 @@ class StoryGenerationService:
             # Remove think content before processing
             response_content = self.conversation_service._strip_think_content(response_content)
             
+            # Before recording new characters, revert character status changes from the previous assistant message
+            # Get the last assistant message to revert its character changes
+            if self.character_service:
+                last_assistant_msg = self.chat_service.get_last_assistant_message(conversation_id)
+                if last_assistant_msg and last_assistant_msg.get('content'):
+                    try:
+                        # Parse the previous message to find character status changes and revert them
+                        story_content, character_info = self.character_service.parse_story_with_characters(last_assistant_msg['content'])
+                        
+                        # Revert status changes that occurred in the previous message
+                        if character_info.get("status_changes"):
+                            for char_name, status_changes in character_info["status_changes"].items():
+                                existing_char = self.character_service.repository.get_character(conversation_id, char_name)
+                                if existing_char:
+                                    # Revert status changes
+                                    updates = {}
+                                    if "is_main" in status_changes:
+                                        if status_changes["is_main"]:
+                                            updates["is_main"] = False
+                                    if "is_unavailable" in status_changes:
+                                        if status_changes["is_unavailable"]:
+                                            updates["is_unavailable"] = False
+                                        else:
+                                            updates["is_unavailable"] = True
+                                    
+                                    if updates:
+                                        self.character_service.repository.update_character(
+                                            conversation_id=conversation_id,
+                                            name=char_name,
+                                            **updates
+                                        )
+                                        logger.info(f"Reverted status changes for character {char_name} before rewrite")
+                    except Exception as e:
+                        logger.warning(f"Failed to revert character status changes before rewrite: {str(e)}")
+                        # Don't fail the rewrite if status reversion fails
+            
             # Record characters from generated content and get cleaned story content
             settings = self.conversation_service.get_settings(conversation_id)
             clean_content = self._record_characters_from_message(
@@ -595,6 +636,13 @@ class StoryGenerationService:
                 include_unavailable=True
             )
         
+        # Get supplement from additional_settings
+        supplement = None
+        if settings and settings.get('additional_settings'):
+            additional_settings = settings.get('additional_settings')
+            if isinstance(additional_settings, dict):
+                supplement = additional_settings.get('supplement')
+        
         # Build system prompt
         system_prompt = build_system_prompt(
             background=settings.get('background') if settings else None,
@@ -605,6 +653,7 @@ class StoryGenerationService:
             current_section=current_section,
             total_sections=total_sections,
             appeared_characters=appeared_characters,
+            supplement=supplement,
             language=language
         )
         

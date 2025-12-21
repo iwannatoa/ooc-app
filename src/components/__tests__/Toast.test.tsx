@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { Toast } from '../Toast';
-import { ToastContainer } from '../Toast';
+import type { Toast } from '../common/Toast';
+import { ToastContainer } from '../common/Toast';
 
 describe('ToastContainer', () => {
   const mockToasts: Toast[] = [

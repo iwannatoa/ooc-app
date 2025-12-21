@@ -10,7 +10,7 @@ import { useI18n } from '@/i18n';
 import { useConversationClient } from '@/hooks/useConversationClient';
 import { useConversationManagement } from '@/hooks/useConversationManagement';
 import { isMockMode, mockServerClient } from '@/mock';
-import StatusIndicator from './StatusIndicator';
+import StatusIndicator from './common/StatusIndicator';
 import styles from './ServerStatus.module.scss';
 
 const ServerStatus: React.FC = () => {

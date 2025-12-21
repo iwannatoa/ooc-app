@@ -101,6 +101,26 @@ def _cleanup_old_logs(log_dir: Path) -> None:
         pass
 
 
+def _is_dev_mode() -> bool:
+    """
+    Check if running in development mode.
+    Development mode is enabled when:
+    - FLASK_DEBUG environment variable is set to 'true'
+    - FLASK_ENV is set to 'development'
+    - DEV environment variable is set to 'true'
+    - LOG_LEVEL_DEBUG environment variable is set to 'true'
+    
+    Returns:
+        True if in development mode, False otherwise
+    """
+    flask_debug = os.getenv('FLASK_DEBUG', '').lower() == 'true'
+    flask_env = os.getenv('FLASK_ENV', '').lower() == 'development'
+    dev = os.getenv('DEV', '').lower() == 'true'
+    log_level_debug = os.getenv('LOG_LEVEL_DEBUG', '').lower() == 'true'
+    
+    return flask_debug or flask_env or dev or log_level_debug
+
+
 def setup_logger(
     name: str = __name__,
     level: Optional[str] = None,
@@ -127,12 +147,21 @@ def setup_logger(
     Config = _get_config()
     
     # Set log level
-    log_level = level or Config.LOG_LEVEL
+    # If level is explicitly provided, use it
+    # Otherwise, use DEBUG in dev mode, or Config.LOG_LEVEL
+    if level:
+        log_level = level
+    elif _is_dev_mode():
+        log_level = 'DEBUG'
+    else:
+        log_level = Config.LOG_LEVEL
+    
     log_level_int = getattr(logging, log_level.upper(), logging.INFO)
     logger.setLevel(log_level_int)
     
     # Create console handler - use stderr to ensure logs are visible in Tauri
     # Tauri captures stderr and outputs it via eprintln! to console
+    # Set encoding to UTF-8 to support Chinese characters
     console_handler = logging.StreamHandler(sys.stderr)
     console_handler.setLevel(log_level_int)
     
@@ -141,6 +170,13 @@ def setup_logger(
         format_string or Config.LOG_FORMAT
     )
     console_handler.setFormatter(formatter)
+    
+    # Ensure UTF-8 encoding for console output
+    if hasattr(sys.stderr, 'reconfigure'):
+        try:
+            sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+        except Exception:
+            pass
     
     # Add handler
     logger.addHandler(console_handler)

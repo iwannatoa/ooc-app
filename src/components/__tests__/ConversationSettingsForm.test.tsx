@@ -10,7 +10,7 @@ import {
   waitFor,
 } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import ConversationSettingsForm from '../ConversationSettingsForm';
+import { ConversationSettingsForm } from '../story';
 
 // Mock dependencies
 vi.mock('@/hooks/useConversationClient');

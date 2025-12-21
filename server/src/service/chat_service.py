@@ -124,7 +124,20 @@ class ChatService:
         """
         return self.repository.get_conversation_count()
     
-    def delete_last_message(self, conversation_id: str) -> Optional[int]:
+    def get_last_assistant_message(self, conversation_id: str) -> Optional[Dict]:
+        """
+        Get the last assistant message in a conversation
+        
+        Args:
+            conversation_id: Conversation ID
+        
+        Returns:
+            Last assistant message dict or None if not found
+        """
+        message = self.repository.get_last_assistant_message(conversation_id)
+        return message.to_dict() if message else None
+    
+    def delete_last_message(self, conversation_id: str) -> Optional[Dict]:
         """
         Delete the last message in a conversation
         
@@ -132,7 +145,8 @@ class ChatService:
             conversation_id: Conversation ID
         
         Returns:
-            Deleted message ID or None if no message found
+            Deleted message dict (with id, role, content) or None if no message found
         """
-        return self.repository.delete_last_message(conversation_id)
+        message = self.repository.delete_last_message(conversation_id)
+        return message.to_dict() if message else None
 

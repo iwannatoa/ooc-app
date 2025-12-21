@@ -1,7 +1,16 @@
-import React, { useState } from 'react';
-import { AIProvider, AISettings, AppSettings } from '@/types';
+import React, { useEffect, useState } from 'react';
+import { AppSettings } from '@/types';
 import { useSettingsState } from '@/hooks/useSettingsState';
-import { useI18n, availableLocales } from '@/i18n';
+import { useI18n } from '@/i18n';
+import { useFlaskPort } from '@/hooks/useFlaskPort';
+import {
+  SettingsTabs,
+  type SettingsTab,
+  GeneralSettings,
+  AppearanceSettings,
+  AISettings,
+  AdvancedSettings,
+} from './settings';
 import styles from './SettingsPanel.module.scss';
 
 interface SettingsPanelProps {
@@ -11,70 +20,144 @@ interface SettingsPanelProps {
   open: boolean;
 }
 
+/**
+ * Settings Panel Component
+ *
+ * Main settings dialog that allows users to configure:
+ * - General settings (language, etc.)
+ * - AI provider settings (Ollama, DeepSeek)
+ * - Appearance settings (theme, font)
+ * - Advanced settings (streaming, logging)
+ *
+ * The component uses local state for unsaved changes and syncs with Redux
+ * store only when the user clicks "Save".
+ */
 const SettingsPanel: React.FC<SettingsPanelProps> = ({
   settings,
   onSettingsChange,
   onClose,
   open,
 }) => {
-  const { locale, setLocale, t } = useI18n();
-  const {
-    updateAiProvider,
-    updateOllamaConfig,
-    updateDeepSeekConfig,
-    updateAppearanceSettings,
-    updateAdvancedSettings,
-  } = useSettingsState();
+  const { t } = useI18n();
+  const { updateAppearanceSettings } = useSettingsState();
+  const { apiUrl, waitForPort } = useFlaskPort();
 
-  const [currentTab, setCurrentTab] = useState<
-    'general' | 'ai' | 'appearance' | 'advanced'
-  >('general');
+  const [currentTab, setCurrentTab] = useState<SettingsTab>('general');
   const [localSettings, setLocalSettings] = useState(settings);
 
-  const handleProviderChange = (provider: AIProvider) => {
-    updateAiProvider(provider);
-  };
-
-  const handleApiKeyChange = (provider: AIProvider, apiKey: string) => {
-    if (provider === 'deepseek') {
-      updateDeepSeekConfig({ apiKey });
-    }
-  };
-
-  const handleBaseUrlChange = (provider: AIProvider, baseUrl: string) => {
-    if (provider === 'ollama') {
-      updateOllamaConfig({ baseUrl });
-    } else if (provider === 'deepseek') {
-      updateDeepSeekConfig({ baseUrl });
-    }
-  };
-
-  const handleModelChange = (provider: AIProvider, model: string) => {
-    if (provider === 'ollama') {
-      updateOllamaConfig({ model });
-    } else if (provider === 'deepseek') {
-      updateDeepSeekConfig({ model });
-    }
-  };
-
-  const handleSave = () => {
-    onSettingsChange(localSettings);
-    onClose();
-  };
-
-  const handleCancel = () => {
+  // Sync localSettings with Redux store when settings prop changes
+  useEffect(() => {
     setLocalSettings(settings);
+  }, [settings]);
+
+  /**
+   * Handle saving settings to Redux store and backend
+   */
+  const handleSave = async () => {
+    try {
+      // Remove compactMode from appearance settings before saving
+      const settingsToSave = {
+        ...localSettings,
+        appearance: {
+          ...localSettings.appearance,
+        },
+      };
+
+      // Ensure compactMode is removed
+      if ('compactMode' in settingsToSave.appearance) {
+        delete (settingsToSave.appearance as any).compactMode;
+      }
+
+      // Save to Redux store (this will trigger appearance updates)
+      onSettingsChange(settingsToSave);
+      // Also explicitly update appearance settings in Redux to ensure useAppearance hook picks it up
+      updateAppearanceSettings(settingsToSave.appearance);
+
+      // Save to backend
+      try {
+        const url = apiUrl || (await waitForPort());
+        const response = await fetch(`${url}/api/app-settings`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            settings: JSON.stringify(settingsToSave),
+          }),
+        });
+
+        const data = await response.json();
+        if (!data.success) {
+          console.error('Failed to save settings to backend:', data.error);
+        }
+      } catch (error) {
+        console.error('Failed to save settings to backend:', error);
+        // Continue even if backend save fails
+      }
+
+      onClose();
+    } catch (error) {
+      console.error('Failed to save settings:', error);
+      // Still close the panel even if save fails
+      onClose();
+    }
+  };
+
+  /**
+   * Handle cancel - reset local state and Redux store to original values
+   */
+  const handleCancel = () => {
+    // Reset local settings to original values
+    setLocalSettings(settings);
+    // Reset Redux store to original appearance settings
+    updateAppearanceSettings(settings.appearance);
     onClose();
+  };
+
+  /**
+   * Handle appearance settings changes (only update local state, not Redux)
+   */
+  const handleAppearanceChange = {
+    theme: (theme: 'light' | 'dark' | 'auto') => {
+      setLocalSettings({
+        ...localSettings,
+        appearance: {
+          ...localSettings.appearance,
+          theme,
+        },
+      });
+    },
+    fontSize: (fontSize: 'small' | 'medium' | 'large') => {
+      setLocalSettings({
+        ...localSettings,
+        appearance: {
+          ...localSettings.appearance,
+          fontSize,
+        },
+      });
+    },
+    fontFamily: (fontFamily: string) => {
+      setLocalSettings({
+        ...localSettings,
+        appearance: {
+          ...localSettings.appearance,
+          fontFamily,
+        },
+      });
+    },
   };
 
   if (!open) return null;
 
-  const currentProvider = settings.ai.provider;
-  const currentConfig = settings.ai[currentProvider];
-
   return (
-    <div className={styles.settingsPanelOverlay}>
-      <div className={styles.settingsPanel}>
+    <div
+      className={styles.settingsPanelOverlay}
+      onClick={onClose}
+    >
+      <div
+        className={styles.settingsPanel}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className={styles.settingsHeader}>
           <h2>{t('settingsPanel.title')}</h2>
           <button
@@ -85,324 +168,42 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
           </button>
         </div>
 
-        <div className={styles.settingsTabs}>
-          <button
-            className={`${styles.tab} ${
-              currentTab === 'general' ? styles.active : ''
-            }`}
-            onClick={() => setCurrentTab('general')}
-          >
-            {t('settingsPanel.tabs.general')}
-          </button>
-          <button
-            className={`${styles.tab} ${
-              currentTab === 'ai' ? styles.active : ''
-            }`}
-            onClick={() => setCurrentTab('ai')}
-          >
-            {t('settingsPanel.tabs.ai')}
-          </button>
-          <button
-            className={`${styles.tab} ${
-              currentTab === 'appearance' ? styles.active : ''
-            }`}
-            onClick={() => setCurrentTab('appearance')}
-          >
-            {t('settingsPanel.tabs.appearance')}
-          </button>
-          <button
-            className={`${styles.tab} ${
-              currentTab === 'advanced' ? styles.active : ''
-            }`}
-            onClick={() => setCurrentTab('advanced')}
-          >
-            {t('settingsPanel.tabs.advanced')}
-          </button>
-        </div>
+        <SettingsTabs
+          currentTab={currentTab}
+          onTabChange={setCurrentTab}
+          t={t}
+        />
 
         <div className={styles.settingsContent}>
           {currentTab === 'general' && (
-            <div className={styles.settingsSection}>
-              <h3>{t('settingsPanel.tabs.general')}</h3>
-              <div className={styles.settingItem}>
-                <label>{t('settingsPanel.language')}</label>
-                <select
-                  value={locale}
-                  onChange={(e) => {
-                    const newLocale = e.target.value;
-                    if (availableLocales.includes(newLocale as any)) {
-                      setLocale(newLocale as any);
-                    }
-                  }}
-                >
-                  {availableLocales.map((loc) => (
-                    <option key={loc} value={loc}>
-                      {loc === 'zh' ? '中文' : loc === 'en' ? 'English' : loc.toUpperCase()}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
+            <GeneralSettings
+              settings={localSettings}
+              t={t}
+            />
           )}
 
           {currentTab === 'ai' && (
-            <div className={styles.settingsSection}>
-              <h3>{t('settingsPanel.provider')}</h3>
-              <div className={styles.settingItem}>
-                <label>{t('settingsPanel.selectProvider')}</label>
-                <select
-                  value={currentProvider}
-                  onChange={(e) =>
-                    handleProviderChange(e.target.value as AIProvider)
-                  }
-                >
-                  <option value='ollama'>{t('settingsPanel.providerOllama')}</option>
-                  <option value='deepseek'>{t('settingsPanel.providerDeepSeek')}</option>
-                </select>
-              </div>
-
-              <div className={styles.providerConfig}>
-                <h4>{currentProvider.toUpperCase()} {t('settingsPanel.config')}</h4>
-
-                <div className={styles.settingItem}>
-                  <label>{t('settingsPanel.model')}</label>
-                  <input
-                    type='text'
-                    value={currentConfig.model}
-                    onChange={(e) =>
-                      handleModelChange(currentProvider, e.target.value)
-                    }
-                    placeholder={t('settingsPanel.modelPlaceholder')}
-                  />
-                </div>
-
-                {currentProvider !== 'ollama' && (
-                  <>
-                    <div className={styles.settingItem}>
-                      <label>{t('settingsPanel.apiKey')}</label>
-                      <input
-                        type='password'
-                        value={
-                          (currentConfig as AISettings[typeof currentProvider])
-                            .apiKey || ''
-                        }
-                        onChange={(e) =>
-                          handleApiKeyChange(currentProvider, e.target.value)
-                        }
-                        placeholder={t('settingsPanel.apiKeyPlaceholder', { provider: currentProvider })}
-                      />
-                    </div>
-                    <div className={styles.settingItem}>
-                      <label>{t('settingsPanel.apiUrl')}</label>
-                      <input
-                        type='text'
-                        value={currentConfig.baseUrl}
-                        onChange={(e) =>
-                          handleBaseUrlChange(currentProvider, e.target.value)
-                        }
-                        placeholder={t('settingsPanel.apiUrlPlaceholder')}
-                      />
-                    </div>
-                  </>
-                )}
-
-                {currentProvider === 'ollama' && (
-                  <div className={styles.settingItem}>
-                    <label>{t('settingsPanel.ollamaAddress')}</label>
-                    <input
-                      type='text'
-                      value={currentConfig.baseUrl}
-                      onChange={(e) =>
-                        handleBaseUrlChange('ollama', e.target.value)
-                      }
-                      placeholder='http://localhost:11434'
-                    />
-                  </div>
-                )}
-              </div>
-
-              <div className={styles.settingItem}>
-                <label>{t('settingsPanel.timeout')}</label>
-                <input
-                  type='number'
-                  value={currentConfig.timeout}
-                  onChange={(e) => {
-                    if (currentProvider === 'ollama') {
-                      updateOllamaConfig({ timeout: parseInt(e.target.value) });
-                    } else if (currentProvider === 'deepseek') {
-                      updateDeepSeekConfig({ timeout: parseInt(e.target.value) });
-                    }
-                  }}
-                />
-              </div>
-
-              <div className={styles.settingItem}>
-                <label>{t('settingsPanel.maxTokens')}</label>
-                <input
-                  type='number'
-                  value={currentConfig.maxTokens}
-                  onChange={(e) => {
-                    if (currentProvider === 'ollama') {
-                      updateOllamaConfig({ maxTokens: parseInt(e.target.value) });
-                    } else if (currentProvider === 'deepseek') {
-                      updateDeepSeekConfig({ maxTokens: parseInt(e.target.value) });
-                    }
-                  }}
-                />
-              </div>
-
-              <div className={styles.settingItem}>
-                <label>
-                  {t('settingsPanel.temperature')}: {currentConfig.temperature}
-                  <input
-                    type='range'
-                    min='0'
-                    max='1'
-                    step='0.1'
-                    value={currentConfig.temperature}
-                    onChange={(e) => {
-                      if (currentProvider === 'ollama') {
-                        updateOllamaConfig({ temperature: parseFloat(e.target.value) });
-                      } else if (currentProvider === 'deepseek') {
-                        updateDeepSeekConfig({ temperature: parseFloat(e.target.value) });
-                      }
-                    }}
-                  />
-                </label>
-              </div>
-            </div>
+            <AISettings
+              settings={localSettings}
+              t={t}
+            />
           )}
 
           {currentTab === 'appearance' && (
-            <div className={styles.settingsSection}>
-              <h3>{t('settingsPanel.tabs.appearance')}</h3>
-              <div className={styles.settingItem}>
-                <label>{t('settingsPanel.theme')}</label>
-                <select
-                  value={settings.appearance.theme}
-                  onChange={(e) =>
-                    updateAppearanceSettings({ theme: e.target.value as any })
-                  }
-                >
-                  <option value='dark'>{t('settingsPanel.themeDark')}</option>
-                  <option value='light'>{t('settingsPanel.themeLight')}</option>
-                  <option value='auto'>{t('settingsPanel.themeAuto')}</option>
-                </select>
-              </div>
-              <div className={styles.settingItem}>
-                <label>{t('settingsPanel.fontSize')}</label>
-                <input
-                  type='number'
-                  value={settings.appearance.fontSize}
-                  onChange={(e) =>
-                    updateAppearanceSettings({
-                      fontSize: parseInt(e.target.value),
-                    })
-                  }
-                  min='12'
-                  max='24'
-                />
-              </div>
-              <div className={styles.settingItem}>
-                <label>{t('settingsPanel.fontFamily')}</label>
-                <input
-                  type='text'
-                  value={settings.appearance.fontFamily}
-                  onChange={(e) =>
-                    updateAppearanceSettings({ fontFamily: e.target.value })
-                  }
-                  placeholder={t('settingsPanel.fontFamilyPlaceholder')}
-                />
-              </div>
-              <div className={styles.settingItem}>
-                <label>
-                  <input
-                    type='checkbox'
-                    checked={settings.appearance.compactMode}
-                    onChange={(e) =>
-                      updateAppearanceSettings({
-                        compactMode: e.target.checked,
-                      })
-                    }
-                  />
-                  {t('settingsPanel.compactMode')}
-                </label>
-              </div>
-            </div>
+            <AppearanceSettings
+              settings={localSettings.appearance}
+              onThemeChange={handleAppearanceChange.theme}
+              onFontSizeChange={handleAppearanceChange.fontSize}
+              onFontFamilyChange={handleAppearanceChange.fontFamily}
+              t={t}
+            />
           )}
 
           {currentTab === 'advanced' && (
-            <div className={styles.settingsSection}>
-              <h3>{t('settingsPanel.tabs.advanced')}</h3>
-              <div className={styles.settingItem}>
-                <label>
-                  <input
-                    type='checkbox'
-                    checked={settings.advanced.enableStreaming}
-                    onChange={(e) =>
-                      updateAdvancedSettings({
-                        enableStreaming: e.target.checked,
-                      })
-                    }
-                  />
-                  {t('settingsPanel.enableStreaming')}
-                </label>
-              </div>
-              <div className={styles.settingItem}>
-                <label>{t('settingsPanel.apiTimeout')}</label>
-                <input
-                  type='number'
-                  value={settings.advanced.apiTimeout}
-                  onChange={(e) =>
-                    updateAdvancedSettings({
-                      apiTimeout: parseInt(e.target.value),
-                    })
-                  }
-                />
-              </div>
-              <div className={styles.settingItem}>
-                <label>{t('settingsPanel.maxRetries')}</label>
-                <input
-                  type='number'
-                  value={settings.advanced.maxRetries}
-                  onChange={(e) =>
-                    updateAdvancedSettings({
-                      maxRetries: parseInt(e.target.value),
-                    })
-                  }
-                  min='0'
-                  max='10'
-                />
-              </div>
-              <div className={styles.settingItem}>
-                <label>{t('settingsPanel.logLevel')}</label>
-                <select
-                  value={settings.advanced.logLevel}
-                  onChange={(e) =>
-                    updateAdvancedSettings({ logLevel: e.target.value as any })
-                  }
-                >
-                  <option value='error'>{t('settingsPanel.logLevelError')}</option>
-                  <option value='warn'>{t('settingsPanel.logLevelWarn')}</option>
-                  <option value='info'>{t('settingsPanel.logLevelInfo')}</option>
-                  <option value='debug'>{t('settingsPanel.logLevelDebug')}</option>
-                </select>
-              </div>
-              <div className={styles.settingItem}>
-                <label>
-                  <input
-                    type='checkbox'
-                    checked={settings.advanced.enableDiagnostics}
-                    onChange={(e) =>
-                      updateAdvancedSettings({
-                        enableDiagnostics: e.target.checked,
-                      })
-                    }
-                  />
-                  {t('settingsPanel.enableDiagnostics')}
-                </label>
-              </div>
-            </div>
+            <AdvancedSettings
+              settings={localSettings}
+              t={t}
+            />
           )}
         </div>
 

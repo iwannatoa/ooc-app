@@ -14,6 +14,7 @@ tauri = { version = "2", features = [] }
 windows-sys = "0.61"
 tauri-plugin-shell = "2"
 ctrlc = "3.4"
+kill_tree = "0.2"
 
 [build-dependencies]
 tauri-build = { version = "2.0", features = [] }

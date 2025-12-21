@@ -103,6 +103,14 @@ class SettingsController:
         def set_language():
             return self.set_language()
         
+        @app.route('/api/app-settings', methods=['GET'])
+        def get_app_settings():
+            return self.get_app_settings()
+        
+        @app.route('/api/app-settings', methods=['POST'])
+        def save_app_settings():
+            return self.save_app_settings()
+        
         @app.route('/api/conversation/characters', methods=['GET'])
         def get_characters():
             return self.get_characters()
@@ -442,6 +450,72 @@ class SettingsController:
             "success": True,
             "language": language
         })
+    
+    @handle_errors
+    def get_app_settings(self):
+        """
+        Get all app settings
+        
+        Returns:
+            - success: Success flag
+            - settings: App settings JSON string
+        """
+        try:
+            settings_json = self.app_settings_service.get_setting('app_settings', '{}')
+            return jsonify({
+                "success": True,
+                "settings": settings_json
+            })
+        except Exception as e:
+            logger.error(f"Failed to get app settings: {str(e)}", exc_info=True)
+            return jsonify({
+                "success": False,
+                "error": f"Failed to get app settings: {str(e)}"
+            }), 500
+    
+    @handle_errors
+    def save_app_settings(self):
+        """
+        Save app settings
+        
+        Request body:
+            - settings: App settings JSON string
+        
+        Returns:
+            - success: Success flag
+        """
+        try:
+            import json
+            data = request.json or {}
+            settings = data.get('settings')
+            
+            if settings is None:
+                return jsonify({
+                    "success": False,
+                    "error": "settings is required"
+                }), 400
+            
+            # Validate JSON
+            if isinstance(settings, str):
+                json.loads(settings)  # Validate JSON format
+            else:
+                settings = json.dumps(settings)  # Convert to JSON string
+            
+            self.app_settings_service.set_setting('app_settings', settings)
+            return jsonify({
+                "success": True
+            })
+        except json.JSONDecodeError:
+            return jsonify({
+                "success": False,
+                "error": "Invalid JSON format"
+            }), 400
+        except Exception as e:
+            logger.error(f"Failed to save app settings: {str(e)}", exc_info=True)
+            return jsonify({
+                "success": False,
+                "error": f"Failed to save app settings: {str(e)}"
+            }), 500
     
     def get_characters(self):
         """

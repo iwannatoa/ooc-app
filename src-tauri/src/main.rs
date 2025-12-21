@@ -6,8 +6,8 @@
 mod commands;
 mod logger;
 
-use commands::{check_python_server_status, get_database_path, get_flask_port, start_python_server, stop_python_server, PythonServer};
-use tauri::Manager;
+use commands::{check_python_server_status, get_database_path, get_flask_port, start_python_server, stop_python_server, stop_python_server_internal, PythonServer};
+use tauri::{Manager, RunEvent};
 use tokio::sync::Mutex as TokioMutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -49,52 +49,61 @@ fn main() {
 
             Ok(())
         })
-        .on_window_event(|window, event| {
-            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                // 检查是否已经在关闭流程中，防止重复处理
-                if CLOSING.swap(true, Ordering::SeqCst) {
-                    println!("[WINDOW_CLOSE] Already closing, allowing default close behavior");
-                    // 如果已经在关闭流程中，允许默认关闭行为
-                    return;
-                }
-                
-                println!("[WINDOW_CLOSE] Window close requested");
-                let app_handle = window.app_handle().clone();
-                api.prevent_close();
-                println!("[WINDOW_CLOSE] Prevented default close behavior");
-                
-                // 使用 spawn 进行异步清理
-                tauri::async_runtime::spawn(async move {
-                    println!("[WINDOW_CLOSE] Starting cleanup task");
-                    
-                    // 停止 Flask 服务器
-                    if let Some(server_state) = app_handle.try_state::<TokioMutex<PythonServer>>() {
-                        println!("[WINDOW_CLOSE] Found server state, stopping Flask server...");
-                        use commands::stop_python_server_internal;
-                        match stop_python_server_internal(&app_handle, &server_state).await {
-                            Ok(_) => {
-                                println!("[WINDOW_CLOSE] Flask server stopped successfully");
-                            }
-                            Err(e) => {
-                                let error_msg = format!("[WINDOW_CLOSE] Error stopping Flask server: {}", e);
-                                eprintln!("{}", error_msg);
-                                logger::log_error(&error_msg);
-                            }
-                        }
-                    } else {
-                        println!("[WINDOW_CLOSE] No server state found, skipping Flask server shutdown");
-                    }
-                    
-                    // 等待一段时间确保清理完成（增加等待时间以确保进程终止）
-                    tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
-                    println!("[WINDOW_CLOSE] Cleanup delay completed");
-                    
-                    // 清理完成后直接退出应用，而不是关闭窗口（避免再次触发事件）
-                    println!("[WINDOW_CLOSE] Exiting application...");
-                    app_handle.exit(0);
-                });
+        .on_window_event(|_window, event| {
+            if let tauri::WindowEvent::CloseRequested { .. } = event {
+                // 标记正在关闭
+                CLOSING.store(true, Ordering::SeqCst);
+                // 允许窗口立即关闭，不阻塞用户界面
+                println!("[WINDOW_CLOSE] Window close requested, allowing immediate close");
+                // 不调用 prevent_close()，让窗口立即关闭
+                // Flask 会在 RunEvent::ExitRequested 中关闭
             }
         })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app_handle, event| {
+            match event {
+                RunEvent::ExitRequested { api, .. } => {
+                    // 检查是否已经在处理退出流程，防止无限循环
+                    if CLOSING.load(Ordering::SeqCst) {
+                        println!("[APP_EXIT] Already closing, allowing immediate exit");
+                        return;
+                    }
+                    
+                    println!("[APP_EXIT] Exit requested, starting Flask cleanup");
+                    
+                    // 标记正在关闭
+                    CLOSING.store(true, Ordering::SeqCst);
+                    
+                    // 防止应用立即退出，确保清理完成
+                    api.prevent_exit();
+                    
+                    let app_handle_clone = app_handle.clone();
+                    
+                    // 异步关闭 Flask，然后允许退出
+                    tauri::async_runtime::spawn(async move {
+                        if let Some(server_state) = app_handle_clone.try_state::<TokioMutex<PythonServer>>() {
+                            println!("[APP_EXIT] Stopping Flask server...");
+                            match stop_python_server_internal(&app_handle_clone, &server_state).await {
+                                Ok(_) => {
+                                    println!("[APP_EXIT] Flask server stopped successfully");
+                                }
+                                Err(e) => {
+                                    let error_msg = format!("[APP_EXIT] Error stopping Flask server: {}", e);
+                                    eprintln!("{}", error_msg);
+                                    logger::log_error(&error_msg);
+                                }
+                            }
+                        } else {
+                            println!("[APP_EXIT] No server state found, skipping Flask shutdown");
+                        }
+                        
+                        // 清理完成后，允许应用退出
+                        println!("[APP_EXIT] Cleanup completed, allowing application to exit");
+                        app_handle_clone.exit(0);
+                    });
+                }
+                _ => {}
+            }
+        });
 }

@@ -1,5 +1,5 @@
-@use '../styles/variables' as *;
-@use '../styles/mixins' as *;
+@use '@/styles/variables' as *;
+@use '@/styles/mixins' as *;
 
 .messageList {
   flex: 1;
@@ -47,8 +47,8 @@
   }
 
   &.error {
-    background: rgba($error-color, 0.1);
-    border: 1px solid rgba($error-color, 0.3);
+    background: $error-color-light;
+    border: 1px solid $error-color-border;
     margin: 0 auto;
 
     .messageHeader {

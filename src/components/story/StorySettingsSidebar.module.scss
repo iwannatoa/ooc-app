@@ -1,5 +1,5 @@
-@use '../styles/variables' as *;
-@use '../styles/mixins' as *;
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
 
 .sidebar {
   @include flex-column;
@@ -198,4 +198,3 @@
     background: $primary-color-hover;
   }
 }
-

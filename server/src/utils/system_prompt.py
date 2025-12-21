@@ -18,6 +18,7 @@ def build_system_prompt(
     current_section: Optional[int] = None,
     total_sections: Optional[int] = None,
     appeared_characters: Optional[List[Dict]] = None,
+    supplement: Optional[str] = None,
     language: str = 'zh'
 ) -> str:
     """
@@ -31,6 +32,8 @@ def build_system_prompt(
         summary: Story summary (if exists, used to reduce tokens)
         current_section: Current section number
         total_sections: Total sections number
+        appeared_characters: List of appeared characters
+        supplement: Additional settings/supplement
         language: Language code ('zh' or 'en'), defaults to 'zh'
     
     Returns:
@@ -111,6 +114,12 @@ def build_system_prompt(
         prompt_parts.append(summary)
         prompt_parts.append("")
         prompt_parts.append(template['summary']['important_note'])
+        prompt_parts.append("")
+    
+    if supplement:
+        supplement_section = template['sections'].get('supplement', '## 补充设定')
+        prompt_parts.append(supplement_section)
+        prompt_parts.append(supplement)
         prompt_parts.append("")
     
     guidelines = template['creative_guidelines']
