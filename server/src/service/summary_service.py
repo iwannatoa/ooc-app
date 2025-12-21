@@ -1,5 +1,5 @@
 """
-会话总结服务层
+Conversation summary service layer
 """
 from typing import Optional, Dict, List
 from repository.summary_repository import SummaryRepository
@@ -40,16 +40,16 @@ class SummaryService:
         token_count: Optional[int] = None
     ) -> Dict:
         """
-        创建或更新会话总结
+        Create or update conversation summary
         
         Args:
-            conversation_id: 会话ID
-            summary: 总结内容
-            message_count: 消息数量
-            token_count: token 数量
+            conversation_id: Conversation ID
+            summary: Summary content
+            message_count: Message count
+            token_count: Token count
         
         Returns:
-            总结字典
+            Summary dictionary
         """
         summary_obj = self.repository.create_or_update_summary(
             conversation_id=conversation_id,
@@ -61,13 +61,13 @@ class SummaryService:
     
     def get_summary(self, conversation_id: str) -> Optional[Dict]:
         """
-        获取会话总结
+        Get conversation summary
         
         Args:
-            conversation_id: 会话ID
+            conversation_id: Conversation ID
         
         Returns:
-            总结字典，如果不存在则返回 None
+            Summary dictionary, or None if not exists
         """
         summary = self.repository.get_summary(conversation_id)
         return summary.to_dict() if summary else None
@@ -84,20 +84,20 @@ class SummaryService:
         temperature: float = 0.7
     ) -> str:
         """
-        使用 AI 生成故事总结
+        Generate story summary using AI
         
         Args:
-            conversation_id: 会话ID
-            messages: 消息列表
-            provider: AI提供商
-            model: 模型名称
-            api_key: API密钥
-            base_url: 基础URL
-            max_tokens: 最大令牌数
-            temperature: 温度参数
+            conversation_id: Conversation ID
+            messages: Messages list
+            provider: AI provider
+            model: Model name
+            api_key: API key
+            base_url: Base URL
+            max_tokens: Maximum tokens
+            temperature: Temperature parameter
         
         Returns:
-            生成的总结内容
+            Generated summary content
         """
         language = self.app_settings_service.get_language()
         template = PromptTemplateLoader.get_template(language)
@@ -158,18 +158,18 @@ class SummaryService:
         estimated_tokens_per_message: int = 500
     ) -> bool:
         """
-        判断是否需要总结
+        Determine if summary is needed
         
-        基于消息数量和估算的 token 数量进行判断
+        Based on message count and estimated token count
         
         Args:
-            conversation_id: 会话ID
-            message_count: 当前消息数量
-            threshold: 总结阈值（默认150条消息）
-            estimated_tokens_per_message: 每条消息估算的 token 数量
+            conversation_id: Conversation ID
+            message_count: Current message count
+            threshold: Summary threshold (default 150 messages)
+            estimated_tokens_per_message: Estimated tokens per message
         
         Returns:
-            是否需要总结
+            Whether summary is needed
         """
         if message_count >= threshold:
             existing_summary = self.repository.get_summary(conversation_id)
@@ -182,13 +182,13 @@ class SummaryService:
     
     def estimate_tokens(self, text: str) -> int:
         """
-        估算文本的 token 数量（简单估算：中文1字符≈1.5 tokens，英文1词≈1.3 tokens）
+        Estimate token count for text (simple estimation: Chinese 1 char ≈ 1.5 tokens, English 1 word ≈ 1.3 tokens)
         
         Args:
-            text: 文本内容
+            text: Text content
         
         Returns:
-            估算的 token 数量
+            Estimated token count
         """
         if not text:
             return 0
@@ -201,13 +201,13 @@ class SummaryService:
     
     def delete_summary(self, conversation_id: str) -> bool:
         """
-        删除会话总结
+        Delete conversation summary
         
         Args:
-            conversation_id: 会话ID
+            conversation_id: Conversation ID
         
         Returns:
-            是否成功删除
+            Whether deletion was successful
         """
         return self.repository.delete_summary(conversation_id)
 

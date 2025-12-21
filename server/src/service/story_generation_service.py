@@ -119,17 +119,17 @@ class StoryGenerationService:
         model: Optional[str] = None
     ) -> Dict:
         """
-        生成故事的一个部分
+        Generate a story section
         
         Args:
-            conversation_id: 会话ID
-            provider: AI提供商
-            model: 模型名称，如果不提供则使用全局配置的默认模型
+            conversation_id: Conversation ID
+            provider: AI provider
+            model: Model name, if not provided, use default model from global config
             
-        注意：apiKey, baseUrl, maxTokens, temperature 等配置参数将从数据库中的全局配置自动获取
+        Note: Configuration parameters like apiKey, baseUrl, maxTokens, temperature will be automatically retrieved from global config in database
         
         Returns:
-            生成结果字典
+            Generation result dictionary
         """
         # Check if outline exists in database
         settings = self.conversation_service.get_settings(conversation_id)
@@ -218,15 +218,15 @@ class StoryGenerationService:
         model: Optional[str] = None
     ) -> Generator[str, None, None]:
         """
-        流式生成故事的一个部分
+        Stream generate a story section
         
         Args:
-            conversation_id: 会话ID
-            provider: AI提供商
-            model: 模型名称，如果不提供则使用全局配置的默认模型
+            conversation_id: Conversation ID
+            provider: AI provider
+            model: Model name, if not provided, use default model from global config
         
         Yields:
-            文本块
+            Text chunks
         """
         # Check if outline exists in database
         settings = self.conversation_service.get_settings(conversation_id)
@@ -600,14 +600,14 @@ class StoryGenerationService:
         current_section: Optional[int] = None
     ) -> tuple[List[Dict], str]:
         """
-        准备生成上下文
+        Prepare generation context
         
         Args:
-            conversation_id: 会话ID
-            current_section: 当前部分编号，如果不提供则从进度中获取
+            conversation_id: Conversation ID
+            current_section: Current section number, if not provided, get from progress
         
         Returns:
-            (消息列表, 系统提示)
+            (Messages list, System prompt)
         """
         settings = self.conversation_service.get_settings(conversation_id)
         

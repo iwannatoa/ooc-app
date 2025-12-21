@@ -5,7 +5,7 @@ import styles from '../SettingsPanel.module.scss';
 
 interface GeneralSettingsProps {
   settings: AppSettings;
-  t: (key: string) => string;
+  t: (key: string, params?: Record<string, string | number>) => string;
 }
 
 /**
@@ -29,11 +29,7 @@ export const GeneralSettings: React.FC<GeneralSettingsProps> = ({
         >
           {availableLocales.map((loc) => (
             <option key={loc} value={loc}>
-              {loc === 'zh'
-                ? '中文'
-                : loc === 'en'
-                ? 'English'
-                : loc.toUpperCase()}
+              {t(`language.${loc}`)}
             </option>
           ))}
         </select>

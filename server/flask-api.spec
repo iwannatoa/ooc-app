@@ -3,10 +3,10 @@ import os
 from pathlib import Path
 from PyInstaller.utils.hooks import collect_submodules
 
-# 获取当前目录（spec 文件所在目录）
+# Get current directory (where spec file is located)
 current_dir = Path(os.path.dirname(os.path.abspath(SPEC)))
 
-# 自动收集 src 包下的所有子模块
+# Automatically collect all submodules under src package
 src_modules = collect_submodules('src')
 
 a = Analysis(
@@ -18,17 +18,17 @@ a = Analysis(
         (os.path.join(current_dir, 'src', 'utils', 'prompt_templates'), 'utils/prompt_templates'),
     ],
     hiddenimports=[
-        # Flask 相关
+        # Flask related
         'flask',
         'flask_cors',
         'flask_injector',
         'injector',
-        # 请求库
+        # Request library
         'requests',
-        # SQLAlchemy 相关
+        # SQLAlchemy related
         'sqlalchemy',
         'sqlalchemy.dialects.sqlite',
-        # 源代码模块（自动收集所有子模块）
+        # Source code modules (automatically collect all submodules)
     ] + src_modules,
     hookspath=[],
     hooksconfig={},

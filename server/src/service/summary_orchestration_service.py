@@ -1,5 +1,5 @@
 """
-总结编排服务层
+Summary orchestration service layer
 """
 from typing import Optional, Dict
 from service.summary_service import SummaryService
@@ -11,7 +11,7 @@ logger = get_logger(__name__)
 
 
 class SummaryOrchestrationService:
-    """总结编排服务类"""
+    """Summary orchestration service class"""
     
     def __init__(
         self,
@@ -20,12 +20,12 @@ class SummaryOrchestrationService:
         ai_config_service: AIConfigService
     ):
         """
-        初始化服务
+        Initialize service
         
         Args:
-            summary_service: 总结服务实例
-            chat_service: 聊天记录服务实例
-            ai_config_service: AI 配置服务实例
+            summary_service: Summary service instance
+            chat_service: Chat record service instance
+            ai_config_service: AI config service instance
         """
         self.summary_service = summary_service
         self.chat_service = chat_service
@@ -38,15 +38,15 @@ class SummaryOrchestrationService:
         model: Optional[str] = None
     ) -> Dict:
         """
-        生成会话总结
+        Generate conversation summary
         
         Args:
-            conversation_id: 会话ID
-            provider: AI 提供商
-            model: 模型名称
+            conversation_id: Conversation ID
+            provider: AI provider
+            model: Model name
         
         Returns:
-            总结字典
+            Summary dictionary
         """
         messages = self.chat_service.get_conversation(conversation_id)
         

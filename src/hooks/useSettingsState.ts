@@ -29,13 +29,13 @@ export const useSettingsState = () => {
   return {
     ...settingsState,
 
-    // 整体设置
+    // Overall settings
     updateSettings: (settings: Partial<AppSettings>) =>
       dispatch(updateSettings(settings)),
     setSettings: (settings: AppSettings) => dispatch(setSettings(settings)),
     resetSettings: () => dispatch(resetSettings()),
 
-    // AI 设置
+    // AI settings
     updateAiProvider: (provider: AIProvider) =>
       dispatch(updateAiProvider(provider)),
     updateOllamaConfig: (config: Partial<OllamaConfig>) =>
@@ -43,7 +43,7 @@ export const useSettingsState = () => {
     updateDeepSeekConfig: (config: Partial<DeepSeekConfig>) =>
       dispatch(updateDeepSeekConfig(config)),
 
-    // 分类设置
+    // Category settings
     updateGeneralSettings: (settings: Partial<AppSettings['general']>) =>
       dispatch(updateGeneralSettings(settings)),
     updateAppearanceSettings: (settings: Partial<AppSettings['appearance']>) =>
@@ -51,11 +51,11 @@ export const useSettingsState = () => {
     updateAdvancedSettings: (settings: Partial<AppSettings['advanced']>) =>
       dispatch(updateAdvancedSettings(settings)),
 
-    // 面板状态
+    // Panel state
     setSettingsOpen: (open: boolean) => dispatch(setSettingsOpen(open)),
     setCurrentTab: (tab: string) => dispatch(setCurrentTab(tab)),
 
-    // 保存状态
+    // Save state
     setHasUnsavedChanges: (hasChanges: boolean) =>
       dispatch(setHasUnsavedChanges(hasChanges)),
     markSettingsSaved: () => dispatch(markSettingsSaved()),

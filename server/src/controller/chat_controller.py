@@ -525,12 +525,12 @@ class ChatController:
     
     def get_models(self):
         """
-        获取可用模型列表
+        Get available models list
         
-        返回:
-            - success: 是否成功
-            - models: 模型列表
-            - error: 错误信息
+        Returns:
+            - success: Whether successful
+            - models: Models list
+            - error: Error message
         """
         try:
             provider = request.args.get('provider', 'ollama')
@@ -553,12 +553,12 @@ class ChatController:
     
     def health_check(self):
         """
-        健康检查接口
+        Health check endpoint
         
-        返回:
-            - status: 健康状态 (healthy, unhealthy)
-            - ollama_available: Ollama 是否可用
-            - error: 错误信息
+        Returns:
+            - status: Health status (healthy, unhealthy)
+            - ollama_available: Whether Ollama is available
+            - error: Error message
         """
         try:
             provider = request.args.get('provider', 'ollama')
@@ -575,11 +575,11 @@ class ChatController:
     
     def stop_server(self):
         """
-        停止服务器接口
+        Stop server endpoint
         
-        返回:
-            - success: 是否成功
-            - message: 消息
+        Returns:
+            - success: Whether successful
+            - message: Message
         """
         def shutdown():
             time.sleep(1)
@@ -596,17 +596,17 @@ class ChatController:
     @handle_errors
     def get_conversation(self):
         """
-        获取会话消息列表
+        Get conversation messages list
         
-        查询参数:
-            - conversation_id: 会话ID
-            - limit: 限制数量
-            - offset: 偏移量
+        Query parameters:
+            - conversation_id: Conversation ID
+            - limit: Limit count
+            - offset: Offset
         
-        返回:
-            - success: 是否成功
-            - messages: 消息列表
-            - error: 错误信息
+        Returns:
+            - success: Whether successful
+            - messages: Messages list
+            - error: Error message
         """
         conversation_id = request.args.get('conversation_id')
         language = self.app_settings_service.get_language()
@@ -631,12 +631,12 @@ class ChatController:
     @handle_errors
     def get_all_conversations(self):
         """
-        获取所有会话ID列表
+        Get all conversation IDs list
         
-        返回:
-            - success: 是否成功
-            - conversations: 会话ID列表
-            - count: 会话数量
+        Returns:
+            - success: Whether successful
+            - conversations: Conversation IDs list
+            - count: Conversation count
         """
         conversations = self.chat_service.get_all_conversations()
         return jsonify({
@@ -648,14 +648,14 @@ class ChatController:
     @handle_errors
     def delete_conversation(self):
         """
-        删除会话及其所有相关数据
+        Delete conversation and all related data
         
-        请求体:
-            - conversation_id: 会话ID
+        Request body:
+            - conversation_id: Conversation ID
         
-        返回:
-            - success: 是否成功
-            - message: 消息
+        Returns:
+            - success: Whether successful
+            - message: Message
         """
         data = request.json or {}
         conversation_id = data.get('conversation_id')
@@ -726,14 +726,14 @@ class ChatController:
     @handle_errors
     def get_summary(self):
         """
-        获取会话总结
+        Get conversation summary
         
-        查询参数:
-            - conversation_id: 会话ID
+        Query parameters:
+            - conversation_id: Conversation ID
         
-        返回:
-            - success: 是否成功
-            - summary: 总结内容
+        Returns:
+            - success: Whether successful
+            - summary: Summary content
         """
         conversation_id = request.args.get('conversation_id')
         language = self.app_settings_service.get_language()
@@ -755,18 +755,18 @@ class ChatController:
     @handle_errors
     def generate_summary(self):
         """
-        生成会话总结
+        Generate conversation summary
         
-        请求体:
-            - conversation_id: 会话ID
-            - provider: AI提供商，ollama 或 deepseek
-            - model: 模型名称，如果不提供则使用全局配置的默认模型
+        Request body:
+            - conversation_id: Conversation ID
+            - provider: AI provider, ollama or deepseek
+            - model: Model name, if not provided, use default model from global config
             
-        注意：apiKey, baseUrl, maxTokens, temperature 等配置参数将从数据库中的全局配置自动获取，无需前端传递
+        Note: Configuration parameters like apiKey, baseUrl, maxTokens, temperature will be automatically retrieved from global config in database, no need to pass from frontend
         
-        返回:
-            - success: 是否成功
-            - summary: 生成的总结内容
+        Returns:
+            - success: Whether successful
+            - summary: Generated summary content
         """
         data = request.json or {}
         conversation_id = data.get('conversation_id')
@@ -793,15 +793,15 @@ class ChatController:
     @handle_errors
     def save_summary(self):
         """
-        保存会话总结
+        Save conversation summary
         
-        请求体:
-            - conversation_id: 会话ID
-            - summary: 总结内容
+        Request body:
+            - conversation_id: Conversation ID
+            - summary: Summary content
         
-        返回:
-            - success: 是否成功
-            - summary: 保存的总结
+        Returns:
+            - success: Whether successful
+            - summary: Saved summary
         """
         data = request.json or {}
         conversation_id = data.get('conversation_id')

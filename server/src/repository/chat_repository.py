@@ -1,5 +1,5 @@
 """
-聊天记录数据访问层
+Chat record data access layer
 """
 from typing import List, Optional
 from datetime import datetime
@@ -12,14 +12,14 @@ logger = get_logger(__name__)
 
 
 class ChatRepository:
-    """聊天记录仓库类"""
+    """Chat record repository class"""
     
     def __init__(self, db_path: str):
         """
-        初始化仓库
+        Initialize repository
         
         Args:
-            db_path: 数据库文件路径
+            db_path: Database file path
         """
         self.db_path = db_path
         # Create database engine
@@ -34,7 +34,7 @@ class ChatRepository:
         self._init_database()
     
     def _init_database(self):
-        """初始化数据库，创建表"""
+        """Initialize database, create tables"""
         try:
             Base.metadata.create_all(self.engine)
             logger.info(f"Database initialized at: {self.db_path}")
@@ -43,7 +43,7 @@ class ChatRepository:
             raise
     
     def _get_session(self) -> Session:
-        """获取数据库会话"""
+        """Get database session"""
         return self.SessionLocal()
     
     def save_message(
@@ -55,17 +55,17 @@ class ChatRepository:
         provider: Optional[str] = None
     ) -> ChatRecord:
         """
-        保存聊天消息
+        Save chat message
         
         Args:
-            conversation_id: 会话ID
-            role: 角色 (user, assistant)
-            content: 消息内容
-            model: 使用的模型
-            provider: AI提供商
+            conversation_id: Conversation ID
+            role: Role (user, assistant)
+            content: Message content
+            model: Model used
+            provider: AI provider
         
         Returns:
-            保存的聊天记录
+            Saved chat record
         """
         session = self._get_session()
         try:
@@ -96,15 +96,15 @@ class ChatRepository:
         offset: int = 0
     ) -> List[ChatRecord]:
         """
-        获取会话的所有消息
+        Get all messages in a conversation
         
         Args:
-            conversation_id: 会话ID
-            limit: 限制返回数量
-            offset: 偏移量
+            conversation_id: Conversation ID
+            limit: Limit return count
+            offset: Offset
         
         Returns:
-            聊天记录列表
+            Chat record list
         """
         session = self._get_session()
         try:
@@ -126,10 +126,10 @@ class ChatRepository:
     
     def get_all_conversations(self) -> List[str]:
         """
-        获取所有会话ID列表
+        Get all conversation IDs list
         
         Returns:
-            会话ID列表
+            Conversation IDs list
         """
         session = self._get_session()
         try:
@@ -144,13 +144,13 @@ class ChatRepository:
     
     def delete_conversation(self, conversation_id: str) -> bool:
         """
-        删除整个会话
+        Delete entire conversation
         
         Args:
-            conversation_id: 会话ID
+            conversation_id: Conversation ID
         
         Returns:
-            是否成功删除
+            Whether deletion was successful
         """
         session = self._get_session()
         try:
@@ -169,10 +169,10 @@ class ChatRepository:
     
     def get_conversation_count(self) -> int:
         """
-        获取会话总数
+        Get total conversation count
         
         Returns:
-            会话数量
+            Conversation count
         """
         session = self._get_session()
         try:

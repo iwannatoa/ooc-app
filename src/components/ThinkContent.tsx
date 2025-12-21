@@ -13,7 +13,7 @@ const ThinkContent: React.FC<ThinkContentProps> = ({ content, isOpen, onComplete
   const [isCollapsed, setIsCollapsed] = useState(true);
   const [wasOpen, setWasOpen] = useState(isOpen);
   
-  // 当 think 内容从开放状态变为闭合状态时，自动折叠并触发完成回调
+  // When think content changes from open to closed, auto collapse and trigger completion callback
   useEffect(() => {
     if (wasOpen && !isOpen) {
       setIsCollapsed(true);
@@ -22,7 +22,7 @@ const ThinkContent: React.FC<ThinkContentProps> = ({ content, isOpen, onComplete
     setWasOpen(isOpen);
   }, [isOpen, wasOpen, onComplete]);
   
-  // 如果 think 内容还在开放状态，自动展开
+  // If think content is still open, auto expand
   useEffect(() => {
     if (isOpen) {
       setIsCollapsed(false);

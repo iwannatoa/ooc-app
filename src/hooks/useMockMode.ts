@@ -5,11 +5,11 @@ const MOCK_MODE_STORAGE_KEY = 'dev_mock_mode_enabled';
 
 export const useMockMode = () => {
   const [mockModeEnabled, setMockModeEnabled] = useState<boolean>(() => {
-    // 只在开发模式下读取 localStorage
+    // Only read localStorage in development mode
     if (import.meta.env.DEV) {
       const stored = localStorage.getItem(MOCK_MODE_STORAGE_KEY);
       const enabled = stored === 'true';
-      // 初始化时同步全局状态
+      // Sync global state on initialization
       setGlobalMockMode(enabled);
       return enabled;
     }
@@ -23,13 +23,13 @@ export const useMockMode = () => {
     setMockModeEnabled((prev) => {
       const newValue = !prev;
       localStorage.setItem(MOCK_MODE_STORAGE_KEY, String(newValue));
-      // 更新全局状态
+      // Update global state
       setGlobalMockMode(newValue);
       return newValue;
     });
   }, []);
 
-  // 确保在非开发模式下禁用
+  // Ensure disabled in non-development mode
   useEffect(() => {
     if (!import.meta.env.DEV) {
       setMockModeEnabled(false);

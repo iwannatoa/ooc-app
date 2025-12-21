@@ -1,5 +1,5 @@
 """
-Ollama 服务模块
+Ollama service module
 """
 import requests
 from typing import Dict, List, Optional
@@ -11,14 +11,14 @@ logger = get_logger(__name__)
 
 
 class OllamaService:
-    """Ollama API 服务类"""
+    """Ollama API service class"""
     
     def __init__(self, base_url: Optional[str] = None):
         """
-        初始化 Ollama 服务
+        Initialize Ollama service
         
         Args:
-            base_url: Ollama API 基础 URL
+            base_url: Ollama API base URL
         """
         self.base_url = base_url or Config.OLLAMA_BASE_URL
         self.timeout = Config.OLLAMA_TIMEOUT
@@ -31,19 +31,19 @@ class OllamaService:
         options: Optional[Dict] = None
     ) -> Dict:
         """
-        生成文本响应
+        Generate text response
         
         Args:
-            model: 模型名称
-            prompt: 提示文本
-            stream: 是否流式返回
-            options: 生成选项
+            model: Model name
+            prompt: Prompt text
+            stream: Whether to stream response
+            options: Generation options
         
         Returns:
-            生成结果字典
+            Generation result dictionary
         
         Raises:
-            ProviderError: 当 API 调用失败时
+            ProviderError: When API call fails
         """
         url = f"{self.base_url}/api/generate"
         payload = {
@@ -88,13 +88,13 @@ class OllamaService:
     
     def list_models(self) -> List[Dict]:
         """
-        获取可用模型列表
+        Get available model list
         
         Returns:
-            模型列表
+            Model list
         
         Raises:
-            ProviderError: 当 API 调用失败时
+            ProviderError: When API call fails
         """
         url = f"{self.base_url}/api/tags"
         
@@ -127,10 +127,10 @@ class OllamaService:
     
     def health_check(self) -> bool:
         """
-        检查 Ollama 服务健康状态
+        Check Ollama service health status
         
         Returns:
-            True 如果服务可用，False 否则
+            True if service is available, False otherwise
         """
         try:
             url = f"{self.base_url}/api/tags"

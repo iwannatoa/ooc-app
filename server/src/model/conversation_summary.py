@@ -1,5 +1,5 @@
 """
-会话总结数据模型
+Conversation summary data model
 """
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, Text, DateTime, Index
@@ -9,16 +9,16 @@ Base = declarative_base()
 
 
 class ConversationSummary(Base):
-    """会话总结模型"""
+    """Conversation summary model"""
     __tablename__ = 'conversation_summaries'
     
     id = Column(Integer, primary_key=True, autoincrement=True)
-    conversation_id = Column(String(100), nullable=False, index=True, comment='会话ID')
-    summary = Column(Text, nullable=False, comment='故事总结内容')
-    message_count = Column(Integer, nullable=False, default=0, comment='总结时的消息数量')
-    token_count = Column(Integer, nullable=True, comment='总结时的 token 数量（估算）')
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, comment='创建时间')
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False, comment='更新时间')
+    conversation_id = Column(String(100), nullable=False, index=True, comment='Conversation ID')
+    summary = Column(Text, nullable=False, comment='Story summary content')
+    message_count = Column(Integer, nullable=False, default=0, comment='Message count at summary time')
+    token_count = Column(Integer, nullable=True, comment='Token count at summary time (estimated)')
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, comment='Created at')
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False, comment='Updated at')
     
     # Add index
     __table_args__ = (
@@ -26,7 +26,7 @@ class ConversationSummary(Base):
     )
     
     def to_dict(self) -> dict:
-        """转换为字典"""
+        """Convert to dictionary"""
         return {
             'id': self.id,
             'conversation_id': self.conversation_id,

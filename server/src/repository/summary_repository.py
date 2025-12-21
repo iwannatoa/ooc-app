@@ -59,16 +59,16 @@ class SummaryRepository:
         token_count: Optional[int] = None
     ) -> ConversationSummary:
         """
-        创建或更新会话总结
+        Create or update conversation summary
         
         Args:
-            conversation_id: 会话ID
-            summary: 总结内容
-            message_count: 消息数量
-            token_count: token 数量（可选）
+            conversation_id: Conversation ID
+            summary: Summary content
+            message_count: Message count
+            token_count: Token count (optional)
         
         Returns:
-            总结对象
+            Summary object
         """
         session = self._get_session()
         try:
@@ -109,13 +109,13 @@ class SummaryRepository:
     
     def get_summary(self, conversation_id: str) -> Optional[ConversationSummary]:
         """
-        获取会话总结
+        Get conversation summary
         
         Args:
-            conversation_id: 会话ID
+            conversation_id: Conversation ID
         
         Returns:
-            总结对象，如果不存在则返回 None
+            Summary object, or None if not exists
         """
         session = self._get_session()
         try:
@@ -131,13 +131,13 @@ class SummaryRepository:
     
     def delete_summary(self, conversation_id: str) -> bool:
         """
-        删除会话总结
+        Delete conversation summary
         
         Args:
-            conversation_id: 会话ID
+            conversation_id: Conversation ID
         
         Returns:
-            是否成功删除
+            Whether deletion was successful
         """
         session = self._get_session()
         try:

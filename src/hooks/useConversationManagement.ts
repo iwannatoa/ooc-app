@@ -164,7 +164,7 @@ export const useConversationManagement = () => {
     ]
   );
 
-  // 编辑故事设置
+  // Edit story settings
   const handleEditSettings = useCallback((conversationId: string) => {
     setPendingConversationId(conversationId);
     setIsNewConversation(false);
@@ -175,26 +175,26 @@ export const useConversationManagement = () => {
     async (message: string) => {
       let convId = activeConversationId;
 
-      // 如果没有活动故事，先创建新故事并显示设置表单
+      // If no active story, create new story and show settings form
       if (!convId) {
         handleNewConversation();
-        return; // 等待用户完成设置后再发送消息
+        return; // Wait for user to complete settings before sending message
       }
 
       try {
-        // 使用流式接口发送消息
+        // Use streaming interface to send message
         let assistantMessageId: string | null = null;
 
         const aiMessage = await sendMessageStream(
           message,
           convId,
           (_: string, accumulated: string) => {
-            // 获取当前消息列表（使用 ref 获取最新值）
+            // Get current message list (use ref to get latest value)
             const currentMessages = messagesRef.current;
             const lastMessage = currentMessages[currentMessages.length - 1];
 
             if (lastMessage && lastMessage.role === 'assistant') {
-              // 更新现有消息 - 创建新对象而不是修改现有对象
+              // Update existing message - create new object instead of modifying existing one
               assistantMessageId =
                 lastMessage.id || `msg_${Date.now()}_${Math.random()}`;
               const updatedMessages = currentMessages.map((msg, index) =>
@@ -204,7 +204,7 @@ export const useConversationManagement = () => {
               );
               setMessages(updatedMessages);
             } else {
-              // 添加新消息
+              // Add new message
               assistantMessageId = `msg_${Date.now()}_${Math.random()}`;
               setMessages([
                 ...currentMessages,
@@ -219,10 +219,10 @@ export const useConversationManagement = () => {
           }
         );
 
-        // 消息已通过后端保存（已过滤think部分），重新加载消息
+        // Message has been saved by backend (think part filtered), reload messages
         await handleSelectConversation(convId);
 
-        // 检查是否需要总结
+        // Check if summary is needed
         if (aiMessage.needsSummary && aiMessage.messageCount) {
           setSummaryMessageCount(aiMessage.messageCount);
           setShowSummaryPrompt(true);
@@ -241,7 +241,7 @@ export const useConversationManagement = () => {
     ]
   );
 
-  // 生成总结
+  // Generate summary
   const handleGenerateSummary = useCallback(async (): Promise<string> => {
     if (!activeConversationId) {
       throw new Error('No active conversation');
@@ -255,7 +255,7 @@ export const useConversationManagement = () => {
     );
   }, [activeConversationId, conversationClient, settings]);
 
-  // 保存总结
+  // Save summary
   const handleSaveSummary = useCallback(
     async (summary: string): Promise<void> => {
       if (!activeConversationId) {

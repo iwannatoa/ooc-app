@@ -130,11 +130,11 @@ class SettingsController:
     @handle_errors
     def get_conversations_list(self):
         """
-        获取所有会话列表
+        Get all conversations list
         
-        返回:
-            - success: 是否成功
-            - conversations: 会话列表
+        Returns:
+            - success: Whether successful
+            - conversations: Conversations list
         """
         conversations = self.conversation_service.get_all_conversations()
         return jsonify({

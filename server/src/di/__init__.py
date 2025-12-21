@@ -1,5 +1,5 @@
 """
-依赖注入配置模块
+Dependency injection configuration module
 """
 from .module import AppModule
 

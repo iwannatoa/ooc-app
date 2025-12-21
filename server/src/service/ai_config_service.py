@@ -1,5 +1,5 @@
 """
-全局 AI 配置服务层
+Global AI configuration service layer
 """
 from typing import Optional, Dict, List
 from repository.ai_config_repository import AIConfigRepository
@@ -9,27 +9,27 @@ logger = get_logger(__name__)
 
 
 class AIConfigService:
-    """全局 AI 配置服务类"""
+    """Global AI configuration service class"""
     
     def __init__(self, ai_config_repository: AIConfigRepository):
         """
-        初始化服务
+        Initialize service
         
         Args:
-            ai_config_repository: AI 配置仓库实例
+            ai_config_repository: AI config repository instance
         """
         self.repository = ai_config_repository
     
     def get_config(self, provider: str, include_api_key: bool = True) -> Optional[Dict]:
         """
-        获取指定 provider 的配置
+        Get configuration for specified provider
         
         Args:
-            provider: AI提供商，ollama 或 deepseek
-            include_api_key: 是否包含 API Key，默认 True
+            provider: AI provider, ollama or deepseek
+            include_api_key: Whether to include API Key, default True
         
         Returns:
-            配置字典，如果不存在则返回 None
+            Config dictionary, or None if not exists
         """
         config = self.repository.get_config(provider, include_api_key=include_api_key)
         if not config:
@@ -39,13 +39,13 @@ class AIConfigService:
     
     def get_all_configs(self, include_api_key: bool = False) -> List[Dict]:
         """
-        获取所有 AI 配置
+        Get all AI configurations
         
         Args:
-            include_api_key: 是否包含 API Key，默认 False
+            include_api_key: Whether to include API Key, default False
         
         Returns:
-            配置列表
+            Config list
         """
         configs = self.repository.get_all_configs(include_api_key=include_api_key)
         return [config.to_dict(include_api_key=include_api_key) for config in configs]
@@ -60,18 +60,18 @@ class AIConfigService:
         temperature: Optional[float] = None
     ) -> Dict:
         """
-        创建或更新 AI 配置
+        Create or update AI configuration
         
         Args:
-            provider: AI提供商，ollama 或 deepseek
-            model: 默认模型名称
-            api_key: API密钥
-            base_url: 自定义基础URL
-            max_tokens: 最大令牌数
-            temperature: 温度参数
+            provider: AI provider, ollama or deepseek
+            model: Default model name
+            api_key: API key
+            base_url: Custom base URL
+            max_tokens: Maximum tokens
+            temperature: Temperature parameter
         
         Returns:
-            配置字典，不包含 API Key
+            Config dictionary, without API Key
         """
         config = self.repository.create_or_update_config(
             provider=provider,
@@ -90,15 +90,15 @@ class AIConfigService:
         **kwargs
     ) -> Dict:
         """
-        获取用于 API 调用的配置
+        Get configuration for API calls
         
         Args:
-            provider: AI提供商，ollama 或 deepseek
-            model: 模型名称，如果提供则覆盖全局配置的默认模型
-            **kwargs: 其他参数，保留用于未来扩展
+            provider: AI provider, ollama or deepseek
+            model: Model name, if provided, overrides default model from global config
+            **kwargs: Other parameters, reserved for future extension
         
         Returns:
-            配置字典，包含 provider, model, api_key, base_url, max_tokens, temperature
+            Config dictionary, containing provider, model, api_key, base_url, max_tokens, temperature
         """
         global_config = self.get_config(provider, include_api_key=True)
         

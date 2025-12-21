@@ -50,18 +50,18 @@ class ConversationService:
         additional_settings: Optional[Dict] = None
     ) -> Dict:
         """
-        创建或更新会话设置
+        Create or update conversation settings
         
         Args:
-            conversation_id: 会话ID
-            title: 会话标题
-            background: 故事背景
-            characters: 人物列表
-            character_personality: 人物设定字典
-            outline: 大纲
+            conversation_id: Conversation ID
+            title: Conversation title
+            background: Story background
+            characters: Character list
+            character_personality: Character personality dictionary
+            outline: Outline
         
         Returns:
-            设置字典
+            Settings dictionary
         """
         settings = self.repository.create_or_update_settings(
             conversation_id=conversation_id,
@@ -78,35 +78,35 @@ class ConversationService:
     
     def get_settings(self, conversation_id: str) -> Optional[Dict]:
         """
-        获取会话设置
+        Get conversation settings
         
         Args:
-            conversation_id: 会话ID
+            conversation_id: Conversation ID
         
         Returns:
-            设置字典，如果不存在则返回 None
+            Settings dictionary, or None if not exists
         """
         settings = self.repository.get_settings(conversation_id)
         return settings.to_dict() if settings else None
     
     def get_all_conversations(self) -> List[Dict]:
         """
-        获取所有会话及其设置
+        Get all conversations with settings
         
         Returns:
-            会话列表
+            Conversations list
         """
         return self.repository.get_all_conversations_with_settings()
     
     def delete_settings(self, conversation_id: str) -> bool:
         """
-        删除会话设置
+        Delete conversation settings
         
         Args:
-            conversation_id: 会话ID
+            conversation_id: Conversation ID
         
         Returns:
-            是否成功删除
+            Whether deletion was successful
         """
         return self.repository.delete_settings(conversation_id)
     
@@ -120,21 +120,21 @@ class ConversationService:
         language: str = 'zh'
     ) -> str:
         """
-        使用AI生成故事大纲
+        Generate story outline using AI
         
         Args:
-            background: 故事背景
-            characters: 人物列表
-            character_personality: 人物设定字典
-            provider: AI提供商
-            model: 模型名称
-            api_key: API密钥
-            base_url: 基础URL
-            max_tokens: 最大令牌数
-            temperature: 温度参数
+            background: Story background
+            characters: Character list
+            character_personality: Character personality dictionary
+            provider: AI provider
+            model: Model name
+            api_key: API key
+            base_url: Base URL
+            max_tokens: Maximum tokens
+            temperature: Temperature parameter
         
         Returns:
-            生成的大纲内容
+            Generated outline content
         """
         # Load prompt template
         from utils.prompt_template_loader import PromptTemplateLoader

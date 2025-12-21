@@ -34,9 +34,9 @@ const ServerStatus: React.FC = () => {
   const isServerHealthy = useRef<boolean>(false);
   const lastReloadedConversationId = useRef<string | null>(null);
   
-  // 短 interval：服务器未正常时使用（3秒）
+  // Short interval: used when server is not healthy (3 seconds)
   const SHORT_INTERVAL = 3000;
-  // 长 interval：服务器正常后使用（15秒）
+  // Long interval: used when server is healthy (15 seconds)
   const LONG_INTERVAL = 15000;
 
   useEffect(() => {
@@ -45,7 +45,7 @@ const ServerStatus: React.FC = () => {
 
   useEffect(() => {
     initializeCheckServerStatusInterval();
-    // 立即执行一次检查
+    // Execute check immediately
     checkPythonServerStatus();
     return () => {
       if (intervalId.current) {
@@ -61,7 +61,7 @@ const ServerStatus: React.FC = () => {
       clearInterval(intervalId.current);
       intervalId.current = null;
     }
-    // 重置健康状态，使用短 interval 开始检查
+    // Reset health status, start checking with short interval
     isServerHealthy.current = false;
     setPythonServerStatus('started');
     startHealthCheckInterval();
@@ -71,7 +71,7 @@ const ServerStatus: React.FC = () => {
     if (intervalId.current) {
       clearInterval(intervalId.current);
     }
-    // 根据服务器健康状态选择 interval
+    // Choose interval based on server health status
     const interval = isServerHealthy.current ? LONG_INTERVAL : SHORT_INTERVAL;
     intervalId.current = window.setInterval(() => {
       checkPythonServerStatus();
@@ -105,18 +105,18 @@ const ServerStatus: React.FC = () => {
         const wasHealthy = isServerHealthy.current;
         setPythonServerStatus('started');
         isServerHealthy.current = true;
-        // 如果从异常状态变为正常状态，切换到长 interval
+        // If changed from unhealthy to healthy, switch to long interval
         if (!wasHealthy) {
           startHealthCheckInterval();
-          // 先刷新端口，确保使用正确的端口号
+          // Refresh port first to ensure using correct port number
           refetchPort().then(() => {
-            // 等待一小段时间确保 React 状态已更新
+            // Wait a bit to ensure React state is updated
             setTimeout(() => {
-              // 重新加载会话列表
+              // Reload conversations list
               loadConversations().catch((error) => {
                 console.error('Failed to reload conversations list:', error);
               });
-              // 重新加载当前会话的历史记录
+              // Reload current conversation history
               if (activeConversationId) {
                 reloadConversationHistory(activeConversationId);
                 lastReloadedConversationId.current = activeConversationId;
@@ -133,7 +133,7 @@ const ServerStatus: React.FC = () => {
         const wasHealthy = isServerHealthy.current;
         setPythonServerStatus('error');
         isServerHealthy.current = false;
-        // 如果从正常状态变为异常状态，切换到短 interval
+        // If changed from healthy to unhealthy, switch to short interval
         if (wasHealthy) {
           startHealthCheckInterval();
           lastReloadedConversationId.current = null;

@@ -3,10 +3,12 @@ import { AppSettings, ChatMessage, ChatResponse } from '@/types';
 import { isMockMode, mockAiClient } from '@/mock';
 import { useFlaskPort } from '@/hooks/useFlaskPort';
 import { stripThinkContent } from '@/utils/stripThinkContent';
+import { useI18n } from '@/i18n';
 
 export const useAiClient = (settings: AppSettings) => {
   const [loading, setLoading] = useState(false);
   const { apiUrl, waitForPort } = useFlaskPort();
+  const { t } = useI18n();
 
   const sendMessage = useCallback(
     async (message: string, conversationId?: string): Promise<ChatMessage> => {
@@ -42,7 +44,7 @@ export const useAiClient = (settings: AppSettings) => {
         const data: ChatResponse = await response.json();
 
         if (!data.success) {
-          throw new Error(data.error || '请求失败');
+          throw new Error(data.error || t('common.requestFailed'));
         }
 
         // Strip think content from response

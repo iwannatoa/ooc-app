@@ -21,6 +21,9 @@ export const AISettings: React.FC<AISettingsProps> = ({ settings, t }) => {
 
   const currentProvider = settings.ai.provider;
   const currentConfig = settings.ai[currentProvider];
+  const providerDisplayName = currentProvider === 'ollama' 
+    ? t('settingsPanel.providerOllama')
+    : t('settingsPanel.providerDeepSeek');
 
   const handleProviderChange = (provider: AIProvider) => {
     updateAiProvider(provider);
@@ -79,7 +82,7 @@ export const AISettings: React.FC<AISettingsProps> = ({ settings, t }) => {
                 handleApiKeyChange(currentProvider, e.target.value)
               }
               placeholder={t('settingsPanel.apiKeyPlaceholder', {
-                provider: currentProvider,
+                provider: providerDisplayName,
               })}
             />
           </div>

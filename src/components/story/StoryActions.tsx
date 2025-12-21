@@ -111,9 +111,9 @@ const StoryActions: React.FC<StoryActionsProps> = ({
             onClick={onDeleteLastMessage}
             disabled={loading || disabled}
             className={styles.actionButton}
-            title={t('storyActions.deleteLastMessageTooltip', { defaultValue: '删除最后一条消息' })}
+            title={t('storyActions.deleteLastMessageTooltip')}
           >
-            {t('storyActions.deleteLastMessage', { defaultValue: '删除最后一条' })}
+            {t('storyActions.deleteLastMessage')}
           </button>
         )}
       </div>

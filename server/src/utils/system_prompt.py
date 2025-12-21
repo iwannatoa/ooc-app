@@ -117,7 +117,7 @@ def build_system_prompt(
         prompt_parts.append("")
     
     if supplement:
-        supplement_section = template['sections'].get('supplement', '## 补充设定')
+        supplement_section = template['sections'].get('supplement', '## Additional Settings')
         prompt_parts.append(supplement_section)
         prompt_parts.append(supplement)
         prompt_parts.append("")
@@ -138,7 +138,10 @@ def build_system_prompt(
     output_items = output['items'].copy()
     if current_section is None:
         # Remove the last item about section generation if no section info
-        output_items = [item for item in output_items if '分段生成' not in item and 'section generation' not in item]
+        # Get keyword from template based on language
+        section_generation_keyword = output.get('section_generation_keyword', '')
+        if section_generation_keyword:
+            output_items = [item for item in output_items if section_generation_keyword not in item]
     prompt_parts.extend(output_items)
     
     # Add character changes instructions
@@ -176,7 +179,11 @@ def build_feedback_prompt(
     prompt_parts.append("")
     
     feedback_lower = user_feedback.lower()
-    if any(keyword in feedback_lower for keyword in ['重写', '重新', 'rewrite', '重新写']):
+    # Get keywords from template based on language
+    rewrite_keywords = feedback_template['types']['rewrite'].get('keywords', [])
+    modify_keywords = feedback_template['types']['modify'].get('keywords', [])
+    
+    if any(keyword in feedback_lower for keyword in rewrite_keywords):
         op_type = feedback_template['types']['rewrite']
         prompt_parts.append(op_type['label'])
         if previous_content:
@@ -185,7 +192,7 @@ def build_feedback_prompt(
             prompt_parts.append(previous_content)
             prompt_parts.append("")
             prompt_parts.append(op_type['instruction'])
-    elif any(keyword in feedback_lower for keyword in ['调整', '修改', 'change', 'modify']):
+    elif any(keyword in feedback_lower for keyword in modify_keywords):
         op_type = feedback_template['types']['modify']
         prompt_parts.append(op_type['label'])
         if previous_content:

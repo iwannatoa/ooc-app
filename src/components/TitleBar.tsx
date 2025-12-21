@@ -1,7 +1,10 @@
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import { useI18n } from '@/i18n';
 import styles from './TitleBar.module.scss';
 
 export const TitleBar = () => {
+  const { t } = useI18n();
+  
   const handleMinimize = async () => {
     try {
       const appWindow = getCurrentWindow();
@@ -38,7 +41,7 @@ export const TitleBar = () => {
         <button
           className={styles.titleBarButton}
           onClick={handleMinimize}
-          title="最小化"
+          title={t('titleBar.minimize')}
         >
           <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
             <path
@@ -52,7 +55,7 @@ export const TitleBar = () => {
         <button
           className={styles.titleBarButton}
           onClick={handleMaximize}
-          title="最大化/还原"
+          title={t('titleBar.maximize')}
         >
           <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
             <path
@@ -67,7 +70,7 @@ export const TitleBar = () => {
         <button
           className={`${styles.titleBarButton} ${styles.closeButton}`}
           onClick={handleClose}
-          title="关闭"
+          title={t('titleBar.close')}
         >
           <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
             <path

@@ -11,7 +11,7 @@ import {
   generateMockId,
 } from './data';
 
-// Mock 大纲生成内容
+// Mock outline generation content
 const mockOutlines = [
   `# 故事大纲
 
@@ -83,7 +83,7 @@ export const mockConversationClient = {
       updated_at: new Date().toISOString(),
     };
 
-    // 更新或创建故事
+    // Update or create story
     const existingIndex = mockConversationsData.findIndex(
       (c) => c.id === conversationId
     );
@@ -112,11 +112,11 @@ export const mockConversationClient = {
     conversationId: string
   ): Promise<ChatMessage[]> => {
     await mockDelay(200);
-    // 返回当前故事的所有消息（包括新添加的）
+    // Return all messages for current story (including newly added)
     return [...(mockMessagesData[conversationId] || [])];
   },
   
-  // 添加消息到故事（用于模拟后端保存）
+  // Add message to story (for simulating backend save)
   addMessageToConversation: (
     conversationId: string,
     message: ChatMessage

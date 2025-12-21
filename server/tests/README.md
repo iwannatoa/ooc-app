@@ -33,7 +33,7 @@ pytest tests/test_character_service.py
 Run specific test:
 
 ```bash
-pytest tests/test_character_service.py::TestCharacterService::test_extract_characters_from_text
+pytest tests/test_character_service.py::TestCharacterService::test_record_characters_predefined
 ```
 
 ## Test Structure

@@ -9,10 +9,12 @@ import {
 import { isMockMode, mockConversationClient } from '@/mock';
 import { useFlaskPort } from '@/hooks/useFlaskPort';
 import { useMockMode } from '@/hooks/useMockMode';
+import { useI18n } from '@/i18n';
 
 export const useConversationClient = () => {
   const { apiUrl, waitForPort } = useFlaskPort();
   const { mockModeEnabled } = useMockMode();
+  const { t } = useI18n();
 
   const API_BASE_URL = useMemo(() => apiUrl, [apiUrl]);
   
@@ -40,7 +42,7 @@ export const useConversationClient = () => {
       if (data.success) {
         return data.conversations.map((conv: any) => ({
           id: conv.conversation_id,
-          title: conv.title || '未命名故事',
+          title: conv.title || t('conversation.unnamedConversation'),
           messages: [],
           createdAt: conv.created_at
             ? new Date(conv.created_at).getTime()

@@ -7,11 +7,11 @@ import shutil
 from pathlib import Path
 
 def get_tauri_binary_name(base_name: str) -> str:
-    """根据平台生成 Tauri 期望的二进制文件名"""
+    """Generate binary filename expected by Tauri based on platform"""
     system = platform.system().lower()
     arch = platform.machine().lower()
     
-    # 标准化架构名称
+    # Normalize architecture name
     if arch in ['x86_64', 'amd64']:
         arch = 'x86_64'
     elif arch in ['aarch64', 'arm64']:
@@ -34,20 +34,20 @@ def get_tauri_binary_name(base_name: str) -> str:
         return f"{base_name}-{system}-{arch}"
 
 def build_for_platform(base_name: str, target_triple: str, output_suffix: str):
-    """为特定平台构建可执行文件"""
+    """Build executable for specific platform"""
     print(f"Building for {target_triple}...")
     
     current_dir = Path(__file__).parent
     origin_dir = current_dir / "dist"
     dist_dir = current_dir / "dist" / target_triple
     
-    # 清理之前的构建
+    # Clean previous build
     if dist_dir.exists():
         shutil.rmtree(dist_dir)
     
     dist_dir.mkdir(parents=True, exist_ok=True)
     
-    # 使用 spec 文件构建（更清晰，配置集中管理）
+    # Build using spec file (clearer, centralized configuration)
     spec_file = current_dir / "flask-api.spec"
     pyinstaller_cmd = [
         "pyinstaller",
@@ -58,7 +58,7 @@ def build_for_platform(base_name: str, target_triple: str, output_suffix: str):
     try:
         subprocess.check_call(pyinstaller_cmd, cwd=current_dir)
         
-        # 重命名文件以符合 Tauri 命名约定
+        # Rename file to match Tauri naming convention
         original_exe = origin_dir / f"{base_name}.exe" if sys.platform == "win32" else origin_dir / base_name
         new_name = f"{base_name}{output_suffix}"
         new_exe_path = dist_dir / new_name
@@ -76,12 +76,12 @@ def build_for_platform(base_name: str, target_triple: str, output_suffix: str):
         return None
 
 def build_all_platforms():
-    """为所有支持的平台构建"""
+    """Build for all supported platforms"""
     base_name = "flask-api"
     current_dir = Path(__file__).parent
     final_output_dir = current_dir / "../dist/server"
     
-    # 支持的平台目标
+    # Supported platform targets
     platforms = [
         # Windows
         ("x86_64-pc-windows-msvc", ".exe"),
@@ -96,14 +96,14 @@ def build_all_platforms():
     built_files = []
     
     for target_triple, extension in platforms:
-        # 在实际构建中，你可能需要交叉编译工具链
-        # 这里我们只构建当前平台
+        # In actual builds, you may need cross-compilation toolchain
+        # Here we only build for current platform
         if should_build_for_target(target_triple):
             output_file = build_for_platform(base_name, target_triple, extension)
             if output_file:
                 built_files.append(output_file)
     
-    # 复制当前平台的文件到根目录（供 Tauri 使用）
+    # Copy current platform file to root directory (for Tauri use)
     current_platform_file = copy_current_platform_binary(base_name, final_output_dir)
     if current_platform_file:
         built_files.append(current_platform_file)
@@ -111,12 +111,12 @@ def build_all_platforms():
     return built_files
 
 def should_build_for_target(target_triple: str) -> bool:
-    """检查是否应该为指定目标构建"""
+    """Check if should build for specified target"""
     current_system = platform.system().lower()
     current_arch = platform.machine().lower()
     
-    # 简化逻辑：只构建当前平台
-    # 在实际项目中，你可能需要设置交叉编译环境
+    # Simplified logic: only build for current platform
+    # In actual projects, you may need to set up cross-compilation environment
     if "windows" in target_triple and current_system == "windows":
         return True
     elif "darwin" in target_triple and current_system == "darwin":
@@ -127,11 +127,11 @@ def should_build_for_target(target_triple: str) -> bool:
     return False
 
 def copy_current_platform_binary(base_name: str, output_dir: Path) -> Path:
-    """复制当前平台的二进制文件到输出目录"""
+    """Copy current platform binary file to output directory"""
     current_platform_name = get_tauri_binary_name(base_name)
     current_dir = Path(__file__).parent
     
-    # 查找当前平台的构建文件
+    # Find current platform build file
     dist_patterns = [
         current_dir / "dist" / "**" / f"{base_name}*",
         current_dir / "dist" / f"{base_name}*",
@@ -148,17 +148,17 @@ def copy_current_platform_binary(base_name: str, output_dir: Path) -> Path:
             break
     
     if not source_file:
-        # 如果没有找到，构建当前平台
+        # If not found, build for current platform
         print("Building for current platform...")
         target_name = get_target_triple()
         source_file = build_for_platform(base_name, target_name, 
                                        ".exe" if sys.platform == "win32" else "")
     
     if source_file and source_file.exists():
-        # 确保输出目录存在
+        # Ensure output directory exists
         output_dir.mkdir(parents=True, exist_ok=True)
         
-        # 复制文件
+        # Copy file
         dest_file = output_dir / current_platform_name
         shutil.copy2(source_file, dest_file)
         print(f"✓ Copied to: {dest_file}")
@@ -167,7 +167,7 @@ def copy_current_platform_binary(base_name: str, output_dir: Path) -> Path:
     return None
 
 def get_target_triple() -> str:
-    """获取当前平台的目标三元组"""
+    """Get current platform target triple"""
     system = platform.system().lower()
     arch = platform.machine().lower()
     
@@ -186,12 +186,12 @@ def get_target_triple() -> str:
         return f"{arch}-unknown-{system}"
 
 def main():
-    """主构建函数"""
+    """Main build function"""
     print("Building Flask API for multiple platforms...")
     
     current_dir = Path(__file__).parent
     
-    # 安装依赖
+    # Install dependencies
     print("Installing Python dependencies...")
     requirements_file = current_dir / "requirements.txt"
     
@@ -202,7 +202,7 @@ def main():
     except subprocess.CalledProcessError as e:
         print(f"Warning: Failed to install dependencies: {e}")
     
-    # 构建所有平台
+    # Build all platforms
     built_files = build_all_platforms()
     
     if built_files:

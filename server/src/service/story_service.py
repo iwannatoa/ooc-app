@@ -1,5 +1,5 @@
 """
-故事生成服务层
+Story generation service layer
 """
 from typing import Optional, Dict
 from repository.story_progress_repository import StoryProgressRepository
@@ -10,7 +10,7 @@ logger = get_logger(__name__)
 
 
 class StoryService:
-    """故事生成服务类"""
+    """Story generation service class"""
     
     def __init__(
         self,
@@ -18,37 +18,37 @@ class StoryService:
         ai_service: AIService
     ):
         """
-        初始化服务
+        Initialize service
         
         Args:
-            story_progress_repository: 故事进度仓库实例
-            ai_service: AI 服务实例
+            story_progress_repository: Story progress repository instance
+            ai_service: AI service instance
         """
         self.repository = story_progress_repository
         self.ai_service = ai_service
     
     def get_progress(self, conversation_id: str) -> Optional[Dict]:
         """
-        获取故事进度
+        Get story progress
         
         Args:
-            conversation_id: 会话ID
+            conversation_id: Conversation ID
         
         Returns:
-            进度字典，如果不存在则返回 None
+            Progress dictionary, or None if not exists
         """
         progress = self.repository.get_progress(conversation_id)
         return progress.to_dict() if progress else None
     
     def mark_outline_confirmed(self, conversation_id: str) -> bool:
         """
-        标记大纲已确认，可以开始生成故事
+        Mark outline as confirmed, can start generating story
         
         Args:
-            conversation_id: 会话ID
+            conversation_id: Conversation ID
         
         Returns:
-            是否成功
+            Whether successful
         """
         return self.repository.mark_outline_confirmed(conversation_id)
     
@@ -63,19 +63,19 @@ class StoryService:
         outline_confirmed: Optional[bool] = None
     ) -> Dict:
         """
-        更新故事进度
+        Update story progress
         
         Args:
-            conversation_id: 会话ID
-            current_section: 当前章节编号
-            total_sections: 总章节数
-            last_generated_content: 最后生成的内容
-            last_generated_section: 最后生成的部分编号
-            status: 状态
-            outline_confirmed: 大纲是否已确认
+            conversation_id: Conversation ID
+            current_section: Current section number
+            total_sections: Total sections count
+            last_generated_content: Last generated content
+            last_generated_section: Last generated section number
+            status: Status
+            outline_confirmed: Whether outline is confirmed
         
         Returns:
-            更新后的进度字典
+            Updated progress dictionary
         """
         # Get existing progress
         existing = self.repository.get_progress(conversation_id)
@@ -107,25 +107,25 @@ class StoryService:
     
     def delete_progress(self, conversation_id: str) -> bool:
         """
-        删除故事进度
+        Delete story progress
         
         Args:
-            conversation_id: 会话ID
+            conversation_id: Conversation ID
         
         Returns:
-            是否成功删除
+            Whether deletion was successful
         """
         return self.repository.delete_progress(conversation_id)
     
     def should_generate_next_section(self, conversation_id: str) -> bool:
         """
-        判断是否应该生成下一部分
+        Determine if should generate next section
         
         Args:
-            conversation_id: 会话ID
+            conversation_id: Conversation ID
         
         Returns:
-            是否应该生成下一部分
+            Whether should generate next section
         """
         progress = self.repository.get_progress(conversation_id)
         if not progress:

@@ -3,7 +3,7 @@ import { mockConversationClient } from './conversationClient';
 import { mockDelay, generateMockId } from './data';
 import { ChatMessage } from '@/types';
 
-// Mock 故事内容模板
+// Mock story content templates
 const storyTemplates: Record<string, string[]> = {
   conv_001: [
     '艾莉亚在茂密的森林中穿行时，突然听到了一声低沉的咆哮。她紧握手中的剑，小心翼翼地向前走去。在树丛后面，她看到了一只受伤的独角兽，它的腿上有一道深深的伤口。独角兽的眼神中充满了痛苦和恐惧，但同时也有一丝警惕。\n\n艾莉亚的善良本性让她无法对受伤的生物视而不见。她放下剑，慢慢靠近独角兽，用温柔的声音安抚它："别害怕，我不会伤害你。让我帮你处理伤口。"\n\n她从背包中取出草药和绷带，开始为独角兽处理伤口。独角兽似乎感受到了艾莉亚的善意，逐渐放松了警惕，任由她为自己治疗。',
@@ -22,7 +22,7 @@ const storyTemplates: Record<string, string[]> = {
   ],
 };
 
-// 跟踪每个故事的故事进度
+// Track story progress for each story
 const storyProgress: Record<string, number> = {};
 
 export const mockStoryClient = {
@@ -31,16 +31,16 @@ export const mockStoryClient = {
   ): Promise<StoryActionResponse> => {
     await mockDelay(800);
     
-    // 获取当前进度
+    // Get current progress
     const currentIndex = storyProgress[conversationId] || 0;
     const templates = storyTemplates[conversationId] || [
       `这是第 ${currentIndex + 1} 部分的故事内容。故事继续发展，角色们面临着新的挑战和机遇。`,
     ];
     
-    // 获取当前部分的内容（如果是续写，使用当前索引；如果是新章节，使用下一个索引）
+    // Get current section content (if continuing, use current index; if new chapter, use next index)
     const content = templates[currentIndex] || templates[0];
     
-    // 创建用户消息和助手消息
+    // Create user message and assistant message
     const userMessage: ChatMessage = {
       role: 'user',
       content: '请根据大纲生成当前部分的故事内容。',
@@ -56,7 +56,7 @@ export const mockStoryClient = {
       model: 'deepseek-chat',
     };
     
-    // 添加到消息列表（模拟后端保存）
+    // Add to message list (simulate backend save)
     if (typeof (mockConversationClient as any).addMessageToConversation === 'function') {
       (mockConversationClient as any).addMessageToConversation(conversationId, userMessage);
       (mockConversationClient as any).addMessageToConversation(conversationId, assistantMessage);
@@ -73,7 +73,7 @@ export const mockStoryClient = {
   ): Promise<StoryActionResponse> => {
     await mockDelay(800);
     
-    // 推进到下一章节
+    // Advance to next chapter
     const currentIndex = storyProgress[conversationId] || 0;
     storyProgress[conversationId] = currentIndex + 1;
     
@@ -81,11 +81,11 @@ export const mockStoryClient = {
       `这是第 ${currentIndex + 2} 部分的故事内容。故事继续发展，角色们面临着新的挑战和机遇。`,
     ];
     
-    // 获取下一部分的内容
+    // Get next section content
     const nextIndex = storyProgress[conversationId];
     const content = templates[nextIndex] || templates[0];
     
-    // 创建用户消息和助手消息
+    // Create user message and assistant message
     const userMessage: ChatMessage = {
       role: 'user',
       content: '确认当前章节，请生成下一章节的内容。',
@@ -101,7 +101,7 @@ export const mockStoryClient = {
       model: 'deepseek-chat',
     };
     
-    // 添加到消息列表（模拟后端保存）
+    // Add to message list (simulate backend save)
     if (typeof (mockConversationClient as any).addMessageToConversation === 'function') {
       (mockConversationClient as any).addMessageToConversation(conversationId, userMessage);
       (mockConversationClient as any).addMessageToConversation(conversationId, assistantMessage);
@@ -126,7 +126,7 @@ export const mockStoryClient = {
     
     const content = `[重写] ${templates[currentIndex] || templates[0]}\n\n根据您的反馈："${feedback}"`;
     
-    // 创建用户消息和助手消息
+    // Create user message and assistant message
     const userMessage: ChatMessage = {
       role: 'user',
       content: `请重写当前章节：${feedback}`,
@@ -142,7 +142,7 @@ export const mockStoryClient = {
       model: 'deepseek-chat',
     };
     
-    // 添加到消息列表（模拟后端保存）
+    // Add to message list (simulate backend save)
     if (typeof (mockConversationClient as any).addMessageToConversation === 'function') {
       (mockConversationClient as any).addMessageToConversation(conversationId, userMessage);
       (mockConversationClient as any).addMessageToConversation(conversationId, assistantMessage);
@@ -167,7 +167,7 @@ export const mockStoryClient = {
     
     const content = `[修改] ${templates[currentIndex] || templates[0]}\n\n根据您的修改："${feedback}"`;
     
-    // 创建用户消息和助手消息
+    // Create user message and assistant message
     const userMessage: ChatMessage = {
       role: 'user',
       content: `请修改当前章节：${feedback}`,
@@ -183,7 +183,7 @@ export const mockStoryClient = {
       model: 'deepseek-chat',
     };
     
-    // 添加到消息列表（模拟后端保存）
+    // Add to message list (simulate backend save)
     if (typeof (mockConversationClient as any).addMessageToConversation === 'function') {
       (mockConversationClient as any).addMessageToConversation(conversationId, userMessage);
       (mockConversationClient as any).addMessageToConversation(conversationId, assistantMessage);

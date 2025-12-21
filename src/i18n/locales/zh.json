@@ -13,7 +13,8 @@
     "new": "新建",
     "expand": "展开",
     "collapse": "折叠",
-    "refresh": "刷新"
+    "refresh": "刷新",
+    "requestFailed": "请求失败"
   },
   "app": {
     "title": "AI 故事生成器",
@@ -21,7 +22,8 @@
     "mockModeOn": "🔴 Mock",
     "mockModeOff": "⚪ Mock",
     "mockModeTooltipOn": "关闭 Mock 模式",
-    "mockModeTooltipOff": "开启 Mock 模式"
+    "mockModeTooltipOff": "开启 Mock 模式",
+    "switchLanguage": "切换到中文"
   },
   "conversation": {
     "title": "故事历史",
@@ -92,7 +94,7 @@
     "deleteLastMessageTooltip": "删除最后一条消息及相关的人物记录",
     "confirmDeleteLastMessage": "确定要删除最后一条消息吗？这将同时删除相关的人物记录。",
     "deleteLastMessageSuccess": "删除成功",
-    "deleteLastMessageFailed": "删除最后一条消息失败"
+    "deleteLastMessageFailed": "删除最后一条消息失败: {error}"
   },
   "serverStatus": {
     "pythonServer": "Python 服务器",
@@ -238,6 +240,11 @@
   "language": {
     "zh": "中文",
     "en": "English"
+  },
+  "titleBar": {
+    "minimize": "最小化",
+    "maximize": "最大化/还原",
+    "close": "关闭"
   }
 }
 

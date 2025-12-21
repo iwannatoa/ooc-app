@@ -1,5 +1,5 @@
 """
-聊天记录数据模型
+Chat record data model
 """
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, Text, DateTime, Index
@@ -9,16 +9,16 @@ Base = declarative_base()
 
 
 class ChatRecord(Base):
-    """聊天记录模型"""
+    """Chat record model"""
     __tablename__ = 'chat_records'
     
     id = Column(Integer, primary_key=True, autoincrement=True)
-    conversation_id = Column(String(100), nullable=False, index=True, comment='会话ID')
-    role = Column(String(20), nullable=False, comment='角色: user, assistant')
-    content = Column(Text, nullable=False, comment='消息内容')
-    model = Column(String(100), nullable=True, comment='使用的模型')
-    provider = Column(String(50), nullable=True, comment='AI提供商: ollama, deepseek')
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True, comment='创建时间')
+    conversation_id = Column(String(100), nullable=False, index=True, comment='Conversation ID')
+    role = Column(String(20), nullable=False, comment='Role: user, assistant')
+    content = Column(Text, nullable=False, comment='Message content')
+    model = Column(String(100), nullable=True, comment='Model used')
+    provider = Column(String(50), nullable=True, comment='AI provider: ollama, deepseek')
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True, comment='Created at')
     
     # Add index to improve query performance
     __table_args__ = (
@@ -26,7 +26,7 @@ class ChatRecord(Base):
     )
     
     def to_dict(self) -> dict:
-        """转换为字典"""
+        """Convert to dictionary"""
         return {
             'id': self.id,
             'conversation_id': self.conversation_id,

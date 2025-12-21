@@ -54,12 +54,13 @@ class CharacterService:
         self.ai_config_service = ai_config_service
         self.app_settings_service = app_settings_service
     
-    def parse_story_with_characters(self, content: str) -> Tuple[str, Dict[str, Any]]:
+    def parse_story_with_characters(self, content: str, language: Optional[str] = None) -> Tuple[str, Dict[str, Any]]:
         """
         Parse AI-generated story content to extract story text and character information
         
         Args:
             content: Full content from AI (story + character info with <CHARACTERS> tags)
+            language: Language code ('zh' or 'en'), if not provided, will get from app_settings_service
         
         Returns:
             Tuple of (story_content, character_info)
@@ -68,8 +69,22 @@ class CharacterService:
                 - "new": List of new character names
                 - "new_with_settings": Dict mapping character name to setting description
                 - "status_changes": Dict mapping character name to status changes dict
-                  (e.g., {"角色名": {"is_main": True}} or {"角色名": {"is_unavailable": True}})
+                  (e.g., {"Character Name": {"is_main": True}} or {"Character Name": {"is_unavailable": True}})
         """
+        # Get language if not provided
+        if language is None and self.app_settings_service:
+            language = self.app_settings_service.get_language()
+        if language is None:
+            language = 'zh'  # Default to Chinese
+        
+        # Load status keywords from template
+        from utils.prompt_template_loader import PromptTemplateLoader
+        template = PromptTemplateLoader.get_template(language)
+        status_keywords = template.get('output_requirements', {}).get('character_changes', {}).get('status_keywords', {})
+        
+        became_main_keywords = status_keywords.get('became_main', [])
+        became_unavailable_keywords = status_keywords.get('became_unavailable', [])
+        restored_available_keywords = status_keywords.get('restored_available', [])
         story_content = content
         character_info = {
             "new": [],
@@ -128,7 +143,7 @@ class CharacterService:
                 
                 # Parse based on section
                 if in_new_characters_section:
-                    # New character - format: "角色名 - 设定：设定描述" or "角色名"
+                    # New character - format: "Character Name - Setting: Setting Description" or "Character Name"
                     # Try to parse character name and setting
                     if ' - 设定：' in line_content or ' - 设定:' in line_content or ' - Setting:' in line_content or ' - Setting：' in line_content:
                         # Has setting
@@ -148,7 +163,7 @@ class CharacterService:
                             character_info["new"].append(char_name)
                         
                 elif in_status_changes_section:
-                    # Status change - format: "角色名 - 状态描述" or "[角色名] - 状态描述"
+                    # Status change - format: "Character Name - Status Description" or "[Character Name] - Status Description"
                     # Parse character name and status change
                     parts = line_content.split('-', 1)
                     if len(parts) >= 1:
@@ -165,112 +180,19 @@ class CharacterService:
                             # Parse status description
                             status_desc_lower = status_desc.lower()
                             
-                            # Check for main character status
-                            if any(keyword in status_desc for keyword in ['成为主要角色', 'became main', 'main character', '主要角色']):
+                            # Check for main character status using keywords from template
+                            if any(keyword in status_desc_lower for keyword in became_main_keywords):
                                 character_info["status_changes"][char_name]["is_main"] = True
                             
-                            # Check for unavailable status
-                            if any(keyword in status_desc for keyword in ['变为不可用', 'became unavailable', '不可用', 'unavailable', '死亡', 'death', '离开', 'leave', '失踪', 'disappear']):
+                            # Check for unavailable status using keywords from template
+                            if any(keyword in status_desc_lower for keyword in became_unavailable_keywords):
                                 character_info["status_changes"][char_name]["is_unavailable"] = True
                             
-                            # Check for restored to available status
-                            if any(keyword in status_desc for keyword in ['恢复可用', 'restored to available', '恢复', 'restored', '重新出现', 'reappear']):
+                            # Check for restored to available status using keywords from template
+                            if any(keyword in status_desc_lower for keyword in restored_available_keywords):
                                 character_info["status_changes"][char_name]["is_unavailable"] = False
         
         return story_content, character_info
-    
-    def extract_characters_from_text(self, text: str, existing_characters: Set[str]) -> List[str]:
-        """
-        Extract character names from text
-        Supports both English and Chinese names
-        
-        Args:
-            text: Text to extract characters from
-            existing_characters: Set of existing character names to avoid duplicates
-        
-        Returns:
-            List of extracted character names
-        """
-        characters = []
-        existing_lower = {name.lower() for name in existing_characters}
-        
-        # Common words that should not be considered as character names
-        common_words_english = {
-            'the', 'this', 'that', 'they', 'them', 'their', 'there', 'these', 'those',
-            'he', 'she', 'it', 'his', 'her', 'its', 'him', 'has', 'have', 'had',
-            'was', 'were', 'is', 'are', 'be', 'been', 'being', 'what', 'when', 'where',
-            'who', 'which', 'why', 'how', 'from', 'with', 'into', 'onto', 'upon',
-            'than', 'then', 'them', 'through', 'during', 'while', 'after', 'before'
-        }
-        
-        common_words_chinese = {
-            '他', '她', '它', '他们', '她们', '它们', '这', '那', '这个', '那个',
-            '这些', '那些', '这里', '那里', '这时', '那时', '这个', '那个',
-            '是', '的', '了', '在', '有', '和', '与', '或', '但', '而', '也', '都'
-        }
-        
-        # English: Capitalized names (words starting with capital letter)
-        english_pattern = r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b'
-        english_matches = re.findall(english_pattern, text)
-        
-        # Chinese: Typically 2-4 characters (CJK Unified Ideographs)
-        chinese_pattern = r'[\u4e00-\u9fff]{2,4}'
-        chinese_matches = re.findall(chinese_pattern, text)
-        
-        # Collect all potential names and count their occurrences in the full text
-        candidate_names = set()
-        
-        for match in english_matches + chinese_matches:
-            name = match.strip()
-            if len(name) >= 2:
-                candidate_names.add(name)
-        
-        # Count occurrences of each candidate name in the full text
-        name_counts = {}
-        text_lower = text.lower()
-        
-        for name in candidate_names:
-            name_lower = name.lower()
-            
-            # Skip if already exists
-            if name_lower in existing_lower or name in existing_characters:
-                continue
-            
-            # Check against common words
-            if name_lower in common_words_english:
-                continue
-            
-            # Check if all characters are Chinese common words
-            if all(char in common_words_chinese for char in name if '\u4e00' <= char <= '\u9fff'):
-                continue
-            
-            # Skip pure numbers
-            if re.search(r'^\d+$', name):
-                continue
-            
-            # Count actual occurrences in text
-            if re.search(r'[A-Za-z]', name):
-                # English: use word boundary for accurate counting
-                pattern = r'\b' + re.escape(name) + r'\b'
-                count = len(re.findall(pattern, text, re.IGNORECASE))
-            else:
-                # Chinese: count substring occurrences (but this may over-count)
-                # For better accuracy, could use word segmentation, but for now use simple count
-                count = text.count(name)
-            
-            if count > 0:
-                name_counts[name] = count
-        
-        # Filter by frequency: require at least 1 occurrence (can increase to 2 for stricter filtering)
-        min_occurrences = 1
-        
-        found_names = set()
-        for name, count in name_counts.items():
-            if count >= min_occurrences and name not in found_names:
-                found_names.add(name)
-                characters.append(name)
-        
-        return characters
     
     def record_characters_from_message(
         self,
@@ -296,7 +218,7 @@ class CharacterService:
             allow_auto_generate_main: Whether to allow auto-generating main characters
             ai_extracted_characters: List of character names extracted by AI (from <CHARACTERS> tags, preferred)
             ai_extracted_characters_with_settings: Dict mapping character name to setting description
-            ai_status_changes: Dict mapping character name to status changes (e.g., {"角色名": {"is_main": True}})
+            ai_status_changes: Dict mapping character name to status changes (e.g., {"Character Name": {"is_main": True}})
         
         Returns:
             List of created/updated character records
@@ -380,23 +302,8 @@ class CharacterService:
                     existing_names.add(char_name)
                     logger.info(f"Recorded AI-extracted character: {char_name} (main={is_main}) in conversation {conversation_id}")
         
-        # Fallback: Auto-generate new characters from text if AI extraction is not available
-        # This is a fallback mechanism in case AI doesn't provide character information
-        elif allow_auto_generate:
-            logger.info("AI did not provide character information, falling back to text extraction")
-            extracted = self.extract_characters_from_text(content, existing_names)
-            for char_name in extracted:
-                if char_name not in existing_names:
-                    # Only create non-main characters in fallback (main characters should be explicitly marked)
-                    character = self.repository.create_character(
-                        conversation_id=conversation_id,
-                        name=char_name,
-                        first_appeared_message_id=message_id,
-                        is_main=False,  # Auto-generated characters are not main by default
-                        is_auto_generated=True
-                    )
-                    recorded.append(character.to_dict())
-                    existing_names.add(char_name)
+        # Note: Removed fallback text extraction mechanism as it was too inaccurate
+        # Only AI-extracted characters (from <CHARACTERS> tags) will be recorded
         
         # Process status changes for existing characters
         if ai_status_changes:
@@ -671,7 +578,7 @@ class CharacterService:
                         in_personality_section = True
                     elif in_personality_section:
                         # Continue collecting personality lines until next character or end
-                        # Stop if we encounter another "姓名：" or "Name:"
+                        # Stop if we encounter another "Name:" or "姓名："
                         if line.startswith('姓名：') or line.startswith('姓名:') or line.startswith('Name:') or line.startswith('Name：'):
                             break
                         personality_lines.append(line)
@@ -688,7 +595,7 @@ class CharacterService:
                         in_personality_section = True
                     elif in_personality_section:
                         # Continue collecting personality lines until next character or end
-                        # Stop if we encounter another "姓名：" or "Name:"
+                        # Stop if we encounter another "Name:" or "姓名："
                         if line.startswith('姓名：') or line.startswith('姓名:') or line.startswith('Name:') or line.startswith('Name：'):
                             break
                         personality_lines.append(line)

@@ -38,7 +38,7 @@ export const useChatState = () => {
   return {
     ...chatState,
 
-    // 消息操作
+    // Message operations
     setMessages: (messages: ChatMessage[]) => dispatch(setMessages(messages)),
     addMessage: (message: ChatMessage) => dispatch(addMessage(message)),
     updateMessage: (id: string, content: string) =>
@@ -46,21 +46,21 @@ export const useChatState = () => {
     removeMessage: (id: string) => dispatch(removeMessage(id)),
     clearMessages: () => dispatch(clearMessages()),
 
-    // 模型操作
+    // Model operations
     setModels: (models: OllamaModel[]) => dispatch(setModels(models)),
     addModel: (model: OllamaModel) => dispatch(addModel(model)),
     removeModel: (modelName: string) => dispatch(removeModel(modelName)),
     setSelectedModel: (model: string) => dispatch(setSelectedModel(model)),
 
-    // 发送状态
+    // Sending state
     setSending: (sending: boolean) => dispatch(setSending(sending)),
 
-    // 当前消息
+    // Current message
     setCurrentMessage: (message: string) =>
       dispatch(setCurrentMessage(message)),
     clearCurrentMessage: () => dispatch(clearCurrentMessage()),
 
-    // 对话历史
+    // Conversation history
     setConversationHistory: (history: any) =>
       dispatch(setConversationHistory(history)),
     addConversation: (conversation: any) =>
@@ -70,13 +70,13 @@ export const useChatState = () => {
     removeConversation: (id: string) => dispatch(removeConversation(id)),
     clearConversationHistory: () => dispatch(clearConversationHistory()),
 
-    // 活跃对话
+    // Active conversation
     setActiveConversation: (id: string | null) =>
       dispatch(setActiveConversation(id)),
     loadConversation: (conversation: any, messages: ChatMessage[]) =>
       dispatch(loadConversation({ conversation, messages })),
 
-    // 重置
+    // Reset
     resetChat: () => dispatch(resetChat()),
     sendMessage,
   };

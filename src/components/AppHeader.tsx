@@ -37,7 +37,7 @@ export const AppHeader = ({ onOpenSettings }: AppHeaderProps) => {
             setLocale(availableLocales[nextIndex]);
           }}
           className={styles.languageBtn}
-          title={locale === 'zh' ? 'Switch to English' : '切换到中文'}
+          title={t('app.switchLanguage')}
         >
           {locale === 'zh' ? 'EN' : '中'}
         </button>

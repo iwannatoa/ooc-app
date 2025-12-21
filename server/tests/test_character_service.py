@@ -33,25 +33,6 @@ class TestCharacterService:
         """Create CharacterService instance"""
         return CharacterService(mock_repo, mock_chat_repo)
     
-    def test_extract_characters_from_text(self, service):
-        """Test extracting characters from text"""
-        text = "Alice met Bob in the forest. Charlie was also there."
-        existing = set()
-        
-        characters = service.extract_characters_from_text(text, existing)
-        
-        assert len(characters) > 0
-        assert 'Alice' in characters or 'Bob' in characters or 'Charlie' in characters
-    
-    def test_extract_characters_skips_existing(self, service):
-        """Test that extraction skips existing characters"""
-        text = "Alice met Bob. Alice was happy."
-        existing = {'Alice'}
-        
-        characters = service.extract_characters_from_text(text, existing)
-        
-        assert 'Alice' not in characters
-    
     def test_record_characters_from_message_predefined(self, service, mock_repo, sample_conversation_id):
         """Test recording predefined characters"""
         content = "Alice and Bob went on an adventure."
@@ -79,10 +60,11 @@ class TestCharacterService:
         assert len(result) == 2
         assert mock_repo.create_character.call_count == 2
     
-    def test_record_characters_auto_generate(self, service, mock_repo, sample_conversation_id):
-        """Test auto-generating characters"""
+    def test_record_characters_ai_extracted(self, service, mock_repo, sample_conversation_id):
+        """Test recording AI-extracted characters"""
         content = "Eve and Frank appeared suddenly."
         predefined = []
+        ai_extracted = ['Eve', 'Frank']
         
         # Mock repository
         mock_repo.get_characters_by_conversation.return_value = []
@@ -100,11 +82,13 @@ class TestCharacterService:
             message_id=1,
             content=content,
             predefined_characters=predefined,
-            allow_auto_generate=True
+            allow_auto_generate=True,
+            ai_extracted_characters=ai_extracted
         )
         
-        # Should create auto-generated characters
-        assert len(result) > 0
+        # Should create AI-extracted characters
+        assert len(result) == 2
+        assert mock_repo.create_character.call_count == 2
     
     def test_get_characters(self, service, mock_repo, sample_conversation_id):
         """Test getting characters"""

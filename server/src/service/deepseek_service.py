@@ -1,5 +1,5 @@
 """
-DeepSeek 服务模块
+DeepSeek service module
 """
 import requests
 from typing import Dict, Optional
@@ -11,14 +11,14 @@ logger = get_logger(__name__)
 
 
 class DeepSeekService:
-    """DeepSeek API 服务类"""
+    """DeepSeek API service class"""
     
     def __init__(self, base_url: Optional[str] = None):
         """
-        初始化 DeepSeek 服务
+        Initialize DeepSeek service
         
         Args:
-            base_url: DeepSeek API 基础 URL
+            base_url: DeepSeek API base URL
         """
         self.base_url = base_url or Config.DEEPSEEK_BASE_URL
         self.timeout = Config.DEEPSEEK_TIMEOUT
@@ -33,22 +33,22 @@ class DeepSeekService:
         base_url: Optional[str] = None
     ) -> Dict:
         """
-        发送聊天完成请求
+        Send chat completion request
         
         Args:
-            api_key: API 密钥
-            model: 模型名称
-            messages: 消息列表
-            max_tokens: 最大令牌数
-            temperature: 温度参数
-            base_url: 自定义基础 URL
+            api_key: API key
+            model: Model name
+            messages: Messages list
+            max_tokens: Maximum tokens
+            temperature: Temperature parameter
+            base_url: Custom base URL
         
         Returns:
-            聊天完成结果字典
+            Chat completion result dictionary
         
         Raises:
-            ValidationError: 当 API 密钥缺失时
-            ProviderError: 当 API 调用失败时
+            ValidationError: When API key is missing
+            ProviderError: When API call fails
         """
         if not api_key:
             raise ValidationError("DeepSeek API key is required", field='apiKey')

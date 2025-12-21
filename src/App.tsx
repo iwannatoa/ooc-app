@@ -234,10 +234,7 @@ function App() {
 
       <ConfirmDialog
         isOpen={showDeleteLastMessageDialog}
-        message={t('storyActions.confirmDeleteLastMessage', {
-          defaultValue:
-            '确定要删除最后一条消息吗？这将同时删除相关的人物记录。',
-        })}
+        message={t('storyActions.confirmDeleteLastMessage')}
         onConfirm={handleConfirmDeleteLastMessage}
         onCancel={() => setShowDeleteLastMessageDialog(false)}
         confirmButtonStyle='danger'
@@ -245,9 +242,7 @@ function App() {
 
       <ConfirmDialog
         isOpen={showDeleteConversationDialog}
-        message={t('conversation.confirmDeleteConversation', {
-          defaultValue: '确定要删除这个故事吗？此操作不可撤销。',
-        })}
+        message={t('conversation.confirmDeleteConversation')}
         onConfirm={handleConfirmDeleteConversation}
         onCancel={closeDeleteConversationDialog}
         confirmButtonStyle='danger'

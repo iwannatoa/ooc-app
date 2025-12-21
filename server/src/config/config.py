@@ -1,7 +1,7 @@
 # Copyright © 2016-2025 Patrick Zhang.
 # All Rights Reserved.
 """
-应用配置模块
+Application configuration module
 """
 import os
 from typing import Optional
@@ -54,19 +54,19 @@ class Config:
 
 
 class DevelopmentConfig(Config):
-    """开发环境配置"""
+    """Development environment configuration"""
     DEBUG: bool = True
     LOG_LEVEL: str = 'DEBUG'
 
 
 class ProductionConfig(Config):
-    """生产环境配置"""
+    """Production environment configuration"""
     DEBUG: bool = False
     LOG_LEVEL: str = 'INFO'
 
 
 class TestingConfig(Config):
-    """测试环境配置"""
+    """Testing environment configuration"""
     TESTING: bool = True
     DEBUG: bool = True
     LOG_LEVEL: str = 'DEBUG'
@@ -83,13 +83,13 @@ config = {
 
 def get_config(env: Optional[str] = None) -> Config:
     """
-    获取配置对象
+    Get configuration object
     
     Args:
-        env: 环境名称 (development, production, testing)
+        env: Environment name (development, production, testing)
     
     Returns:
-        Config 对象
+        Config object
     """
     if env is None:
         env = os.getenv('FLASK_ENV', 'default')

@@ -1,21 +1,21 @@
 /**
- * 解析文本中的 think 内容，返回分割后的部分
- * @param text 可能包含 think 内容的文本
- * @returns 包含普通内容和 think 内容的数组
+ * Parse think content in text and return split parts
+ * @param text Text that may contain think content
+ * @returns Array containing normal content and think content
  */
 export interface TextPart {
   type: 'text' | 'think';
   content: string;
-  isOpen: boolean; // think 是否还在开放状态（未闭合）
+  isOpen: boolean; // Whether think is still open (not closed)
 }
 
 export const parseThinkContent = (text: string): TextPart[] => {
   const parts: TextPart[] = [];
   let currentIndex = 0;
   
-  // 匹配 think 标签
-  // 格式可能是: <think>...</think> 或 <think>...</think> 或 <think>...</think>
-  // 根据后端代码，应该是 <think> 开头 </think> 结尾
+  // Match think tags
+  // Format may be: <think>...</think>
+  // According to backend code, should start with <think> and end with </think>
   const thinkRegex = /<(?:think|redacted_reasoning)>(.*?)<\/(?:think|redacted_reasoning)>/gis;
   let match;
   const matches: Array<{ index: number; length: number; content: string; isOpen: boolean }> = [];
@@ -29,13 +29,13 @@ export const parseThinkContent = (text: string): TextPart[] => {
     });
   }
   
-  // 检查是否有未闭合的 think 标签
+  // Check if there are unclosed think tags
   const remainingText = text.slice(currentIndex);
   const openThinkRegex = /<(?:redacted_reasoning|think)>([^]*?)$/i;
   const openMatch = remainingText.match(openThinkRegex);
   
   if (openMatch && (!matches.length || matches[matches.length - 1].index + matches[matches.length - 1].length < text.length - openMatch[0].length)) {
-    // 有未闭合的标签
+    // Has unclosed tag
     const openIndex = text.length - remainingText.length + remainingText.indexOf(openMatch[0]);
     matches.push({
       index: openIndex,
@@ -45,12 +45,12 @@ export const parseThinkContent = (text: string): TextPart[] => {
     });
   }
   
-  // 按索引排序匹配项
+  // Sort matches by index
   matches.sort((a, b) => a.index - b.index);
   
-  // 构建结果
+  // Build result
   for (const matchInfo of matches) {
-    // 添加 think 标签之前的内容
+    // Add content before think tag
     if (matchInfo.index > currentIndex) {
       const beforeContent = text.slice(currentIndex, matchInfo.index).trim();
       if (beforeContent) {
@@ -58,7 +58,7 @@ export const parseThinkContent = (text: string): TextPart[] => {
       }
     }
     
-    // 添加 think 内容
+    // Add think content
     const thinkContent = matchInfo.content.trim();
     if (thinkContent || matchInfo.isOpen) {
       parts.push({ 
@@ -71,13 +71,13 @@ export const parseThinkContent = (text: string): TextPart[] => {
     currentIndex = matchInfo.index + matchInfo.length;
   }
   
-  // 添加剩余内容
+  // Add remaining content
   const remainingContent = text.slice(currentIndex).trim();
   if (remainingContent) {
     parts.push({ type: 'text', content: remainingContent, isOpen: false });
   }
   
-  // 如果没有匹配到任何内容，返回整个文本作为普通内容
+  // If no content matched, return entire text as normal content
   if (parts.length === 0) {
     parts.push({ type: 'text', content: text, isOpen: false });
   }
@@ -86,7 +86,7 @@ export const parseThinkContent = (text: string): TextPart[] => {
 };
 
 /**
- * 提取并移除所有 think 内容（用于保存时）
+ * Extract and remove all think content (for saving)
  */
 export const stripThinkContent = (text: string): string => {
   // Remove think tags (various formats)

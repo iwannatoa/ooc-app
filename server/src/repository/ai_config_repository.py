@@ -1,5 +1,5 @@
 """
-全局 AI 配置数据访问层
+Global AI configuration data access layer
 """
 from typing import Optional, List
 from datetime import datetime
@@ -12,14 +12,14 @@ logger = get_logger(__name__)
 
 
 class AIConfigRepository:
-    """全局 AI 配置仓库类"""
+    """Global AI configuration repository class"""
     
     def __init__(self, db_path: str):
         """
-        初始化仓库
+        Initialize repository
         
         Args:
-            db_path: 数据库文件路径
+            db_path: Database file path
         """
         self.db_path = db_path
         # Create database engine
@@ -34,7 +34,7 @@ class AIConfigRepository:
         self._init_database()
     
     def _init_database(self):
-        """初始化数据库，创建表"""
+        """Initialize database, create tables"""
         try:
             Base.metadata.create_all(self.engine)
             logger.info(f"AI config database initialized at: {self.db_path}")
@@ -43,19 +43,19 @@ class AIConfigRepository:
             raise
     
     def _get_session(self) -> Session:
-        """获取数据库会话"""
+        """Get database session"""
         return self.SessionLocal()
     
     def get_config(self, provider: str, include_api_key: bool = False) -> Optional[AIConfig]:
         """
-        获取指定 provider 的配置
+        Get configuration for specified provider
         
         Args:
-            provider: AI提供商（ollama, deepseek）
-            include_api_key: 是否包含 API Key
+            provider: AI provider (ollama, deepseek)
+            include_api_key: Whether to include API Key
         
         Returns:
-            配置对象，如果不存在则返回 None
+            Config object, or None if not exists
         """
         session = self._get_session()
         try:
@@ -71,13 +71,13 @@ class AIConfigRepository:
     
     def get_all_configs(self, include_api_key: bool = False) -> List[AIConfig]:
         """
-        获取所有 AI 配置
+        Get all AI configurations
         
         Args:
-            include_api_key: 是否包含 API Key
+            include_api_key: Whether to include API Key
         
         Returns:
-            配置列表
+            Config list
         """
         session = self._get_session()
         try:
@@ -99,18 +99,18 @@ class AIConfigRepository:
         temperature: Optional[float] = None
     ) -> AIConfig:
         """
-        创建或更新 AI 配置
+        Create or update AI configuration
         
         Args:
-            provider: AI提供商（ollama, deepseek）
-            model: 默认模型名称
-            api_key: API密钥
-            base_url: 自定义基础URL
-            max_tokens: 最大令牌数
-            temperature: 温度参数
+            provider: AI provider (ollama, deepseek)
+            model: Default model name
+            api_key: API key
+            base_url: Custom base URL
+            max_tokens: Maximum tokens
+            temperature: Temperature parameter
         
         Returns:
-            配置对象
+            Config object
         """
         session = self._get_session()
         try:

@@ -1,5 +1,5 @@
 """
-服务层模块
+Service layer module
 """
 from .ai_service import AIService
 from .ollama_service import OllamaService

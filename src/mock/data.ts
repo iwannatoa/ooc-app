@@ -4,7 +4,7 @@
  */
 import { ConversationWithSettings, ChatMessage, OllamaModel } from '@/types';
 
-// Mock 故事列表数据
+// Mock story list data
 export const mockConversations: ConversationWithSettings[] = [
   {
     id: 'conv_001',
@@ -64,14 +64,14 @@ export const mockConversations: ConversationWithSettings[] = [
         林侦探: '经验丰富但有些固执的资深侦探',
         助手小王: '年轻、充满热情的新人助手',
       },
-      outline: undefined, // 测试没有大纲的情况
+      outline: undefined, // Test case without outline
       created_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
       updated_at: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
     },
   },
 ];
 
-// Mock 消息数据（只包含助手生成的故事内容，不包含用户消息）
+// Mock message data (only contains assistant-generated story content, no user messages)
 export const mockMessages: Record<string, ChatMessage[]> = {
   conv_001: [
     {
@@ -105,7 +105,7 @@ export const mockMessages: Record<string, ChatMessage[]> = {
   ],
 };
 
-// Mock 模型列表
+// Mock model list
 export const mockModels: OllamaModel[] = [
   {
     name: 'llama2',
@@ -143,10 +143,10 @@ export const mockModels: OllamaModel[] = [
   },
 ];
 
-// 模拟延迟
+// Simulate delay
 export const mockDelay = (ms: number = 500) =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
-// 生成随机ID
+// Generate random ID
 export const generateMockId = () =>
   `mock_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;

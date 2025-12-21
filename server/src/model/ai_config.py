@@ -1,5 +1,5 @@
 """
-全局 AI 配置数据模型
+Global AI configuration data model
 """
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, Text, DateTime, UniqueConstraint
@@ -9,18 +9,18 @@ Base = declarative_base()
 
 
 class AIConfig(Base):
-    """全局 AI 配置模型"""
+    """Global AI configuration model"""
     __tablename__ = 'ai_configs'
     
     id = Column(Integer, primary_key=True, autoincrement=True)
-    provider = Column(String(50), nullable=False, unique=True, index=True, comment='AI提供商（ollama, deepseek）')
-    model = Column(String(100), nullable=True, comment='默认模型名称')
-    api_key = Column(Text, nullable=True, comment='API密钥（DeepSeek需要）')
-    base_url = Column(String(500), nullable=True, comment='自定义基础URL')
-    max_tokens = Column(Integer, nullable=True, default=2048, comment='最大令牌数')
-    temperature = Column(String(10), nullable=True, default='0.7', comment='温度参数')
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, comment='创建时间')
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False, comment='更新时间')
+    provider = Column(String(50), nullable=False, unique=True, index=True, comment='AI provider (ollama, deepseek)')
+    model = Column(String(100), nullable=True, comment='Default model name')
+    api_key = Column(Text, nullable=True, comment='API key (required for DeepSeek)')
+    base_url = Column(String(500), nullable=True, comment='Custom base URL')
+    max_tokens = Column(Integer, nullable=True, default=2048, comment='Maximum tokens')
+    temperature = Column(String(10), nullable=True, default='0.7', comment='Temperature parameter')
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, comment='Created at')
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False, comment='Updated at')
     
     # Ensure only one record per provider
     __table_args__ = (
@@ -29,10 +29,10 @@ class AIConfig(Base):
     
     def to_dict(self, include_api_key: bool = False) -> dict:
         """
-        转换为字典
+        Convert to dictionary
         
         Args:
-            include_api_key: 是否包含 API Key（默认 False，安全考虑）
+            include_api_key: Whether to include API Key (default False, for security)
         """
         result = {
             'id': self.id,

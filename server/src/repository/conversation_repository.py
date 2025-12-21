@@ -99,18 +99,18 @@ class ConversationRepository:
         additional_settings: Optional[Dict] = None
     ) -> ConversationSettings:
         """
-        创建或更新会话设置
+        Create or update conversation settings
         
         Args:
-            conversation_id: 会话ID
-            title: 会话标题
-            background: 故事背景
-            characters: 人物列表
-            character_personality: 人物设定字典
-            outline: 大纲
+            conversation_id: Conversation ID
+            title: Conversation title
+            background: Story background
+            characters: Character list
+            character_personality: Character personality dictionary
+            outline: Outline
         
         Returns:
-            会话设置对象
+            Conversation settings object
         """
         session = self._get_session()
         try:
@@ -165,13 +165,13 @@ class ConversationRepository:
     
     def get_settings(self, conversation_id: str) -> Optional[ConversationSettings]:
         """
-        获取会话设置
+        Get conversation settings
         
         Args:
-            conversation_id: 会话ID
+            conversation_id: Conversation ID
         
         Returns:
-            会话设置对象，如果不存在则返回 None
+            Conversation settings object, or None if not exists
         """
         session = self._get_session()
         try:
@@ -187,10 +187,10 @@ class ConversationRepository:
     
     def get_all_conversations_with_settings(self) -> List[Dict]:
         """
-        获取所有会话及其设置
+        Get all conversations with settings
         
         Returns:
-            会话列表（包含设置信息）
+            Conversations list (with settings information)
         """
         session = self._get_session()
         try:
@@ -206,13 +206,13 @@ class ConversationRepository:
     
     def delete_settings(self, conversation_id: str) -> bool:
         """
-        删除会话设置
+        Delete conversation settings
         
         Args:
-            conversation_id: 会话ID
+            conversation_id: Conversation ID
         
         Returns:
-            是否成功删除
+            Whether deletion was successful
         """
         session = self._get_session()
         try:

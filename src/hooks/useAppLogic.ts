@@ -149,16 +149,12 @@ export const useAppLogic = () => {
         activeConversationId
       );
       if (success) {
-        showSuccess(
-          t('storyActions.deleteLastMessageSuccess', {
-            defaultValue: '删除成功',
-          })
-        );
+        showSuccess(t('storyActions.deleteLastMessageSuccess'));
         await handleSelectConversation(activeConversationId);
       } else {
         showError(
           t('storyActions.deleteLastMessageFailed', {
-            defaultValue: '删除失败：未找到消息',
+            error: t('common.error'),
           })
         );
       }
@@ -166,9 +162,7 @@ export const useAppLogic = () => {
       console.error('Failed to delete last message:', error);
       showError(
         t('storyActions.deleteLastMessageFailed', {
-          defaultValue:
-            '删除最后一条消息失败: ' +
-            (error instanceof Error ? error.message : '未知错误'),
+          error: t('common.error'),
         })
       );
     }

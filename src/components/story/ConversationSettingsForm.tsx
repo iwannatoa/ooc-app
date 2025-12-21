@@ -182,10 +182,7 @@ const ConversationSettingsForm: React.FC<ConversationSettingsFormProps> = ({
       console.error('Failed to generate character:', error);
       showError(
         t('conversationSettingsForm.generateCharacterFailed', {
-          error:
-            error instanceof Error
-              ? error.message
-              : t('common.error', { defaultValue: '未知错误' }),
+          error: t('common.error'),
         })
       );
     } finally {
@@ -236,10 +233,7 @@ const ConversationSettingsForm: React.FC<ConversationSettingsFormProps> = ({
       console.error('Failed to generate outline:', error);
       showError(
         t('conversationSettingsForm.generateOutlineFailed', {
-          error:
-            error instanceof Error
-              ? error.message
-              : t('common.error', { defaultValue: '未知错误' }),
+          error: t('common.error'),
         })
       );
     } finally {
@@ -291,10 +285,7 @@ const ConversationSettingsForm: React.FC<ConversationSettingsFormProps> = ({
         console.error('Failed to generate outline:', error);
         showError(
           t('conversationSettingsForm.autoGenerateOutlineFailed', {
-            error:
-              error instanceof Error
-                ? error.message
-                : t('common.error', { defaultValue: '未知错误' }),
+            error: t('common.error'),
           })
         );
         setIsGeneratingOutline(false);

@@ -1,5 +1,5 @@
 """
-聊天记录服务层
+Chat record service layer
 """
 from typing import List, Optional, Dict
 from repository.chat_repository import ChatRepository
@@ -9,14 +9,14 @@ logger = get_logger(__name__)
 
 
 class ChatService:
-    """聊天记录服务类"""
+    """Chat record service class"""
     
     def __init__(self, chat_repository: ChatRepository):
         """
-        初始化服务
+        Initialize service
         
         Args:
-            chat_repository: 聊天记录仓库实例
+            chat_repository: Chat record repository instance
         """
         self.repository = chat_repository
     
@@ -26,14 +26,14 @@ class ChatService:
         message: str
     ) -> Dict:
         """
-        保存用户消息
+        Save user message
         
         Args:
-            conversation_id: 会话ID
-            message: 用户消息
+            conversation_id: Conversation ID
+            message: User message
         
         Returns:
-            保存的记录字典
+            Saved record dictionary
         """
         record = self.repository.save_message(
             conversation_id=conversation_id,
@@ -50,16 +50,16 @@ class ChatService:
         provider: Optional[str] = None
     ) -> Dict:
         """
-        保存助手消息
+        Save assistant message
         
         Args:
-            conversation_id: 会话ID
-            content: 助手回复内容
-            model: 使用的模型
-            provider: AI提供商
+            conversation_id: Conversation ID
+            content: Assistant reply content
+            model: Model used
+            provider: AI provider
         
         Returns:
-            保存的记录字典
+            Saved record dictionary
         """
         record = self.repository.save_message(
             conversation_id=conversation_id,
@@ -77,15 +77,15 @@ class ChatService:
         offset: int = 0
     ) -> List[Dict]:
         """
-        获取会话消息列表
+        Get conversation messages list
         
         Args:
-            conversation_id: 会话ID
-            limit: 限制数量
-            offset: 偏移量
+            conversation_id: Conversation ID
+            limit: Limit count
+            offset: Offset
         
         Returns:
-            消息列表
+            Messages list
         """
         records = self.repository.get_conversation_messages(
             conversation_id=conversation_id,
@@ -96,31 +96,31 @@ class ChatService:
     
     def get_all_conversations(self) -> List[str]:
         """
-        获取所有会话ID列表
+        Get all conversation IDs list
         
         Returns:
-            会话ID列表
+            Conversation IDs list
         """
         return self.repository.get_all_conversations()
     
     def delete_conversation(self, conversation_id: str) -> bool:
         """
-        删除会话
+        Delete conversation
         
         Args:
-            conversation_id: 会话ID
+            conversation_id: Conversation ID
         
         Returns:
-            是否成功删除
+            Whether deletion was successful
         """
         return self.repository.delete_conversation(conversation_id)
     
     def get_conversation_count(self) -> int:
         """
-        获取会话总数
+        Get total conversation count
         
         Returns:
-            会话数量
+            Conversation count
         """
         return self.repository.get_conversation_count()
     

@@ -75,6 +75,7 @@
       "- This is section generation, ensure the current section has appropriate beginning, development, and transition",
       "- After the story content, add character change information (if new characters appear or character status changes)"
     ],
+    "section_generation_keyword": "section generation",
     "character_changes": {
       "intro": "## Character Changes",
       "instructions": [
@@ -100,7 +101,18 @@
         "   - Restored to Available: When a previously unavailable character reappears",
         "4. If there are no new characters and no status changes in this section, do not add this section.",
         "5. Status changes are optional, only record when there are clear significant changes."
-      ]
+      ],
+      "status_keywords": {
+        "became_main": ["became main", "main character"],
+        "became_unavailable": [
+          "became unavailable",
+          "unavailable",
+          "death",
+          "leave",
+          "disappear"
+        ],
+        "restored_available": ["restored to available", "restored", "reappear"]
+      }
     }
   },
   "summary_prompt": {
@@ -152,12 +164,14 @@
       "rewrite": {
         "label": "**Operation Type**: Rewrite",
         "content_label": "Content to rewrite:",
-        "instruction": "Please completely recreate this section based on the user's feedback."
+        "instruction": "Please completely recreate this section based on the user's feedback.",
+        "keywords": ["rewrite"]
       },
       "modify": {
         "label": "**Operation Type**: Adjust",
         "content_label": "Content to adjust:",
-        "instruction": "Please adjust based on the user's feedback while maintaining story coherence."
+        "instruction": "Please adjust based on the user's feedback while maintaining story coherence.",
+        "keywords": ["change", "modify"]
       },
       "continue": {
         "label": "**Operation Type**: Continue",

@@ -41,25 +41,25 @@ class AIService:
         messages: Optional[list] = None
     ) -> Dict:
         """
-        发送聊天请求
+        Send chat request
         
         Args:
-            provider: 提供商名称 (ollama, deepseek)
-            message: 用户消息
-            model: 模型名称
-            api_key: API 密钥（DeepSeek 需要）
-            base_url: 自定义基础 URL
-            max_tokens: 最大令牌数
-            temperature: 温度参数
-            system_prompt: System prompt（可选）
-            messages: 消息历史列表（可选，格式：[{"role": "user/assistant", "content": "..."}]
+            provider: Provider name (ollama, deepseek)
+            message: User message
+            model: Model name
+            api_key: API key (required for DeepSeek)
+            base_url: Custom base URL
+            max_tokens: Maximum tokens
+            temperature: Temperature parameter
+            system_prompt: System prompt (optional)
+            messages: Message history list (optional, format: [{"role": "user/assistant", "content": "..."}]
         
         Returns:
-            包含响应和模型信息的字典
+            Dictionary containing response and model information
         
         Raises:
-            ValidationError: 当参数验证失败时
-            ProviderError: 当提供商不支持或调用失败时
+            ValidationError: When parameter validation fails
+            ProviderError: When provider is not supported or call fails
         """
         if not message and not messages:
             raise ValidationError("Message or messages cannot be empty", field='message')
@@ -86,16 +86,16 @@ class AIService:
         messages: Optional[list] = None
     ) -> Dict:
         """
-        使用 Ollama 发送聊天请求
+        Send chat request using Ollama
         
         Args:
-            message: 用户消息
-            model: 模型名称
+            message: User message
+            model: Model name
             system_prompt: System prompt
-            messages: 消息历史
+            messages: Message history
         
         Returns:
-            包含响应和模型信息的字典
+            Dictionary containing response and model information
         """
         try:
             # Build complete prompt
@@ -110,12 +110,12 @@ class AIService:
                     role = msg.get('role', '')
                     content = msg.get('content', '')
                     if role == 'user':
-                        full_prompt += f"用户：{content}\n\n"
+                        full_prompt += f"User: {content}\n\n"
                     elif role == 'assistant':
-                        full_prompt += f"助手：{content}\n\n"
+                        full_prompt += f"Assistant: {content}\n\n"
             
             # Add current message
-            full_prompt += f"用户：{message}\n\n助手："
+            full_prompt += f"User: {message}\n\nAssistant:"
             
             result = self.ollama_service.generate(
                 model=model,
@@ -208,16 +208,16 @@ class AIService:
     
     def get_models(self, provider: str = 'ollama') -> Dict:
         """
-        获取可用模型列表
+        Get available models list
         
         Args:
-            provider: 提供商名称（目前仅支持 ollama）
+            provider: Provider name (currently only supports ollama)
         
         Returns:
-            包含模型列表的字典
+            Dictionary containing models list
         
         Raises:
-            ProviderError: 当提供商不支持时
+            ProviderError: When provider is not supported
         """
         if provider == 'ollama':
             try:
@@ -244,13 +244,13 @@ class AIService:
     
     def health_check(self, provider: str = 'ollama') -> Dict:
         """
-        检查服务健康状态
+        Check service health status
         
         Args:
-            provider: 提供商名称
+            provider: Provider name
         
         Returns:
-            健康状态字典
+            Health status dictionary
         """
         if provider == 'ollama':
             is_healthy = self.ollama_service.health_check()

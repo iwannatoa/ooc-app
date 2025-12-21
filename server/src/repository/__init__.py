@@ -1,5 +1,5 @@
 """
-数据访问层模块
+Data access layer module
 """
 from .chat_repository import ChatRepository
 from .conversation_repository import ConversationRepository

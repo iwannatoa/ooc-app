@@ -17,16 +17,16 @@ def create_stream_response(
     on_complete: Optional[Callable[[str], None]] = None
 ) -> Response:
     """
-    创建统一的流式响应
+    Create unified stream response
     
     Args:
-        stream_generator: 生成器函数，产生字符串块
-        on_chunk: 可选的chunk处理回调函数，接收chunk作为参数
-        on_error: 可选的错误处理回调函数，接收Exception作为参数
-        on_complete: 可选的完成回调函数，接收累积的完整内容作为参数
+        stream_generator: Generator function that produces string chunks
+        on_chunk: Optional chunk processing callback function, receives chunk as parameter
+        on_error: Optional error handling callback function, receives Exception as parameter
+        on_complete: Optional completion callback function, receives accumulated complete content as parameter
     
     Returns:
-        Flask Response对象，配置为SSE流
+        Flask Response object, configured as SSE stream
     """
     def generate():
         """Generator function for streaming response"""

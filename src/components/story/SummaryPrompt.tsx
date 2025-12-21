@@ -33,7 +33,7 @@ const SummaryPrompt: React.FC<SummaryPromptProps> = ({
     } catch (error) {
       console.error('Failed to generate summary:', error);
       showError(t('summaryPrompt.generateFailed', {
-        error: error instanceof Error ? error.message : t('common.error', { defaultValue: '未知错误' })
+        error: t('common.error')
       }));
     } finally {
       setIsGenerating(false);
@@ -51,7 +51,7 @@ const SummaryPrompt: React.FC<SummaryPromptProps> = ({
     } catch (error) {
       console.error('Failed to save summary:', error);
         showError(t('summaryPrompt.saveFailed', {
-          error: error instanceof Error ? error.message : t('common.error', { defaultValue: '未知错误' })
+          error: t('common.error')
         }));
     } finally {
       setIsSaving(false);

@@ -1,5 +1,5 @@
 """
-故事进度数据访问层
+Story progress data access layer
 """
 from typing import Optional
 from datetime import datetime
@@ -12,14 +12,14 @@ logger = get_logger(__name__)
 
 
 class StoryProgressRepository:
-    """故事进度仓库类"""
+    """Story progress repository class"""
     
     def __init__(self, db_path: str):
         """
-        初始化仓库
+        Initialize repository
         
         Args:
-            db_path: 数据库文件路径
+            db_path: Database file path
         """
         self.db_path = db_path
         # Create database engine
@@ -34,7 +34,7 @@ class StoryProgressRepository:
         self._init_database()
     
     def _init_database(self):
-        """初始化数据库，创建表"""
+        """Initialize database, create tables"""
         try:
             Base.metadata.create_all(self.engine)
             logger.info(f"Story progress database initialized at: {self.db_path}")
@@ -43,18 +43,18 @@ class StoryProgressRepository:
             raise
     
     def _get_session(self) -> Session:
-        """获取数据库会话"""
+        """Get database session"""
         return self.SessionLocal()
     
     def get_progress(self, conversation_id: str) -> Optional[StoryProgress]:
         """
-        获取故事进度
+        Get story progress
         
         Args:
-            conversation_id: 会话ID
+            conversation_id: Conversation ID
         
         Returns:
-            进度对象，如果不存在则返回 None
+            Progress object, or None if not exists
         """
         session = self._get_session()
         try:
@@ -79,19 +79,19 @@ class StoryProgressRepository:
         outline_confirmed: bool = False
     ) -> StoryProgress:
         """
-        创建或更新故事进度
+        Create or update story progress
         
         Args:
-            conversation_id: 会话ID
-            current_section: 当前章节编号
-            total_sections: 总章节数
-            last_generated_content: 最后生成的内容
-            last_generated_section: 最后生成的部分编号
-            status: 状态
-            outline_confirmed: 大纲是否已确认
+            conversation_id: Conversation ID
+            current_section: Current section number
+            total_sections: Total sections count
+            last_generated_content: Last generated content
+            last_generated_section: Last generated section number
+            status: Status
+            outline_confirmed: Whether outline is confirmed
         
         Returns:
-            进度对象
+            Progress object
         """
         session = self._get_session()
         try:
@@ -142,13 +142,13 @@ class StoryProgressRepository:
     
     def mark_outline_confirmed(self, conversation_id: str) -> bool:
         """
-        标记大纲已确认
+        Mark outline as confirmed
         
         Args:
-            conversation_id: 会话ID
+            conversation_id: Conversation ID
         
         Returns:
-            是否成功
+            Whether successful
         """
         session = self._get_session()
         try:
@@ -185,13 +185,13 @@ class StoryProgressRepository:
     
     def delete_progress(self, conversation_id: str) -> bool:
         """
-        删除故事进度
+        Delete story progress
         
         Args:
-            conversation_id: 会话ID
+            conversation_id: Conversation ID
         
         Returns:
-            是否成功删除
+            Whether deletion was successful
         """
         session = self._get_session()
         try:

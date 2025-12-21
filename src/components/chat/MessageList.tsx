@@ -14,12 +14,12 @@ const MessageList: React.FC<MessageListProps> = ({ messages, loading }) => {
   const { t } = useI18n();
   const messageListRef = useRef<HTMLDivElement>(null);
 
-  // 只显示AI消息，过滤掉用户消息
+  // Only show AI messages, filter out user messages
   const aiMessages = messages.filter(
     (msg) => msg.role === 'assistant' || msg.role === 'ai'
   );
 
-  // 自动滚动到底部，当消息更新或加载状态变化时
+  // Auto scroll to bottom when messages update or loading state changes
   useEffect(() => {
     if (messageListRef.current) {
       messageListRef.current.scrollTop = messageListRef.current.scrollHeight;

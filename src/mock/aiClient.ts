@@ -1,7 +1,7 @@
 import { ChatMessage } from '@/types';
 import { mockDelay } from './data';
 
-// Mock AI 回复模板
+// Mock AI response templates
 const mockResponses = [
   '这是一个很有趣的问题。让我为你详细解释一下...',
   '根据你提供的信息，我认为...',
@@ -12,7 +12,7 @@ const mockResponses = [
 ];
 
 const generateMockResponse = (userMessage: string): string => {
-  // 简单的关键词匹配生成回复
+  // Simple keyword matching to generate response
   const responses = [...mockResponses];
   
   if (userMessage.includes('开始') || userMessage.includes('故事')) {
@@ -33,7 +33,7 @@ const generateMockResponse = (userMessage: string): string => {
     );
   }
   
-  // 随机选择一个回复并添加一些内容
+  // Randomly select a response and add some content
   const baseResponse = responses[Math.floor(Math.random() * responses.length)];
   const additionalContent = `\n\n${userMessage}这个问题让我想到了很多。在故事中，我们可以通过以下方式来展开：\n\n1. 首先，...\n2. 然后，...\n3. 最后，...\n\n这样的安排会让故事更加引人入胜。`;
   
@@ -45,7 +45,7 @@ export const mockAiClient = {
     message: string,
     _conversationId?: string
   ): Promise<ChatMessage> => {
-    // 模拟网络延迟
+    // Simulate network delay
     await mockDelay(1000 + Math.random() * 1000);
     
     const response = generateMockResponse(message);

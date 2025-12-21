@@ -1,5 +1,5 @@
 """
-配置模块
+Configuration module
 """
 from .config import Config, DevelopmentConfig, ProductionConfig, TestingConfig, get_config
 

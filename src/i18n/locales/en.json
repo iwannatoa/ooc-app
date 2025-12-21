@@ -13,7 +13,8 @@
     "new": "New",
     "expand": "Expand",
     "collapse": "Collapse",
-    "refresh": "Refresh"
+    "refresh": "Refresh",
+    "requestFailed": "Request failed"
   },
   "app": {
     "title": "AI Story Generator",
@@ -21,7 +22,8 @@
     "mockModeOn": "🔴 Mock",
     "mockModeOff": "⚪ Mock",
     "mockModeTooltipOn": "Turn off Mock mode",
-    "mockModeTooltipOff": "Turn on Mock mode"
+    "mockModeTooltipOff": "Turn on Mock mode",
+    "switchLanguage": "Switch to English"
   },
   "conversation": {
     "title": "Story History",
@@ -93,7 +95,7 @@
     "deleteLastMessageTooltip": "Delete the last message and related character records",
     "confirmDeleteLastMessage": "Are you sure you want to delete the last message? This will also delete related character records.",
     "deleteLastMessageSuccess": "Deleted successfully",
-    "deleteLastMessageFailed": "Failed to delete last message"
+    "deleteLastMessageFailed": "Failed to delete last message: {error}"
   },
   "serverStatus": {
     "pythonServer": "Python Server",
@@ -240,6 +242,11 @@
   "language": {
     "zh": "中文",
     "en": "English"
+  },
+  "titleBar": {
+    "minimize": "Minimize",
+    "maximize": "Maximize/Restore",
+    "close": "Close"
   }
 }
 

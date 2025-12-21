@@ -1,6 +1,6 @@
 /**
- * Mock 数据模块
- * 用于开发环境，提供模拟的API响应
+ * Mock data module
+ * Used in development environment to provide simulated API responses
  */
 
 export { mockConversationClient } from './conversationClient';
@@ -15,22 +15,22 @@ export {
   generateMockId,
 } from './data';
 
-// Mock 模式状态（由 useMockMode hook 管理）
+// Mock mode state (managed by useMockMode hook)
 let globalMockModeEnabled: boolean | null = null;
 
-// 设置全局 Mock 模式状态
+// Set global Mock mode state
 export const setMockModeEnabled = (enabled: boolean): void => {
   globalMockModeEnabled = enabled;
 };
 
-// 检查是否启用 Mock 模式
+// Check if Mock mode is enabled
 export const isMockMode = (): boolean => {
-  // 如果设置了全局状态，优先使用
+  // If global state is set, use it first
   if (globalMockModeEnabled !== null) {
     return globalMockModeEnabled;
   }
   
-  // 否则使用环境变量
+  // Otherwise use environment variable
   return import.meta.env.VITE_USE_MOCK === 'true' || 
          (import.meta.env.DEV && import.meta.env.VITE_USE_MOCK !== 'false');
 };

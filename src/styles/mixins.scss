@@ -1,6 +1,6 @@
 @use './variables' as *;
 
-// 混入函数
+// Mixin functions
 @mixin flex-center {
   display: flex;
   align-items: center;
