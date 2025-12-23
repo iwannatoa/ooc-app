@@ -35,6 +35,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = () => {
     canConfirm,
     canGenerate,
     canDeleteLast,
+    isFirstChapter,
   } = useAppLogic();
   const settingsDialog = useConversationSettingsDialog();
 
@@ -64,6 +65,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = () => {
         canConfirm={canConfirm}
         canGenerate={canGenerate}
         canDeleteLast={canDeleteLast}
+        isFirstChapter={isFirstChapter}
       />
     </div>
   );

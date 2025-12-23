@@ -137,10 +137,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
   if (!open) return null;
 
   return (
-    <div
-      className={styles.settingsPanelOverlay}
-      onClick={onClose}
-    >
+    <div className={styles.settingsPanelOverlay}>
       <div
         className={styles.settingsPanel}
         onClick={(e) => e.stopPropagation()}

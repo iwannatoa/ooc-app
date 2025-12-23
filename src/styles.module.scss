@@ -196,21 +196,62 @@
   }
 }
 
-.conversationTitle {
+.storyInfo {
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
   padding: $spacing-sm $spacing-md;
-  color: $text-primary;
+  background: $bg-darker;
+  border-radius: $border-radius;
+  border: 1px solid $border-color;
   font-size: $font-size-base;
+}
+
+.storyTitle {
+  color: $text-primary;
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 300px;
-  user-select: none;
-  pointer-events: none;
+  max-width: 200px;
 }
+
+.storyChapter {
+  color: $text-secondary;
+  font-size: $font-size-sm;
+  white-space: nowrap;
+}
+
+.exportButton {
+  @include button-reset;
+  padding: $spacing-sm $spacing-md;
+  border: none;
+  border-radius: $border-radius;
+  background: $primary-color;
+  color: white;
+  font-size: $font-size-base;
+  font-weight: 500;
+  transition: all $transition-fast;
+  cursor: pointer;
+  white-space: nowrap;
+
+  &:hover:not(:disabled) {
+    background: $primary-color-hover;
+  }
+
+  &:active:not(:disabled) {
+    opacity: 0.8;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
 
 .editSettingsBtn {
   @include button-reset;

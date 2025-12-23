@@ -27,14 +27,8 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
 
   if (!isOpen) return null;
 
-  const handleOverlayClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) {
-      onCancel();
-    }
-  };
-
   return (
-    <div className={styles.overlay} onClick={handleOverlayClick}>
+    <div className={styles.overlay}>
       <div className={styles.dialog} onClick={(e) => e.stopPropagation()}>
         {title && <h3 className={styles.title}>{title}</h3>}
         <div className={styles.content}>

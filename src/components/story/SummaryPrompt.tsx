@@ -59,7 +59,7 @@ const SummaryPrompt: React.FC<SummaryPromptProps> = ({
   };
 
   return (
-    <div className={styles.overlay} onClick={onCancel}>
+    <div className={styles.overlay}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div className={styles.header}>
           <h2>{t('summaryPrompt.title')}</h2>

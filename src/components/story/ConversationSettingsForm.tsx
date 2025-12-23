@@ -343,21 +343,8 @@ const ConversationSettingsForm: React.FC<ConversationSettingsFormProps> = ({
     }
   };
 
-  const handleOverlayClick = (e: React.MouseEvent) => {
-    if (
-      e.target === e.currentTarget &&
-      !isGeneratingOutline &&
-      !isGeneratingCharacter
-    ) {
-      onCancel();
-    }
-  };
-
   return (
-    <div
-      className={styles.overlay}
-      onClick={handleOverlayClick}
-    >
+    <div className={styles.overlay}>
       <div
         className={styles.modal}
         onClick={(e) => e.stopPropagation()}

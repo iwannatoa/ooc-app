@@ -9,6 +9,7 @@ import { useConversationManagement } from './useConversationManagement';
 import { useStoryActions } from './useStoryActions';
 import { useSettingsState } from './useSettingsState';
 import { useToast } from './useToast';
+import { useStoryProgress } from './useStoryProgress';
 import { useI18n } from '@/i18n';
 import { confirmDialog } from '@/services/confirmDialogService';
 import {
@@ -63,6 +64,7 @@ export const useAppLogic = () => {
   const { showError, showSuccess } = useToast();
   const { t } = useI18n();
   const conversationClient = useConversationClient();
+  const { progress } = useStoryProgress();
 
   // ===== Wrapper for setMessages to support function updater =====
   const setMessages = useCallback(
@@ -115,6 +117,20 @@ export const useAppLogic = () => {
       canConfirmSection(activeConversationId, currentSettings, messages.length),
     [activeConversationId, currentSettings, messages.length]
   );
+
+  // Check if this is the first chapter (no content generated yet)
+  const isFirstChapter = useMemo(() => {
+    // If no messages at all, it's definitely the first chapter
+    if (messages.length === 0) return true;
+    // If progress is not available or current_section is undefined/0, and there are no assistant messages, it's the first chapter
+    const hasAssistantMessages = messages.some(msg => msg.role === 'assistant');
+    if (!hasAssistantMessages) return true;
+    // If we have progress and current_section is 0, and no assistant messages, it's the first chapter
+    if (progress && (progress.current_section === undefined || progress.current_section === 0)) {
+      return !hasAssistantMessages;
+    }
+    return false;
+  }, [messages, progress]);
 
   // ===== Story Action Logic =====
   const storyActions = useStoryActions({
@@ -187,6 +203,7 @@ export const useAppLogic = () => {
     canGenerate,
     canConfirm,
     canDeleteLast: messages.length > 0,
+    isFirstChapter,
 
     // Conversation Management Actions
     handleSaveSettings,

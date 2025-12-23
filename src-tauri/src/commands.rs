@@ -26,7 +26,7 @@ pub struct PythonServer {
 
 impl PythonServer {
     pub fn new() -> Self {
-        Self { 
+        Self {
             process: None,
             port: None,
             pid: None,
@@ -57,16 +57,15 @@ pub async fn start_python_server(
             let db_path = app_data_dir.join("chat.db");
             Some(db_path.to_string_lossy().to_string())
         }
-        Err(_) => {
-            None
-        }
+        Err(_) => None,
     };
 
     let command = if cfg!(debug_assertions) {
         let project_root = std::env::current_dir()
             .ok()
             .and_then(|dir| {
-                if dir.file_name()
+                if dir
+                    .file_name()
                     .and_then(|name| name.to_str())
                     .map(|name| name == "src-tauri")
                     .unwrap_or(false)
@@ -86,12 +85,10 @@ pub async fn start_python_server(
                         .or(Some(dir))
                 }
             })
-            .unwrap_or_else(|| {
-                std::path::PathBuf::from(".")
-            });
-        
+            .unwrap_or_else(|| std::path::PathBuf::from("."));
+
         let run_script = project_root.join("server").join("run.py");
-        
+
         let mut cmd = app_handle.shell().command("python");
         cmd = cmd.args(&[run_script.to_string_lossy().as_ref()]);
         cmd = cmd.current_dir(&project_root);
@@ -114,7 +111,10 @@ pub async fn start_python_server(
                 return Ok(ApiResponse {
                     success: false,
                     data: None,
-                    error: Some(format!("Cannot find embedded Python server executable: {}", e)),
+                    error: Some(format!(
+                        "Cannot find embedded Python server executable: {}",
+                        e
+                    )),
                 });
             }
         }
@@ -123,9 +123,9 @@ pub async fn start_python_server(
     match command.spawn() {
         Ok((mut rx, child)) => {
             server.process = Some(child);
-            
+
             let app_handle_clone = app_handle.clone();
-            
+
             tauri::async_runtime::spawn(async move {
                 while let Some(event) = rx.recv().await {
                     match event {
@@ -134,18 +134,26 @@ pub async fn start_python_server(
                             let trimmed = line_str.trim();
                             if trimmed.contains("FLASK_PORT:") {
                                 if let Some(port_part) = trimmed.split("FLASK_PORT:").nth(1) {
-                                    let port_str = port_part.split_whitespace().next().unwrap_or(port_part).trim();
+                                    let port_str = port_part
+                                        .split_whitespace()
+                                        .next()
+                                        .unwrap_or(port_part)
+                                        .trim();
                                     if let Ok(port) = port_str.parse::<u16>() {
-                                        if let Some(window) = app_handle_clone.get_webview_window("main") {
+                                        if let Some(window) =
+                                            app_handle_clone.get_webview_window("main")
+                                        {
                                             window.emit("flask-port-ready", port).is_ok()
                                         } else {
                                             app_handle_clone.emit("flask-port-ready", port).is_ok()
                                         };
-                                        
-                                        if let Some(server_state) = app_handle_clone.try_state::<TokioMutex<PythonServer>>() {
+
+                                        if let Some(server_state) =
+                                            app_handle_clone.try_state::<TokioMutex<PythonServer>>()
+                                        {
                                             let mut server = server_state.lock().await;
                                             server.port = Some(port);
-                                            
+
                                             // Try to find and store PID by port on Windows
                                             #[cfg(target_os = "windows")]
                                             {
@@ -154,11 +162,13 @@ pub async fn start_python_server(
                                                     println!("[FLASK_START] Found and stored Flask process PID: {} for port: {}", pid, port);
                                                 }
                                             }
-                                            
+
                                             drop(server);
                                         }
-                                        
-                                        if let Some(window) = app_handle_clone.get_webview_window("main") {
+
+                                        if let Some(window) =
+                                            app_handle_clone.get_webview_window("main")
+                                        {
                                             let _ = window.emit("flask-port-ready", port);
                                         } else {
                                             let _ = app_handle_clone.emit("flask-port-ready", port);
@@ -187,13 +197,11 @@ pub async fn start_python_server(
                 error: None,
             })
         }
-        Err(e) => {
-            Ok(ApiResponse {
-                success: false,
-                data: None,
-                error: Some(format!("Failed to start Python server: {}", e)),
-            })
-        }
+        Err(e) => Ok(ApiResponse {
+            success: false,
+            data: None,
+            error: Some(format!("Failed to start Python server: {}", e)),
+        }),
     }
 }
 
@@ -210,10 +218,10 @@ pub async fn get_flask_port(
             error: None,
         });
     }
-    
+
     drop(server);
     tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
-    
+
     let server = server_state.lock().await;
     if let Some(port) = server.port {
         return Ok(ApiResponse {
@@ -222,9 +230,9 @@ pub async fn get_flask_port(
             error: None,
         });
     }
-    
+
     drop(server);
-    
+
     let client = reqwest::Client::new();
     let mut tasks = Vec::new();
     for port in 5000..=5100 {
@@ -247,14 +255,14 @@ pub async fn get_flask_port(
         });
         tasks.push(task);
     }
-    
+
     for task in tasks {
         if let Ok(Some(port)) = task.await {
             if let Some(server_state_ref) = app_handle.try_state::<TokioMutex<PythonServer>>() {
                 let mut server = server_state_ref.lock().await;
                 server.port = Some(port);
             }
-            
+
             return Ok(ApiResponse {
                 success: true,
                 data: Some(port),
@@ -262,12 +270,11 @@ pub async fn get_flask_port(
             });
         }
     }
-    
-    
+
     Ok(ApiResponse {
         success: false,
         data: None,
-            error: Some("Cannot get port number, server may not be started".to_string()),
+        error: Some("Cannot get port number, server may not be started".to_string()),
     })
 }
 
@@ -275,17 +282,14 @@ pub async fn get_flask_port(
 #[cfg(target_os = "windows")]
 fn find_pid_by_port(port: u16) -> Option<u32> {
     use std::process::Command;
-    
+
     // Use netstat to find process using the port
     // netstat -ano | findstr :PORT
-    let output = Command::new("netstat")
-        .args(&["-ano"])
-        .output()
-        .ok()?;
-    
+    let output = Command::new("netstat").args(&["-ano"]).output().ok()?;
+
     let output_str = String::from_utf8_lossy(&output.stdout);
     let port_str = format!(":{}", port);
-    
+
     for line in output_str.lines() {
         if line.contains(&port_str) && line.contains("LISTENING") {
             // Extract PID (last number in the line)
@@ -305,18 +309,18 @@ pub async fn stop_python_server_internal(
 ) -> Result<(), String> {
     println!("[FLASK_STOP] Starting Flask server stop procedure");
     let mut server = server_state.lock().await;
-    
+
     let port = server.port;
     let process = server.process.take();
     let stored_pid = server.pid;
-    
+
     if let Some(port_val) = port {
         println!("[FLASK_STOP] Current Flask port: {}", port_val);
-        
+
         // First, try to gracefully shutdown via API
         let client = reqwest::Client::new();
         let shutdown_url = format!("http://localhost:{}/api/stop", port_val);
-        
+
         println!("[FLASK_STOP] Attempting graceful shutdown via API...");
         match client
             .post(&shutdown_url)
@@ -330,11 +334,14 @@ pub async fn stop_python_server_internal(
                 tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
             }
             Err(e) => {
-                println!("[FLASK_STOP] Graceful shutdown API call failed: {}, will use process kill", e);
+                println!(
+                    "[FLASK_STOP] Graceful shutdown API call failed: {}, will use process kill",
+                    e
+                );
             }
         }
     }
-    
+
     // Try to kill using stored PID or find PID by port
     let pid_to_kill = stored_pid.or_else(|| {
         #[cfg(target_os = "windows")]
@@ -351,21 +358,29 @@ pub async fn stop_python_server_internal(
             None
         }
     });
-    
+
     // Use kill_tree to terminate process tree on Windows
     #[cfg(target_os = "windows")]
     {
         if let Some(pid) = pid_to_kill {
-            println!("[FLASK_STOP] Found PID: {}, using kill_tree to terminate process tree", pid);
+            println!(
+                "[FLASK_STOP] Found PID: {}, using kill_tree to terminate process tree",
+                pid
+            );
             match kill_tree(pid) {
                 Ok(outputs) => {
                     for output in outputs {
                         match output {
-                            kill_tree::Output::Killed { process_id, name, .. } => {
+                            kill_tree::Output::Killed {
+                                process_id, name, ..
+                            } => {
                                 println!("[FLASK_STOP] Killed process {}: {}", process_id, name);
                             }
                             kill_tree::Output::MaybeAlreadyTerminated { process_id, .. } => {
-                                println!("[FLASK_STOP] Process {} was already terminated", process_id);
+                                println!(
+                                    "[FLASK_STOP] Process {} was already terminated",
+                                    process_id
+                                );
                             }
                         }
                     }
@@ -374,7 +389,10 @@ pub async fn stop_python_server_internal(
                     tokio::time::sleep(tokio::time::Duration::from_millis(300)).await;
                 }
                 Err(e) => {
-                    let error_msg = format!("[FLASK_STOP] Failed to kill process tree (PID {}): {}", pid, e);
+                    let error_msg = format!(
+                        "[FLASK_STOP] Failed to kill process tree (PID {}): {}",
+                        pid, e
+                    );
                     eprintln!("{}", error_msg);
                     crate::logger::log_error(&error_msg);
                     // Fall through to try process.kill()
@@ -382,11 +400,13 @@ pub async fn stop_python_server_internal(
             }
         }
     }
-    
+
     // Fallback: Try to kill the process using CommandChild.kill()
     if let Some(process) = process {
-        println!("[FLASK_STOP] Found Flask process, attempting to kill using CommandChild.kill()...");
-        
+        println!(
+            "[FLASK_STOP] Found Flask process, attempting to kill using CommandChild.kill()..."
+        );
+
         // Try to kill the process (this takes ownership of process)
         let kill_result = process.kill();
         match kill_result {
@@ -406,12 +426,12 @@ pub async fn stop_python_server_internal(
     } else {
         println!("[FLASK_STOP] No Flask process found, nothing to stop");
     }
-    
+
     // Clear port, process, and PID state
     server.port = None;
     server.pid = None;
     println!("[FLASK_STOP] Cleared Flask port and PID from server state");
-    
+
     println!("[FLASK_STOP] Flask server stop procedure completed");
     Ok(())
 }
@@ -455,10 +475,10 @@ pub async fn get_database_path(app_handle: AppHandle) -> Result<ApiResponse<Stri
                     error: Some(format!("Failed to create app data directory: {}", e)),
                 });
             }
-            
+
             let db_path = app_data_dir.join("chat.db");
             let db_path_str = db_path.to_string_lossy().to_string();
-            
+
             Ok(ApiResponse {
                 success: true,
                 data: Some(db_path_str),
@@ -479,9 +499,11 @@ pub async fn check_python_server_status(
     server_state: State<'_, TokioMutex<PythonServer>>,
 ) -> Result<ApiResponse<bool>, String> {
     let server = server_state.lock().await;
-    
+
     let port = server.port.unwrap_or_else(|| {
-        if let Some(port_file) = app_handle.path().app_data_dir()
+        if let Some(port_file) = app_handle
+            .path()
+            .app_data_dir()
             .ok()
             .map(|dir| dir.join("port.txt"))
         {
@@ -493,7 +515,7 @@ pub async fn check_python_server_status(
         }
         5000 // 默认端口
     });
-    
+
     let client = reqwest::Client::new();
 
     match client

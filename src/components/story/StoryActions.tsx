@@ -14,6 +14,7 @@ interface StoryActionsProps {
   canConfirm?: boolean;
   canGenerate?: boolean;
   canDeleteLast?: boolean;
+  isFirstChapter?: boolean; // Whether this is the first chapter (no content yet)
 }
 
 const StoryActions: React.FC<StoryActionsProps> = ({
@@ -28,6 +29,7 @@ const StoryActions: React.FC<StoryActionsProps> = ({
   canConfirm = false,
   canGenerate = true,
   canDeleteLast = false,
+  isFirstChapter = false,
 }) => {
   const { t } = useI18n();
   const [showRewriteDialog, setShowRewriteDialog] = useState(false);
@@ -58,10 +60,16 @@ const StoryActions: React.FC<StoryActionsProps> = ({
             onClick={onGenerate}
             disabled={loading || disabled}
             className={styles.actionButton}
-            title={t('storyActions.generateCurrentTooltip')}
+            title={
+              isFirstChapter
+                ? t('storyActions.generateFirstChapterTooltip')
+                : t('storyActions.generateCurrentTooltip')
+            }
           >
             {loading
               ? t('storyActions.generating')
+              : isFirstChapter
+              ? t('storyActions.generateFirstChapter')
               : t('storyActions.generateCurrent')}
           </button>
         )}

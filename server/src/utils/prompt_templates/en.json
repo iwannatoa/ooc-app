@@ -140,7 +140,9 @@
   },
   "user_messages": {
     "continue_story": "Please continue generating the next section of the story. Control the story's pacing and progress the plot progressively, avoiding premature revelation of the ending or rushing to the climax and conclusion. Focus on the development of the current section and maintain an appropriate narrative rhythm.",
-    "generate_current_section": "Please generate the current section of the story based on the outline. Control the story's pacing and progress the plot progressively, avoiding premature revelation of the ending or rushing to the climax and conclusion. Focus on the development of the current section and maintain an appropriate narrative rhythm."
+    "continue_story_with_chapter": "(Chapter {chapter_number}) Please continue generating the next section of the story. Control the story's pacing and progress the plot progressively, avoiding premature revelation of the ending or rushing to the climax and conclusion. Focus on the development of the current section and maintain an appropriate narrative rhythm.",
+    "generate_current_section": "Please generate the current section of the story based on the outline. Control the story's pacing and progress the plot progressively, avoiding premature revelation of the ending or rushing to the climax and conclusion. Focus on the development of the current section and maintain an appropriate narrative rhythm.",
+    "generate_current_section_with_chapter": "Please generate Chapter {chapter_number} of the story based on the outline. Control the story's pacing and progress the plot progressively, avoiding premature revelation of the ending or rushing to the climax and conclusion. Focus on the development of the current chapter and maintain an appropriate narrative rhythm."
   },
   "error_messages": {
     "outline_required": "Please set the story outline first",

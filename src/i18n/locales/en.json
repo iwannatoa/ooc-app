@@ -73,7 +73,9 @@
   },
   "storyActions": {
     "generateCurrent": "Continue Current Chapter",
+    "generateFirstChapter": "Generate First Chapter",
     "generateCurrentTooltip": "Generate or regenerate the current chapter content (does not advance to next chapter)",
+    "generateFirstChapterTooltip": "Generate the first chapter content",
     "nextChapter": "Next Chapter",
     "nextChapterTooltip": "Confirm current chapter is satisfactory, then generate next chapter content (advances to next chapter)",
     "rewrite": "Rewrite",
@@ -235,6 +237,13 @@
     "inputPlaceholder": "Type your message...",
     "thinkProcess": "Thinking process (collapsed)",
     "thinkingInProgress": "Thinking..."
+  },
+  "chat": {
+    "chapter": "Chapter {number}",
+    "export": "Export Story",
+    "exportStory": "Export current story content as text file",
+    "exportSuccess": "Story exported successfully",
+    "exportFailed": "Failed to export story"
   },
   "modelSelector": {
     "noModelsAvailable": "No models available"

@@ -13,6 +13,7 @@ from service.ai_config_service import AIConfigService
 from service.app_settings_service import AppSettingsService
 from utils.system_prompt import build_system_prompt, build_feedback_prompt
 from utils.i18n import get_i18n_text
+from utils.prompt_template_loader import PromptTemplateLoader
 from config import get_config
 from utils.logger import get_logger
 
@@ -156,7 +157,23 @@ class StoryGenerationService:
         messages, system_prompt = self._prepare_generation_context(conversation_id)
         
         language = self.app_settings_service.get_language()
-        user_message = get_i18n_text(language, 'user_messages.generate_current_section')
+        # Get current section number for chapter information
+        current_section = None
+        if isinstance(progress, dict):
+            current_section = progress.get('current_section')
+        
+        # Build user message with chapter information if available
+        if current_section is not None:
+            chapter_number = current_section + 1  # Convert from 0-based to 1-based
+            template = PromptTemplateLoader.get_template(language)
+            user_message_template = template.get('user_messages', {}).get('generate_current_section_with_chapter', '')
+            if user_message_template:
+                user_message = user_message_template.format(chapter_number=chapter_number)
+            else:
+                # Fallback to default message if template not found
+                user_message = get_i18n_text(language, 'user_messages.generate_current_section')
+        else:
+            user_message = get_i18n_text(language, 'user_messages.generate_current_section')
         result = self.ai_service.chat(
             provider=api_config['provider'],
             message=user_message,
@@ -251,7 +268,23 @@ class StoryGenerationService:
         messages, system_prompt = self._prepare_generation_context(conversation_id)
         
         language = self.app_settings_service.get_language()
-        user_message = get_i18n_text(language, 'user_messages.generate_current_section')
+        # Get current section number for chapter information
+        current_section = None
+        if isinstance(progress, dict):
+            current_section = progress.get('current_section')
+        
+        # Build user message with chapter information if available
+        if current_section is not None:
+            chapter_number = current_section + 1  # Convert from 0-based to 1-based
+            template = PromptTemplateLoader.get_template(language)
+            user_message_template = template.get('user_messages', {}).get('generate_current_section_with_chapter', '')
+            if user_message_template:
+                user_message = user_message_template.format(chapter_number=chapter_number)
+            else:
+                # Fallback to default message if template not found
+                user_message = get_i18n_text(language, 'user_messages.generate_current_section')
+        else:
+            user_message = get_i18n_text(language, 'user_messages.generate_current_section')
         
         # Stream the response
         accumulated_content = ""
@@ -383,7 +416,14 @@ class StoryGenerationService:
         language = self.app_settings_service.get_language()
         from utils.prompt_template_loader import PromptTemplateLoader
         template = PromptTemplateLoader.get_template(language)
-        user_message = template['user_messages']['continue_story']
+        # Add chapter information to continue_story message
+        chapter_number = new_section + 1  # Convert from 0-based to 1-based
+        continue_story_template = template.get('user_messages', {}).get('continue_story_with_chapter', '')
+        if continue_story_template:
+            user_message = continue_story_template.format(chapter_number=chapter_number)
+        else:
+            # Fallback to default continue_story message if template not found
+            user_message = template['user_messages']['continue_story']
         result = self.ai_service.chat(
             provider=api_config['provider'],
             message=user_message,

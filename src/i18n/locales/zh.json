@@ -72,7 +72,9 @@
   },
   "storyActions": {
     "generateCurrent": "续写当前章节",
+    "generateFirstChapter": "生成第一章",
     "generateCurrentTooltip": "生成或重新生成当前章节的故事内容（不推进到下一章节）",
+    "generateFirstChapterTooltip": "生成第一章的故事内容",
     "nextChapter": "下一章",
     "nextChapterTooltip": "确认当前章节满意，然后生成下一章节的故事内容（推进到下一章节）",
     "rewrite": "重写",
@@ -234,6 +236,13 @@
     "inputPlaceholder": "输入你的消息...",
     "thinkProcess": "思考过程（已折叠）",
     "thinkingInProgress": "思考中..."
+  },
+  "chat": {
+    "chapter": "第{number}章",
+    "export": "导出故事",
+    "exportStory": "导出当前故事内容为文本文件",
+    "exportSuccess": "故事已成功导出",
+    "exportFailed": "导出故事失败"
   },
   "modelSelector": {
     "noModelsAvailable": "无可用模型"
