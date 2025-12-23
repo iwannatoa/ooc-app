@@ -2,7 +2,6 @@
 
 interface ImportMetaEnv {
   readonly DEV: boolean;
-  readonly VITE_DEV_MODE?: string;
   readonly VITE_USE_MOCK?: string;
 }
 

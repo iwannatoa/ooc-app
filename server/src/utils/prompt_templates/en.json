@@ -156,7 +156,8 @@
     "invalid_progress_data": "Invalid progress data",
     "no_content_to_rewrite": "No content to rewrite",
     "feedback_required": "feedback is required",
-    "summary_required": "summary is required"
+    "summary_required": "summary is required",
+    "deepseek_api_key_required": "DeepSeek API key is required. Please configure it in Settings > AI Settings."
   },
   "feedback_prompt": {
     "intro": "The user provided the following feedback:",

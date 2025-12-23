@@ -251,7 +251,9 @@ class AIServiceStreaming:
                             if choices:
                                 delta = choices[0].get('delta', {})
                                 content = delta.get('content', '')
-                                if content:
+                                # Only yield non-empty content
+                                # Skip empty strings and whitespace-only content
+                                if content and content.strip():
                                     yield content
                         except json.JSONDecodeError:
                             continue

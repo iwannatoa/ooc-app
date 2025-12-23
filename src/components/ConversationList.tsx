@@ -1,43 +1,39 @@
-import React, { useState } from 'react';
-import { ConversationWithSettings } from '@/types';
+import React from 'react';
 import { useI18n } from '@/i18n';
+import { useConversationManagement } from '@/hooks/useConversationManagement';
+import { useUIState } from '@/hooks/useUIState';
 import styles from './ConversationList.module.scss';
 
 interface ConversationListProps {
-  conversations: ConversationWithSettings[];
-  activeConversationId: string | null;
-  onSelectConversation: (id: string) => void;
-  onDeleteConversation: (id: string) => void;
-  onNewConversation: () => void;
-  onRefresh?: () => void;
-  onCollapseChange?: (collapsed: boolean) => void;
-  isCollapsed?: boolean;
-  onToggleCollapse?: () => void;
+  // Optional props for backward compatibility, but component will use hooks directly
+  conversations?: never;
+  activeConversationId?: never;
+  onSelectConversation?: never;
+  onDeleteConversation?: never;
+  onNewConversation?: never;
+  onRefresh?: never;
+  onCollapseChange?: never;
+  isCollapsed?: never;
+  onToggleCollapse?: never;
 }
 
-const ConversationList: React.FC<ConversationListProps> = ({
-  conversations,
-  activeConversationId,
-  onSelectConversation,
-  onDeleteConversation,
-  onNewConversation,
-  onRefresh,
-  onCollapseChange,
-  isCollapsed: externalCollapsed,
-  onToggleCollapse,
-}) => {
+const ConversationList: React.FC<ConversationListProps> = () => {
   const { t } = useI18n();
-  const [internalCollapsed, setInternalCollapsed] = useState(false);
-  const isCollapsed = externalCollapsed !== undefined ? externalCollapsed : internalCollapsed;
+  const {
+    conversations,
+    activeConversationId,
+    handleSelectConversation,
+    handleDeleteConversation,
+    handleNewConversation,
+    loadConversations,
+  } = useConversationManagement();
+  const {
+    conversationListCollapsed,
+    setConversationListCollapsed,
+  } = useUIState();
   
   const handleToggleCollapse = () => {
-    if (onToggleCollapse) {
-      onToggleCollapse();
-    } else {
-      const newCollapsed = !internalCollapsed;
-      setInternalCollapsed(newCollapsed);
-      onCollapseChange?.(newCollapsed);
-    }
+    setConversationListCollapsed(!conversationListCollapsed);
   };
   const formatDate = (dateString?: string) => {
     if (!dateString) return '';
@@ -51,23 +47,21 @@ const ConversationList: React.FC<ConversationListProps> = ({
   };
 
   return (
-    <div className={`${styles.conversationList} ${isCollapsed ? styles.collapsed : ''}`}>
+    <div className={`${styles.conversationList} ${conversationListCollapsed ? styles.collapsed : ''}`}>
       <div className={styles.header}>
         <h2>{t('conversation.title')}</h2>
         <div className={styles.headerActions}>
-          {!isCollapsed && (
+          {!conversationListCollapsed && (
             <>
-              {onRefresh && (
-                <button
-                  onClick={onRefresh}
-                  className={styles.refreshButton}
-                  title={t('common.refresh')}
-                >
-                  ↻
-                </button>
-              )}
               <button
-                onClick={onNewConversation}
+                onClick={loadConversations}
+                className={styles.refreshButton}
+                title={t('common.refresh')}
+              >
+                ↻
+              </button>
+              <button
+                onClick={handleNewConversation}
                 className={styles.newButton}
                 title={t('conversation.newConversation')}
               >
@@ -78,18 +72,18 @@ const ConversationList: React.FC<ConversationListProps> = ({
           <button
             onClick={handleToggleCollapse}
             className={styles.collapseButton}
-            title={isCollapsed ? t('common.expand') : t('common.collapse')}
+            title={conversationListCollapsed ? t('common.expand') : t('common.collapse')}
           >
-            {isCollapsed ? '▶' : '▼'}
+            {conversationListCollapsed ? '▶' : '▼'}
           </button>
         </div>
       </div>
-      {!isCollapsed && (
+      {!conversationListCollapsed && (
         <div className={styles.list}>
         {conversations.length === 0 ? (
           <div className={styles.empty}>
             <p>{t('conversation.noConversations')}</p>
-            <button onClick={onNewConversation} className={styles.emptyButton}>
+            <button onClick={handleNewConversation} className={styles.emptyButton}>
               {t('conversation.newConversation')}
             </button>
           </div>
@@ -100,7 +94,7 @@ const ConversationList: React.FC<ConversationListProps> = ({
               className={`${styles.item} ${
                 activeConversationId === conv.id ? styles.active : ''
               }`}
-              onClick={() => onSelectConversation(conv.id)}
+              onClick={() => handleSelectConversation(conv.id)}
             >
               <div className={styles.itemContent}>
                 <div className={styles.title}>
@@ -114,7 +108,7 @@ const ConversationList: React.FC<ConversationListProps> = ({
                 className={styles.deleteButton}
                 onClick={(e) => {
                   e.stopPropagation();
-                  onDeleteConversation(conv.id);
+                  handleDeleteConversation(conv.id);
                 }}
                 title={t('conversation.deleteConversation')}
               >

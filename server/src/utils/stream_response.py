@@ -52,7 +52,12 @@ def create_stream_response(
                         
                         return
                 except (json.JSONDecodeError, ValueError, AttributeError):
-                    # Chunk is plain text, add to accumulated content
+                    # Chunk is plain text
+                    # Skip empty chunks to avoid sending unnecessary data
+                    if not chunk_str or not chunk_str.strip():
+                        continue
+                    
+                    # Add to accumulated content
                     accumulated_content += chunk_str
                     
                     # Call chunk callback

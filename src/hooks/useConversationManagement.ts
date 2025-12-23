@@ -12,19 +12,30 @@ import { useAiClient } from './useAiClient';
 import { useChatState } from './useChatState';
 import { useConversationClient } from './useConversationClient';
 import { useSettingsState } from './useSettingsState';
+import { useUIState } from './useUIState';
+import { useConversationSettingsDialog, useSummaryPromptDialog } from './useDialog';
+import { confirmDialog } from '@/services/confirmDialogService';
+import { useI18n } from '@/i18n';
 
 export const useConversationManagement = () => {
   const [conversations, setConversations] = useState<
     ConversationWithSettings[]
   >([]);
-  const [showSettingsForm, setShowSettingsForm] = useState(false);
-  const [isNewConversation, setIsNewConversation] = useState(false);
-  const [pendingConversationId, setPendingConversationId] = useState<
-    string | null
-  >(null);
   const [loading, setLoading] = useState(false);
-  const [showSummaryPrompt, setShowSummaryPrompt] = useState(false);
   const [summaryMessageCount, setSummaryMessageCount] = useState(0);
+  
+  // Use Redux for UI state
+  const uiState = useUIState();
+  const {
+    isNewConversation,
+    pendingConversationId,
+    setIsNewConversation,
+    setPendingConversationId,
+  } = uiState;
+
+  // Use dialog hooks
+  const settingsDialog = useConversationSettingsDialog();
+  const summaryDialog = useSummaryPromptDialog();
 
   const {
     activeConversationId,
@@ -44,6 +55,7 @@ export const useConversationManagement = () => {
   const { settings } = useSettingsState();
   const { sendMessageStream } = useAiClient(settings);
   const conversationClient = useConversationClient();
+  const { t } = useI18n();
 
   const loadConversations = useCallback(async () => {
     try {
@@ -86,8 +98,11 @@ export const useConversationManagement = () => {
       .substr(2, 9)}`;
     setPendingConversationId(newId);
     setIsNewConversation(true);
-    setShowSettingsForm(true);
-  }, []);
+    // Open settings dialog for new conversation
+    settingsDialog.open(newId, {
+      isNewConversation: true,
+    });
+  }, [setPendingConversationId, setIsNewConversation, settingsDialog]);
 
   const handleSelectConversation = useCallback(
     async (conversationId: string) => {
@@ -113,15 +128,33 @@ export const useConversationManagement = () => {
       try {
         setLoading(true);
         await conversationClient.createOrUpdateSettings(settingsData);
-        setShowSettingsForm(false);
+        settingsDialog.close();
         setIsNewConversation(false);
 
         if (isNewConversation && settingsData.conversation_id) {
           setPendingConversationId(null);
           setActiveConversation(settingsData.conversation_id);
           setMessages([]);
+          
+          // Immediately add the new conversation to the list for instant feedback
+          const newConversation: ConversationWithSettings = {
+            id: settingsData.conversation_id,
+            title: settingsData.title || t('conversation.unnamedConversation'),
+            messages: [],
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+            settings: settingsData as ConversationSettings,
+          };
+          
+          setConversations((prev) => {
+            // Remove if already exists (shouldn't happen, but just in case)
+            const filtered = prev.filter((c) => c.id !== newConversation.id);
+            // Add to the beginning of the list
+            return [newConversation, ...filtered];
+          });
         }
 
+        // Reload conversations to get the latest data from backend
         await loadConversations();
       } catch (error) {
         console.error('Failed to save settings:', error);
@@ -137,11 +170,26 @@ export const useConversationManagement = () => {
       setMessages,
       loadConversations,
       settings,
+      settingsDialog,
+      setIsNewConversation,
+      setPendingConversationId,
+      setConversations,
+      t,
     ]
   );
 
   const handleDeleteConversation = useCallback(
     async (conversationId: string) => {
+      // Show confirmation dialog
+      const confirmed = await confirmDialog({
+        message: t('conversation.confirmDeleteConversation'),
+        confirmText: t('common.confirm'),
+        cancelText: t('common.cancel'),
+        confirmButtonStyle: 'danger',
+      });
+
+      if (!confirmed) return;
+
       try {
         await conversationClient.deleteConversation(conversationId);
         removeConversation(conversationId);
@@ -161,6 +209,7 @@ export const useConversationManagement = () => {
       setActiveConversation,
       setMessages,
       loadConversations,
+      t,
     ]
   );
 
@@ -168,8 +217,13 @@ export const useConversationManagement = () => {
   const handleEditSettings = useCallback((conversationId: string) => {
     setPendingConversationId(conversationId);
     setIsNewConversation(false);
-    setShowSettingsForm(true);
-  }, []);
+    // Get current settings for this conversation
+    const conversation = conversations.find(c => c.id === conversationId);
+    settingsDialog.open(conversationId, {
+      settings: conversation?.settings,
+      isNewConversation: false,
+    });
+  }, [conversations, settingsDialog]);
 
   const handleSendMessage = useCallback(
     async (message: string) => {
@@ -225,7 +279,9 @@ export const useConversationManagement = () => {
         // Check if summary is needed
         if (aiMessage.needsSummary && aiMessage.messageCount) {
           setSummaryMessageCount(aiMessage.messageCount);
-          setShowSummaryPrompt(true);
+          if (convId) {
+            summaryDialog.open(convId, aiMessage.messageCount);
+          }
         }
       } catch (error) {
         console.error('Failed to send message:', error);
@@ -262,19 +318,23 @@ export const useConversationManagement = () => {
         throw new Error('No active conversation');
       }
       await conversationClient.saveSummary(activeConversationId, summary);
-      setShowSummaryPrompt(false);
+      summaryDialog.close();
     },
-    [activeConversationId, conversationClient]
+    [activeConversationId, conversationClient, summaryDialog]
   );
+
+  // Get current settings for active conversation
+  const currentSettings = conversations.find(
+    (c) => c.id === (pendingConversationId || activeConversationId)
+  )?.settings;
 
   return {
     conversations,
     activeConversationId,
-    showSettingsForm,
+    currentSettings,
     isNewConversation,
     pendingConversationId,
     loading,
-    showSummaryPrompt,
     summaryMessageCount,
     handleNewConversation,
     handleSelectConversation,
@@ -284,8 +344,6 @@ export const useConversationManagement = () => {
     handleSendMessage,
     handleGenerateSummary,
     handleSaveSummary,
-    setShowSettingsForm,
-    setShowSummaryPrompt,
     loadConversations,
   };
 };

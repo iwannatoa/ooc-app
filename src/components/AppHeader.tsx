@@ -1,13 +1,16 @@
 import { useI18n, availableLocales } from '@/i18n';
 import { useMockMode } from '@/hooks/useMockMode';
+import { useSettingsPanelDialog } from '@/hooks/useDialog';
 import ServerStatus from './ServerStatus';
 import styles from '../styles.module.scss';
 
 interface AppHeaderProps {
-  onOpenSettings: () => void;
+  // Optional for backward compatibility
+  onOpenSettings?: () => void;
 }
 
 export const AppHeader = ({ onOpenSettings }: AppHeaderProps) => {
+  const settingsDialog = useSettingsPanelDialog();
   const { locale, setLocale, t } = useI18n();
   const { mockModeEnabled, toggleMockMode, isDev } = useMockMode();
 
@@ -43,7 +46,10 @@ export const AppHeader = ({ onOpenSettings }: AppHeaderProps) => {
         </button>
         <ServerStatus />
         <button
-          onClick={onOpenSettings}
+          onClick={() => {
+            settingsDialog.open();
+            onOpenSettings?.();
+          }}
           className={styles.settingsBtn}
         >
           {t('common.settings')}

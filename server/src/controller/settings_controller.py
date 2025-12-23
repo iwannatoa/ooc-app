@@ -495,13 +495,47 @@ class SettingsController:
                     "error": "settings is required"
                 }), 400
             
-            # Validate JSON
+            # Parse settings to extract AI config
             if isinstance(settings, str):
-                json.loads(settings)  # Validate JSON format
+                settings_dict = json.loads(settings)  # Parse JSON
             else:
-                settings = json.dumps(settings)  # Convert to JSON string
+                settings_dict = settings
+                settings = json.dumps(settings)  # Convert to JSON string for storage
             
+            # Save app settings
             self.app_settings_service.set_setting('app_settings', settings)
+            
+            # Extract and save AI configurations to ai_config table
+            if 'ai' in settings_dict:
+                ai_settings = settings_dict['ai']
+                provider = ai_settings.get('provider')
+                
+                if provider:
+                    # Get provider-specific config
+                    provider_config = ai_settings.get(provider, {})
+                    
+                    # Extract API key (support both camelCase and snake_case)
+                    # Check if apiKey or api_key exists in the config (even if empty)
+                    api_key = None
+                    if 'apiKey' in provider_config:
+                        api_key = provider_config.get('apiKey')
+                    elif 'api_key' in provider_config:
+                        api_key = provider_config.get('api_key')
+                    # Pass api_key as-is (could be None, empty string, or actual key)
+                    # Repository will handle None vs empty string appropriately
+                    
+                    # Save to ai_config table
+                    self.ai_config_service.create_or_update_config(
+                        provider=provider,
+                        model=provider_config.get('model'),
+                        api_key=api_key,
+                        base_url=provider_config.get('baseUrl') or provider_config.get('base_url'),
+                        max_tokens=provider_config.get('maxTokens') or provider_config.get('max_tokens'),
+                        temperature=provider_config.get('temperature')
+                    )
+                    
+                    logger.info(f"Saved AI config for provider: {provider}")
+            
             return jsonify({
                 "success": True
             })

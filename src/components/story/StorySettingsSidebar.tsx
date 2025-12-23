@@ -1,25 +1,40 @@
 import React, { useState } from 'react';
 import { ConversationSettings } from '@/types';
 import { useI18n } from '@/i18n';
+import { useConversationSettingsDialog, useStorySettingsViewDialog } from '@/hooks/useDialog';
+import { useConversationManagement } from '@/hooks/useConversationManagement';
 import styles from './StorySettingsSidebar.module.scss';
 
 interface StorySettingsSidebarProps {
   settings: ConversationSettings | null;
-  onEdit: () => void;
   onToggle: () => void;
-  onViewSettings?: () => void;
   collapsed?: boolean;
 }
 
 const StorySettingsSidebar: React.FC<StorySettingsSidebarProps> = ({
   settings,
-  onEdit,
   onToggle,
-  onViewSettings,
   collapsed = false,
 }) => {
   const { t } = useI18n();
   const [isExpanded, setIsExpanded] = useState(false);
+  const settingsDialog = useConversationSettingsDialog();
+  const viewDialog = useStorySettingsViewDialog();
+  const { activeConversationId, currentSettings } = useConversationManagement();
+
+  const handleEdit = () => {
+    if (activeConversationId) {
+      settingsDialog.open(activeConversationId, {
+        settings: currentSettings,
+      });
+    }
+  };
+
+  const handleViewSettings = () => {
+    if (activeConversationId && currentSettings) {
+      viewDialog.open(activeConversationId, currentSettings);
+    }
+  };
 
   if (!settings) {
     return null;
@@ -33,9 +48,9 @@ const StorySettingsSidebar: React.FC<StorySettingsSidebarProps> = ({
       <div className={styles.header}>
         <h3>{t('storySettings.title')}</h3>
         <div className={styles.headerActions}>
-          {onViewSettings && (
+          {activeConversationId && currentSettings && (
             <button
-              onClick={onViewSettings}
+              onClick={handleViewSettings}
               className={styles.viewButton}
               title={t('conversation.viewSettings')}
             >
@@ -43,7 +58,7 @@ const StorySettingsSidebar: React.FC<StorySettingsSidebarProps> = ({
             </button>
           )}
           <button
-            onClick={onEdit}
+            onClick={handleEdit}
             className={styles.editButton}
             title={t('storySettings.editSettings')}
           >
@@ -65,7 +80,7 @@ const StorySettingsSidebar: React.FC<StorySettingsSidebarProps> = ({
             <div className={styles.empty}>
               <p>{t('storySettings.noSettings')}</p>
               <button
-                onClick={onEdit}
+                onClick={handleEdit}
                 className={styles.addButton}
               >
                 {t('storySettings.addSettings')}

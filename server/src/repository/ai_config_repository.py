@@ -122,6 +122,8 @@ class AIConfigRepository:
                 # Update existing configuration
                 if model is not None:
                     existing.model = model
+                # Update API key if it's explicitly provided (including empty string to clear it)
+                # If api_key is None, it means the field wasn't in the update, so keep existing value
                 if api_key is not None:
                     existing.api_key = api_key
                 if base_url is not None:

@@ -4,56 +4,50 @@
  */
 import React from 'react';
 import { useI18n } from '@/i18n';
-import { AppSettings, ConversationSettings, OllamaModel } from '@/types';
+import { useConversationManagement } from '@/hooks/useConversationManagement';
+import { useChatState } from '@/hooks/useChatState';
+import { useChatActions } from '@/hooks/useChatActions';
+import { useSettingsState } from '@/hooks/useSettingsState';
+import { useUIState } from '@/hooks/useUIState';
 import ModelSelector from './ModelSelector';
 import styles from '../../styles.module.scss';
 
 interface ChatControlsProps {
-  /** Whether the conversation list is collapsed */
-  conversationListCollapsed: boolean;
-  /** Whether the settings sidebar is collapsed */
-  settingsSidebarCollapsed: boolean;
-  /** Currently active conversation ID */
-  activeConversationId: string | null;
-  /** Current settings */
-  currentSettings: ConversationSettings | undefined;
-  /** Application settings */
-  appSettings: AppSettings;
-  /** Model list */
-  models: OllamaModel[];
-  /** Currently selected model */
-  currentModel: string;
-  /** Handle model change */
-  onModelChange: (model: string) => void;
-  /** Expand conversation list */
-  onExpandConversationList: () => void;
-  /** Create new conversation */
-  onNewConversation: () => void;
-  /** Expand settings sidebar */
-  onExpandSettingsSidebar: () => void;
+  // Optional props for backward compatibility, but component will use hooks directly
+  conversationListCollapsed?: never;
+  settingsSidebarCollapsed?: never;
+  activeConversationId?: never;
+  currentSettings?: never;
+  appSettings?: never;
+  models?: never;
+  currentModel?: never;
+  onModelChange?: never;
+  onExpandConversationList?: never;
+  onNewConversation?: never;
+  onExpandSettingsSidebar?: never;
 }
 
-export const ChatControls: React.FC<ChatControlsProps> = ({
-  conversationListCollapsed,
-  settingsSidebarCollapsed,
-  activeConversationId,
-  currentSettings,
-  appSettings,
-  models,
-  currentModel,
-  onModelChange,
-  onExpandConversationList,
-  onNewConversation,
-  onExpandSettingsSidebar,
-}) => {
+export const ChatControls: React.FC<ChatControlsProps> = () => {
   const { t } = useI18n();
+  const { activeConversationId, currentSettings, handleNewConversation } = useConversationManagement();
+  const { models } = useChatState();
+  const { handleModelChange, getCurrentModel } = useChatActions();
+  const { settings } = useSettingsState();
+  const {
+    conversationListCollapsed,
+    settingsSidebarCollapsed,
+    setConversationListCollapsed,
+    setSettingsSidebarCollapsed,
+  } = useUIState();
+  
+  const currentModel = getCurrentModel();
 
   return (
     <div className={styles.controls}>
       {/* Expand conversation list button */}
       {conversationListCollapsed && (
         <button
-          onClick={onExpandConversationList}
+          onClick={() => setConversationListCollapsed(false)}
           className={styles.expandButton}
           title={t('common.expand') + ' ' + t('conversation.title')}
         >
@@ -62,11 +56,11 @@ export const ChatControls: React.FC<ChatControlsProps> = ({
       )}
 
       {/* Model selector or model info */}
-      {appSettings.ai.provider === 'ollama' ? (
+      {settings.ai.provider === 'ollama' ? (
         <ModelSelector
           models={models}
           selectedModel={currentModel}
-          onModelChange={onModelChange}
+          onModelChange={handleModelChange}
           disabled={models.length === 0}
         />
       ) : (
@@ -85,7 +79,7 @@ export const ChatControls: React.FC<ChatControlsProps> = ({
       {/* Show new button when collapsed */}
       {conversationListCollapsed && !activeConversationId && (
         <button
-          onClick={onNewConversation}
+          onClick={handleNewConversation}
           className={styles.newButton}
           title={t('conversation.newConversation')}
         >
@@ -96,7 +90,7 @@ export const ChatControls: React.FC<ChatControlsProps> = ({
       {/* Expand settings sidebar button */}
       {activeConversationId && currentSettings && settingsSidebarCollapsed && (
         <button
-          onClick={onExpandSettingsSidebar}
+          onClick={() => setSettingsSidebarCollapsed(false)}
           className={styles.expandButton}
           title={t('common.expand') + ' ' + t('storySettings.title')}
         >

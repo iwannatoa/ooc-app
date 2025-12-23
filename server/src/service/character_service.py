@@ -725,6 +725,17 @@ class CharacterService:
             model=model
         )
         
+        # Check if API key is required and available
+        if provider == 'deepseek' and not api_config.get('api_key'):
+            from utils.i18n import get_i18n_text
+            error_msg = get_i18n_text(language, 'error_messages.deepseek_api_key_required')
+            if not error_msg:
+                error_msg = "DeepSeek API key is required. Please configure it in Settings > AI Settings."
+            return {
+                "success": False,
+                "error": error_msg
+            }
+        
         # Call AI to generate character
         result = self.ai_service.chat(
             provider=api_config['provider'],
@@ -845,6 +856,16 @@ class CharacterService:
             provider=provider,
             model=model
         )
+        
+        # Check if API key is required and available
+        if provider == 'deepseek' and not api_config.get('api_key'):
+            import json
+            from utils.i18n import get_i18n_text
+            error_msg = get_i18n_text(language, 'error_messages.deepseek_api_key_required')
+            if not error_msg:
+                error_msg = "DeepSeek API key is required. Please configure it in Settings > AI Settings."
+            yield json.dumps({"error": error_msg}) + "\n"
+            return
         
         # Stream the response
         yield from self.ai_service_streaming.chat_stream(

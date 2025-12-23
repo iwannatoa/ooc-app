@@ -10,6 +10,7 @@ import { useStoryActions } from './useStoryActions';
 import { useSettingsState } from './useSettingsState';
 import { useToast } from './useToast';
 import { useI18n } from '@/i18n';
+import { confirmDialog } from '@/services/confirmDialogService';
 import {
   ConversationWithSettings,
   ConversationSettings,
@@ -85,20 +86,12 @@ export const useAppLogic = () => {
   const {
     conversations,
     activeConversationId,
-    showSettingsForm,
-    isNewConversation,
     pendingConversationId,
-    showSummaryPrompt,
     summaryMessageCount,
-    handleNewConversation,
-    handleSelectConversation,
-    handleDeleteConversation: deleteConversationInternal,
     handleSaveSettings,
     handleGenerateSummary,
     handleSaveSummary,
-    setShowSettingsForm,
-    setShowSummaryPrompt,
-    loadConversations,
+    handleSelectConversation,
   } = conversationManagement;
 
   // ===== Calculate Derived State =====
@@ -144,6 +137,16 @@ export const useAppLogic = () => {
   const handleDeleteLastMessage = useCallback(async () => {
     if (!activeConversationId) return;
 
+    // Show confirmation dialog
+    const confirmed = await confirmDialog({
+      message: t('storyActions.confirmDeleteLastMessage'),
+      confirmText: t('common.confirm'),
+      cancelText: t('common.cancel'),
+      confirmButtonStyle: 'danger',
+    });
+
+    if (!confirmed) return;
+
     try {
       const success = await conversationClient.deleteLastMessage(
         activeConversationId
@@ -178,29 +181,17 @@ export const useAppLogic = () => {
   return {
     // State
     messages,
-    conversations,
-    activeConversationId,
     currentSettings,
     settings,
-    showSettingsForm,
-    isNewConversation,
-    pendingConversationId,
-    showSummaryPrompt,
     summaryMessageCount,
     canGenerate,
     canConfirm,
     canDeleteLast: messages.length > 0,
 
     // Conversation Management Actions
-    handleNewConversation,
-    handleSelectConversation,
-    handleDeleteConversation: deleteConversationInternal,
     handleSaveSettings,
     handleGenerateSummary,
     handleSaveSummary,
-    setShowSettingsForm,
-    setShowSummaryPrompt,
-    loadConversations,
 
     // Story Actions
     handleGenerateStory,

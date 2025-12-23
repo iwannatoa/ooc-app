@@ -6,19 +6,10 @@ describe('useUIState', () => {
   it('should initialize with default values', () => {
     const { result } = renderHook(() => useUIState());
 
-    expect(result.current.showSettingsView).toBe(false);
     expect(result.current.settingsSidebarCollapsed).toBe(false);
     expect(result.current.conversationListCollapsed).toBe(false);
-  });
-
-  it('should update showSettingsView', () => {
-    const { result } = renderHook(() => useUIState());
-
-    act(() => {
-      result.current.setShowSettingsView(true);
-    });
-
-    expect(result.current.showSettingsView).toBe(true);
+    expect(result.current.isNewConversation).toBe(false);
+    expect(result.current.pendingConversationId).toBe(null);
   });
 
   it('should update settingsSidebarCollapsed', () => {

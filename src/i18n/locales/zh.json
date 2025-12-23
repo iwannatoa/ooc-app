@@ -136,6 +136,7 @@
     "providerDeepSeek": "DeepSeek",
     "config": "配置",
     "model": "模型",
+    "currentModel": "当前模型",
     "modelPlaceholder": "输入模型名称",
     "apiKey": "API Key",
     "apiKeyPlaceholder": "输入 {provider} API Key",

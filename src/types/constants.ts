@@ -1,7 +1,8 @@
 import { AppSettings } from './index';
 
 export const ENV_CONFIG = {
-  VITE_DEV_MODE: import.meta.env.VITE_DEV_MODE === 'true',
+  // Use Vite's built-in DEV mode instead of custom env variable
+  VITE_DEV_MODE: import.meta.env.DEV,
 } as const;
 
 export const DEFAULT_SETTINGS: AppSettings = {

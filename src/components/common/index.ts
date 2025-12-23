@@ -10,6 +10,7 @@
 
 export { default as ConfirmDialog } from './ConfirmDialog';
 export { ConfirmDialogContainer } from './ConfirmDialogContainer';
+export { DialogContainer } from './DialogContainer';
 export { ToastContainer } from './Toast';
 export type { Toast, ToastType } from './Toast';
 export { default as StatusIndicator } from './StatusIndicator';

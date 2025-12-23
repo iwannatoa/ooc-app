@@ -1,53 +1,66 @@
 import React from 'react';
-import { ChatMessage } from '@/types';
+import { useChatState } from '@/hooks/useChatState';
+import { useConversationManagement } from '@/hooks/useConversationManagement';
+import { useAppLogic } from '@/hooks/useAppLogic';
+import { useConversationSettingsDialog } from '@/hooks/useDialog';
 import MessageList from './MessageList';
 import { StoryActions } from '../story';
 import styles from './ChatInterface.module.scss';
 
 interface ChatInterfaceProps {
-  messages: ChatMessage[];
-  onGenerate: () => void;
-  onConfirm: () => void;
-  onRewrite: (feedback: string) => void;
-  onModify: (feedback: string) => void;
-  onAddSettings: () => void;
-  onDeleteLastMessage?: () => void;
-  loading: boolean;
-  disabled: boolean;
-  canConfirm?: boolean;
-  canGenerate?: boolean;
-  canDeleteLast?: boolean;
+  // Optional props for backward compatibility, but component will use hooks directly
+  messages?: never;
+  onGenerate?: never;
+  onConfirm?: never;
+  onRewrite?: never;
+  onModify?: never;
+  onAddSettings?: never;
+  onDeleteLastMessage?: never;
+  loading?: never;
+  disabled?: never;
+  canConfirm?: never;
+  canGenerate?: never;
+  canDeleteLast?: never;
 }
 
-const ChatInterface: React.FC<ChatInterfaceProps> = ({
-  messages,
-  onGenerate,
-  onConfirm,
-  onRewrite,
-  onModify,
-  onAddSettings,
-  onDeleteLastMessage,
-  loading,
-  disabled,
-  canConfirm = false,
-  canGenerate = true,
-  canDeleteLast = false,
-}) => {
+const ChatInterface: React.FC<ChatInterfaceProps> = () => {
+  const { messages, isSending } = useChatState();
+  const { activeConversationId, currentSettings } = useConversationManagement();
+  const {
+    handleGenerateStory,
+    handleConfirmSection,
+    handleRewriteSection,
+    handleModifySection,
+    handleDeleteLastMessage,
+    canConfirm,
+    canGenerate,
+    canDeleteLast,
+  } = useAppLogic();
+  const settingsDialog = useConversationSettingsDialog();
+
+  const handleAddSettings = () => {
+    if (activeConversationId) {
+      settingsDialog.open(activeConversationId, {
+        settings: currentSettings,
+      });
+    }
+  };
+
   return (
     <div className={styles.chatInterface}>
       <MessageList
         messages={messages}
-        loading={loading}
+        loading={isSending}
       />
       <StoryActions
-        onGenerate={onGenerate}
-        onConfirm={onConfirm}
-        onRewrite={onRewrite}
-        onModify={onModify}
-        onAddSettings={onAddSettings}
-        onDeleteLastMessage={onDeleteLastMessage}
-        loading={loading}
-        disabled={disabled}
+        onGenerate={handleGenerateStory}
+        onConfirm={handleConfirmSection}
+        onRewrite={handleRewriteSection}
+        onModify={handleModifySection}
+        onAddSettings={handleAddSettings}
+        onDeleteLastMessage={handleDeleteLastMessage}
+        loading={isSending}
+        disabled={!activeConversationId}
         canConfirm={canConfirm}
         canGenerate={canGenerate}
         canDeleteLast={canDeleteLast}

@@ -267,6 +267,10 @@ class StoryGenerationService:
                 system_prompt=system_prompt,
                 messages=messages
             ):
+                # Skip empty chunks to avoid sending unnecessary data
+                if not chunk or not chunk.strip():
+                    continue
+                
                 accumulated_content += chunk
                 yield chunk
         except Exception as e:

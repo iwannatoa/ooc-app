@@ -58,5 +58,30 @@ export const mockAiClient = {
       id: `mock_msg_${Date.now()}`,
     };
   },
+
+  sendMessageStream: async (
+    message: string,
+    conversationId: string,
+    onChunk?: (chunk: string, accumulated: string) => void
+  ): Promise<ChatMessage> => {
+    // Simulate streaming response
+    const response = generateMockResponse(message);
+    const words = response.split('');
+    let accumulated = '';
+
+    for (let i = 0; i < words.length; i++) {
+      accumulated += words[i];
+      onChunk?.(words[i], accumulated);
+      await mockDelay(50); // Simulate streaming delay
+    }
+
+    return {
+      role: 'assistant',
+      content: accumulated,
+      model: 'deepseek-chat',
+      timestamp: Date.now(),
+      id: `mock_msg_${Date.now()}`,
+    };
+  },
 };
 

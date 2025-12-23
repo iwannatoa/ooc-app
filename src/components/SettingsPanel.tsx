@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { AppSettings } from '@/types';
 import { useSettingsState } from '@/hooks/useSettingsState';
 import { useI18n } from '@/i18n';
-import { useFlaskPort } from '@/hooks/useFlaskPort';
+import { useApiClients } from '@/hooks/useApiClients';
 import {
   SettingsTabs,
   type SettingsTab,
@@ -14,8 +14,9 @@ import {
 import styles from './SettingsPanel.module.scss';
 
 interface SettingsPanelProps {
-  settings: AppSettings;
-  onSettingsChange: (settings: Partial<AppSettings>) => void;
+  // Optional props for backward compatibility, but component will use hooks directly
+  settings?: never;
+  onSettingsChange?: never;
   onClose: () => void;
   open: boolean;
 }
@@ -33,14 +34,12 @@ interface SettingsPanelProps {
  * store only when the user clicks "Save".
  */
 const SettingsPanel: React.FC<SettingsPanelProps> = ({
-  settings,
-  onSettingsChange,
   onClose,
   open,
 }) => {
   const { t } = useI18n();
-  const { updateAppearanceSettings } = useSettingsState();
-  const { apiUrl, waitForPort } = useFlaskPort();
+  const { settings, updateSettings, updateAppearanceSettings } = useSettingsState();
+  const { settingsApi } = useApiClients();
 
   const [currentTab, setCurrentTab] = useState<SettingsTab>('general');
   const [localSettings, setLocalSettings] = useState(settings);
@@ -69,30 +68,18 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
       }
 
       // Save to Redux store (this will trigger appearance updates)
-      onSettingsChange(settingsToSave);
+      updateSettings(settingsToSave);
       // Also explicitly update appearance settings in Redux to ensure useAppearance hook picks it up
       updateAppearanceSettings(settingsToSave.appearance);
 
-      // Save to backend
-      try {
-        const url = apiUrl || (await waitForPort());
-        const response = await fetch(`${url}/api/app-settings`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            settings: JSON.stringify(settingsToSave),
-          }),
-        });
-
-        const data = await response.json();
-        if (!data.success) {
-          console.error('Failed to save settings to backend:', data.error);
+      // Save to backend using API client
+      if (settingsApi) {
+        try {
+          await settingsApi.updateAppSettings(settingsToSave);
+        } catch (error) {
+          console.error('Failed to save settings to backend:', error);
+          // Continue even if backend save fails
         }
-      } catch (error) {
-        console.error('Failed to save settings to backend:', error);
-        // Continue even if backend save fails
       }
 
       onClose();
