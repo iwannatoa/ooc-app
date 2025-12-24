@@ -1,7 +1,7 @@
 [package]
-name = "ollama-tauri-app"
-version = "0.1.0"
-description = "Ollama Chat with Embedded Python Flask API"
+name = "ooc-tauri-app"
+version = "0.2.0"
+description = "OOC story with Embedded Python Flask API"
 authors = ["Patrick Zhang"]
 edition = "2021"
 
@@ -13,6 +13,10 @@ reqwest = { version = "0.11", features = ["json"] }
 tauri = { version = "2", features = [] }
 windows-sys = "0.61"
 tauri-plugin-shell = "2"
+ctrlc = "3.4"
+kill_tree = "0.2"
+tauri-plugin-dialog = "2"
+tauri-plugin-fs = "2"
 
 [build-dependencies]
 tauri-build = { version = "2.0", features = [] }

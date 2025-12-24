@@ -1,0 +1,214 @@
+{
+  "introduction": [
+    "你是一位专业的故事创作助手，擅长根据用户提供的设定创作引人入胜的故事。",
+    "你的任务是：",
+    "1. 根据用户提供的背景、人物和大纲创作故事",
+    "2. 保持故事的一致性和连贯性",
+    "3. 根据用户的反馈调整故事内容",
+    "4. 确保人物设定和行为符合设定",
+    "",
+    "**重要**：所有故事内容、对话和叙述必须使用中文。",
+    "**重要**：故事内容必须使用纯文本格式输出，不要使用任何 Markdown 格式（如粗体、斜体、标题、列表等）。",
+    ""
+  ],
+  "sections": {
+    "background": "## 故事背景",
+    "characters": "## 主要人物",
+    "outline": "## 故事大纲",
+    "summary": "## 故事进展总结",
+    "appeared_characters": "## 已出场人物",
+    "supplement": "## 补充设定"
+  },
+  "appeared_characters": {
+    "available_label": "**可用人物**:",
+    "unavailable_label": "**不可用人物** (已死亡或其他情况，不应在后续故事中出现):",
+    "main_label": " (主要)",
+    "auto_generated_label": " (AI生成)"
+  },
+  "character_important_note": "**重要**：请确保所有人物行为、对话和设定都严格符合上述设定。",
+  "outline": {
+    "with_progress": {
+      "progress": "**当前进度**：第 {current_section}/{total_sections} 部分",
+      "title": "**分段生成说明**：",
+      "instructions": [
+        "- 请根据大纲生成当前部分的故事内容",
+        "- 确保与之前部分的情节连贯",
+        "- 每部分应该有适当的长度和完整性",
+        "- 为下一部分留下自然的过渡",
+        "- **重要**：请控制故事节奏，循序渐进地推进情节。当前部分应专注于当前阶段的情节发展，避免过早揭示结局、快速推进到高潮或直接跳到故事结尾。保持适当的叙事节奏，让情节自然展开，为后续部分保留发展空间。"
+      ]
+    },
+    "without_progress": "**注意**：请按照大纲的节奏和结构发展故事，但可以根据情节需要适当调整。**重要**：请控制故事节奏，循序渐进地推进情节。避免过早揭示结局或快速推进到高潮和结尾。专注于当前阶段的情节发展，保持适当的叙事节奏，为后续部分保留发展空间。"
+  },
+  "summary": {
+    "intro": "以下是之前故事内容的总结，请在此基础上继续创作：",
+    "important_note": "**重要**：请确保新内容与总结中的情节连贯，保持故事的连续性。"
+  },
+  "creative_guidelines": {
+    "title": "## 创作指导原则",
+    "items": [
+      "1. **一致性**：保持人物设定、世界观和故事风格的一致性",
+      "2. **连贯性**：新内容要与之前的情节自然衔接",
+      "3. **细节丰富**：使用生动的描写和对话，让故事更加引人入胜",
+      "4. **节奏控制**：根据故事发展需要，适当控制节奏和张力",
+      "5. **用户反馈**：如果用户要求重写或调整，请根据反馈进行修改"
+    ]
+  },
+  "feedback_handling": {
+    "title": "## 反馈处理",
+    "intro": "当用户提供反馈时：",
+    "items": [
+      "- 如果用户要求**重写**某部分，请完全重新创作该部分",
+      "- 如果用户要求**调整**，请在保持连贯性的前提下进行修改",
+      "- 如果用户要求**继续**，请按照故事发展自然延续",
+      "- 始终尊重用户的创作意图和反馈"
+    ]
+  },
+  "output_requirements": {
+    "title": "## 输出要求",
+    "items": [
+      "- 首先直接输出故事内容，不需要额外的说明或标记",
+      "- **重要**：故事内容必须是纯文本格式，不要使用任何 Markdown 格式（如 **粗体**、*斜体*、# 标题、列表符号等）",
+      "- 使用第三人称叙述",
+      "- 保持适当的段落长度，便于阅读（使用空行分隔段落）",
+      "- 对话使用引号标注（中文使用「」或双引号，英文使用双引号）",
+      "- 这是分段生成，请确保当前部分有适当的起承转合",
+      "- 在故事内容之后，请添加角色变化信息（如果有新角色出现或角色状态变化）"
+    ],
+    "section_generation_keyword": "分段生成",
+    "character_changes": {
+      "intro": "## 角色变化",
+      "instructions": [
+        "请在故事内容后添加角色变化信息，使用以下格式：",
+        "",
+        "<CHARACTERS>",
+        "新增角色：",
+        "- [角色名称1] - 设定：[角色性格和设定描述]",
+        "- [角色名称2] - 设定：[角色性格和设定描述]",
+        "",
+        "角色状态变化：",
+        "- [角色名称3] - 成为主要角色",
+        "- [角色名称4] - 变为不可用（死亡/离开等）",
+        "- [角色名称5] - 恢复可用",
+        "</CHARACTERS>",
+        "",
+        "说明：",
+        "1. 新增角色：只列出在本部分故事内容中首次出现的新角色名称，**必须同时提供角色设定**（性格、背景等，50-100字）。",
+        "2. **重要**：所有角色名称必须使用中文。",
+        "3. 角色状态变化：列出已有角色在本部分发生的重要状态变化：",
+        "   - 成为主要角色：当某个角色在本部分中成为故事的主要角色时",
+        "   - 变为不可用：当某个角色死亡、离开、失踪等，不再参与后续故事时",
+        "   - 恢复可用：当之前不可用的角色重新出现时",
+        "4. 如果本部分没有新角色出现且没有角色状态变化，则不需要添加此部分。",
+        "5. 状态变化是可选的，只在确实发生明显变化时记录。"
+      ],
+      "status_keywords": {
+        "became_main": ["成为主要角色", "主要角色"],
+        "became_unavailable": ["变为不可用", "不可用", "死亡", "离开", "失踪"],
+        "restored_available": ["恢复可用", "恢复", "重新出现"]
+      }
+    }
+  },
+  "summary_prompt": {
+    "intro": "请对以下故事对话进行总结，生成一个简洁但完整的故事进展总结。",
+    "should_include": "总结应该包括：",
+    "items": [
+      "1. 故事的主要情节发展",
+      "2. 关键事件和转折点",
+      "3. 人物关系和互动",
+      "4. 当前故事状态"
+    ],
+    "requirements": "总结要求：",
+    "requirement_items": [
+      "- 保持故事的连贯性和逻辑性",
+      "- 突出重要情节和人物发展",
+      "- 长度适中，能够作为后续创作的上下文",
+      "- 使用第三人称叙述"
+    ],
+    "language_note": "所有总结内容必须使用中文。",
+    "content_intro": "以下是故事对话内容：",
+    "role_prefixes": {
+      "user": "【用户】",
+      "assistant": "【故事】"
+    }
+  },
+  "user_messages": {
+    "continue_story": "请继续生成下一部分故事内容。请控制故事节奏，循序渐进地推进情节，避免过早揭示结局或快速推进到高潮和结尾。专注于当前部分的情节发展，保持适当的叙事节奏。",
+    "continue_story_with_chapter": "（第 {chapter_number} 章）请继续生成下一部分故事内容。请控制故事节奏，循序渐进地推进情节，避免过早揭示结局或快速推进到高潮和结尾。专注于当前部分的情节发展，保持适当的叙事节奏。",
+    "generate_current_section": "请根据大纲生成当前部分的故事内容。请控制故事节奏，循序渐进地推进情节，避免过早揭示结局或快速推进到高潮和结尾。专注于当前部分的情节发展，保持适当的叙事节奏。",
+    "generate_current_section_with_chapter": "请根据大纲生成第 {chapter_number} 章的故事内容。请控制故事节奏，循序渐进地推进情节，避免过早揭示结局或快速推进到高潮和结尾。专注于当前章节的情节发展，保持适当的叙事节奏。"
+  },
+  "error_messages": {
+    "outline_required": "请先设置故事大纲",
+    "message_required": "message is required",
+    "provider_required": "provider is required (ollama or deepseek)",
+    "conversation_id_required": "conversation_id is required",
+    "background_required": "background is required",
+    "background_required_detailed": "Background is required. Please provide background in request or save it in settings first.",
+    "language_required": "language is required",
+    "name_required": "name is required",
+    "server_error": "Server error: {error}",
+    "story_progress_not_found": "Story progress not found",
+    "invalid_progress_data": "Invalid progress data",
+    "no_content_to_rewrite": "No content to rewrite",
+    "feedback_required": "feedback is required",
+    "summary_required": "summary is required",
+    "deepseek_api_key_required": "DeepSeek API key is required. Please configure it in Settings > AI Settings."
+  },
+  "feedback_prompt": {
+    "intro": "用户提供了以下反馈：",
+    "types": {
+      "rewrite": {
+        "label": "**操作类型**：重写",
+        "content_label": "需要重写的内容：",
+        "instruction": "请根据用户反馈完全重新创作这部分内容。",
+        "keywords": ["重新写", "重写", "重新"]
+      },
+      "modify": {
+        "label": "**操作类型**：调整",
+        "content_label": "需要调整的内容：",
+        "instruction": "请在保持故事连贯性的前提下，根据用户反馈进行调整。",
+        "keywords": ["调整", "修改"]
+      },
+      "continue": {
+        "label": "**操作类型**：继续创作",
+        "instruction": "请根据用户反馈继续发展故事。"
+      }
+    }
+  },
+  "character_generation": {
+    "intro": "请根据以下故事背景和角色提示，生成合适的新角色（可以是一个或多个，根据用户要求决定）。",
+    "sections": {
+      "background": "故事背景：",
+      "existing_characters_from_settings": "已有角色（从设定中）：",
+      "appeared_characters": "已出场人物：",
+      "recent_content": "最近的故事内容（供参考）：",
+      "character_hints": "角色提示："
+    },
+    "instructions": "请按照以下步骤生成角色：\n\n第一步：根据故事背景和角色提示，判断需要生成几个角色（如果用户要求生成多个角色，请生成多个；否则生成一个）。\n第二步：对于每个角色，根据故事背景，生成一个合适的人物（可以是任何文化背景，不限于中国）。\n第三步：将每个人物的名字翻译成中文（如果原名字不是中文，请翻译成符合中文习惯的名字；如果原名字已经是中文，则保持不变）。\n第四步：提供每个角色的性格和设定（简要描述，100字左右）。\n\n**重要**：\n- 角色可以是任何文化背景的人物（西方、东方、奇幻、科幻等），不要局限于中国人\n- 名字必须使用中文，但应该根据角色的文化背景进行适当翻译\n- 例如：如果角色是西方骑士，名字可以是\"亚瑟\"而不是\"张伟\"；如果是日本武士，名字可以是\"太郎\"而不是\"李明\"\n- 如果用户要求生成多个角色，请为每个角色分别生成信息\n\n请按照以下格式返回（如果生成多个角色，请为每个角色重复此格式）：\n姓名：[中文角色姓名]\n设定：[角色性格和设定描述]\n\n---（多个角色之间用三个短横线分隔）"
+  },
+  "outline_generation": {
+    "intro": "请根据以下信息生成一个详细的故事大纲：",
+    "sections": {
+      "background": "故事背景",
+      "characters": "主要人物"
+    },
+    "character_format": {
+      "with_personality": "{index}. {name} - 设定：{personality}",
+      "without_personality": "{index}. {name}"
+    },
+    "instructions": {
+      "intro": "请生成一个详细的故事大纲，包括：",
+      "items": [
+        "1. 故事的开端和背景设定",
+        "2. 主要冲突和矛盾",
+        "3. 故事发展和转折点",
+        "4. 高潮部分",
+        "5. 结局方向"
+      ],
+      "note": "大纲应该详细且具有可操作性，能够指导后续的故事创作。",
+      "warning": "注意：大纲中不要包含预计字数或长度信息，只需描述故事内容和情节发展。"
+    }
+  }
+}
+

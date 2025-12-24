@@ -6,6 +6,8 @@ interface ServerState {
   ollamaStatus: OllamaStatus;
   isServerLoading: boolean;
   serverError: string | null;
+  flaskPort: number | null;
+  apiUrl: string;
 }
 
 const initialState: ServerState = {
@@ -13,6 +15,8 @@ const initialState: ServerState = {
   ollamaStatus: 'checking',
   isServerLoading: false,
   serverError: null,
+  flaskPort: null,
+  apiUrl: '', // Will be set when port is available
 };
 
 const serverSlice = createSlice({
@@ -37,6 +41,14 @@ const serverSlice = createSlice({
     clearServerError: (state) => {
       state.serverError = null;
     },
+    setFlaskPort: (state, action: PayloadAction<number | null>) => {
+      state.flaskPort = action.payload;
+      if (action.payload) {
+        state.apiUrl = `http://localhost:${action.payload}`;
+      } else {
+        state.apiUrl = ''; // Clear API URL when port is not available
+      }
+    },
   },
 });
 
@@ -46,6 +58,7 @@ export const {
   setServerLoading,
   setServerError,
   clearServerError,
+  setFlaskPort,
 } = serverSlice.actions;
 
 export default serverSlice.reducer;

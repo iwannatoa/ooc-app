@@ -1,73 +1,89 @@
-import { ENV_CONFIG } from '@/types/constants';
-import { useChatState } from '@/hooks/useChatState';
-import { useSettingsState } from '@/hooks/useSettingsState';
-import { useChatActions } from '@/hooks/useChatActions';
-import ChatInterface from './components/ChatInterface';
-import ServerStatus from './components/ServerStatus';
-import SettingsPanel from './components/SettingsPanel';
-import ModelSelector from './components/ModelSelector';
+// ===== Business Logic Hooks =====
+import { useConversationManagement } from './hooks/useConversationManagement';
+import { useUIState } from '@/hooks/useUIState';
+import { useToast } from './hooks/useToast';
+import { useAppearance } from './hooks/useAppearance';
+import { useAppSettings } from './hooks/useAppSettings';
+
+// ===== UI Components =====
+import { TitleBar, AppHeader, ConversationList } from './components';
+import { ChatControls, ChatInterface } from './components/chat';
+import { StorySettingsSidebar } from './components/story';
+import {
+  ConfirmDialogContainer,
+  ToastContainer,
+  DialogContainer,
+} from './components/common';
+
+// ===== Styles and Utilities =====
 import styles from './styles.module.scss';
 
+/**
+ * Main application component
+ *
+ * Responsibilities:
+ * - Render the main application layout
+ * - Compose business logic hooks and UI components
+ * - Provide global containers (Toast, ConfirmDialog)
+ *
+ * Note: Most state is managed by Redux or component-level hooks.
+ * Components use hooks directly instead of receiving props from App.
+ */
 function App() {
-  const { messages, models, isSending } = useChatState();
-  const { settings, isSettingsOpen, setSettingsOpen, updateSettings } =
-    useSettingsState();
-  const {
-    handleSendMessage,
-    handleModelChange,
-    getCurrentModel,
-    clearMessages,
-  } = useChatActions();
+  // ===== UI State Management =====
+  const uiState = useUIState();
+  const { activeConversationId, currentSettings } = useConversationManagement();
+
+  // Load app settings from backend
+  useAppSettings();
+
+  // Apply appearance settings
+  useAppearance();
+
+  // ===== Toast Notifications =====
+  const { toasts, removeToast } = useToast();
 
   return (
     <div className={styles.app}>
-      <div className={styles.header}>
-        <h1>{ENV_CONFIG.VITE_APP_NAME}</h1>
-        <ServerStatus />
+      <TitleBar />
+      <div className={styles.appContent}>
+        <AppHeader />
+
+        <div className={styles.mainContent}>
+          <ConversationList />
+
+          <div className={styles.chatArea}>
+            {/* Chat controls bar */}
+            <ChatControls />
+
+            <div className={styles.conversationContainer}>
+              <div className={styles.chatWithSidebar}>
+                <ChatInterface />
+                {activeConversationId && currentSettings && (
+                  <StorySettingsSidebar
+                    settings={currentSettings}
+                    onToggle={() =>
+                      uiState.setSettingsSidebarCollapsed(
+                        !uiState.settingsSidebarCollapsed
+                      )
+                    }
+                    collapsed={uiState.settingsSidebarCollapsed}
+                  />
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div className={styles.controls}>
-        {settings.ai.provider === 'ollama' && (
-          <ModelSelector
-            models={models}
-            selectedModel={getCurrentModel()}
-            onModelChange={handleModelChange}
-            disabled={models.length === 0}
-          />
-        )}
-        {settings.ai.provider !== 'ollama' && (
-          <div className={styles.modelInfo}>当前模型: {getCurrentModel()}</div>
-        )}
-        <button
-          onClick={clearMessages}
-          className={styles.clearBtn}
-        >
-          清空对话
-        </button>
-        <button
-          onClick={() => setSettingsOpen(true)}
-          className={styles.settingsBtn}
-        >
-          设置
-        </button>
-      </div>
+      <DialogContainer />
 
-      <div className={styles.conversationContainer}>
-        <ChatInterface
-          messages={messages}
-          onSendMessage={handleSendMessage}
-          loading={isSending}
-          disabled={false}
-          maxLength={ENV_CONFIG.VITE_MAX_MESSAGE_LENGTH}
-        />
-      </div>
-
-      <SettingsPanel
-        settings={settings}
-        onSettingsChange={updateSettings}
-        open={isSettingsOpen}
-        onClose={() => setSettingsOpen(false)}
+      <ToastContainer
+        toasts={toasts}
+        onClose={removeToast}
       />
+
+      <ConfirmDialogContainer />
     </div>
   );
 }

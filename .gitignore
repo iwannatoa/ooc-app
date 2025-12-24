@@ -1,33 +1,57 @@
-# 环境文件
+# Environment files
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
 
-# 构建输出
+# Build output
 dist/
 build/
 src-tauri/target/
 src-tauri/resources/python-api/dist/
 src-tauri/resources/python-api/build/
 
-# 依赖
+# Dependencies
 node_modules/
 
-# 日志
+# Logs
 *.log
 logs/
 
-# 编辑器
-.vscode/
+# Editor
+# Keep shared VS Code config, only exclude user-specific settings
+.vscode/launch.json
+.vscode/tasks.json
+.vscode/*.code-workspace
 .idea/
 *.swp
 *.swo
 
-# 系统文件
+# System files
 .DS_Store
 Thumbs.db
 
 # Tauri
 src-tauri/bin/
+src-tauri/gen/
+
+# Server data
+server/data/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Test coverage
+coverage/
+*.coverage
+.coverage
+htmlcov/
+.coverage.*
+coverage.xml
+coverage-final.json
+*.lcov

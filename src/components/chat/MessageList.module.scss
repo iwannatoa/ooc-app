@@ -1,0 +1,122 @@
+@use '@/styles/variables' as *;
+@use '@/styles/mixins' as *;
+
+.messageList {
+  flex: 1;
+  overflow-y: auto;
+  padding: $spacing-lg;
+  @include scrollbar;
+}
+
+.message {
+  margin-bottom: $spacing-lg;
+  padding: $spacing-md;
+  border-radius: $border-radius-lg;
+  max-width: 80%;
+
+  &.user {
+    background: $primary-color;
+    margin-left: auto;
+
+    .messageHeader {
+      color: rgba(255, 255, 255, 0.9);
+    }
+
+    .messageContent {
+      color: $text-primary;
+    }
+  }
+
+  &.assistant {
+    background: $bg-light;
+    margin-right: auto;
+    border: 1px solid $border-color;
+
+    .messageHeader {
+      color: $text-secondary;
+    }
+
+    .messageContent {
+      color: $text-primary;
+    }
+
+    &.loading {
+      opacity: 0.7;
+      font-style: italic;
+    }
+  }
+
+  &.error {
+    background: $error-color-light;
+    border: 1px solid $error-color-border;
+    margin: 0 auto;
+
+    .messageHeader {
+      color: $error-color;
+    }
+
+    .messageContent {
+      color: $text-primary;
+    }
+  }
+}
+
+.messageHeader {
+  @include flex-between;
+  margin-bottom: $spacing-sm;
+  font-size: $font-size-sm;
+}
+
+.messageTime {
+  opacity: 0.6;
+  font-size: $font-size-xs;
+}
+
+.messageContent {
+  line-height: 1.5;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+}
+
+.textContent {
+  line-height: 1.5;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+}
+
+.typingIndicator {
+  display: inline-flex;
+  align-items: center;
+  gap: $spacing-xs;
+
+  span {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: $text-secondary;
+    animation: typing 1.4s infinite ease-in-out;
+
+    &:nth-child(1) {
+      animation-delay: -0.32s;
+    }
+    &:nth-child(2) {
+      animation-delay: -0.16s;
+    }
+    &:nth-child(3) {
+      animation-delay: 0s;
+    }
+  }
+}
+
+@keyframes typing {
+  0%,
+  80%,
+  100% {
+    transform: scale(0.8);
+    opacity: 0.5;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}

@@ -4,9 +4,6 @@ import {
   AIProvider,
   OllamaConfig,
   DeepSeekConfig,
-  OpenAIConfig,
-  AnthropicConfig,
-  CustomConfig,
 } from '@/types';
 import { DEFAULT_SETTINGS } from '@/types/constants';
 
@@ -28,7 +25,7 @@ const settingsSlice = createSlice({
   name: 'settings',
   initialState,
   reducers: {
-    // 整体设置
+    // Overall settings
     updateSettings: (state, action: PayloadAction<Partial<AppSettings>>) => {
       state.settings = { ...state.settings, ...action.payload };
       state.hasUnsavedChanges = true;
@@ -42,13 +39,13 @@ const settingsSlice = createSlice({
       state.hasUnsavedChanges = false;
     },
 
-    // AI 提供商设置 - 使用类型安全的更新
+    // AI provider settings - use type-safe updates
     updateAiProvider: (state, action: PayloadAction<AIProvider>) => {
       state.settings.ai.provider = action.payload;
       state.hasUnsavedChanges = true;
     },
 
-    // 为每个提供商单独创建更新函数
+    // Create separate update functions for each provider
     updateOllamaConfig: (
       state,
       action: PayloadAction<Partial<OllamaConfig>>
@@ -69,38 +66,8 @@ const settingsSlice = createSlice({
       };
       state.hasUnsavedChanges = true;
     },
-    updateOpenAIConfig: (
-      state,
-      action: PayloadAction<Partial<OpenAIConfig>>
-    ) => {
-      state.settings.ai.openai = {
-        ...state.settings.ai.openai,
-        ...action.payload,
-      };
-      state.hasUnsavedChanges = true;
-    },
-    updateAnthropicConfig: (
-      state,
-      action: PayloadAction<Partial<AnthropicConfig>>
-    ) => {
-      state.settings.ai.anthropic = {
-        ...state.settings.ai.anthropic,
-        ...action.payload,
-      };
-      state.hasUnsavedChanges = true;
-    },
-    updateCustomConfig: (
-      state,
-      action: PayloadAction<Partial<CustomConfig>>
-    ) => {
-      state.settings.ai.custom = {
-        ...state.settings.ai.custom,
-        ...action.payload,
-      };
-      state.hasUnsavedChanges = true;
-    },
 
-    // 通用设置
+    // General settings
     updateGeneralSettings: (
       state,
       action: PayloadAction<Partial<AppSettings['general']>>
@@ -129,7 +96,7 @@ const settingsSlice = createSlice({
       state.hasUnsavedChanges = true;
     },
 
-    // 设置面板状态
+    // Settings panel state
     setSettingsOpen: (state, action: PayloadAction<boolean>) => {
       state.isSettingsOpen = action.payload;
       if (!action.payload) {
@@ -141,7 +108,7 @@ const settingsSlice = createSlice({
       state.currentTab = action.payload;
     },
 
-    // 保存状态
+    // Save state
     setHasUnsavedChanges: (state, action: PayloadAction<boolean>) => {
       state.hasUnsavedChanges = action.payload;
     },
@@ -158,9 +125,6 @@ export const {
   updateAiProvider,
   updateOllamaConfig,
   updateDeepSeekConfig,
-  updateOpenAIConfig,
-  updateAnthropicConfig,
-  updateCustomConfig,
   updateGeneralSettings,
   updateAppearanceSettings,
   updateAdvancedSettings,

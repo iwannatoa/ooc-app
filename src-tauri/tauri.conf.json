@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "Ollama Chat",
-  "version": "0.1.0",
+  "productName": "OOC story",
+  "version": "0.2.0",
   "identifier": "io.iwannatoa.ooc",
   "build": {
     "frontendDist": "../dist",
@@ -20,17 +20,18 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "externalBin": ["../dist/server/flask-api"]
+    "externalBin": []
   },
   "app": {
     "windows": [
       {
-        "title": "Ollama Chat",
+        "title": "OOC story",
         "width": 1200,
         "height": 800,
         "resizable": true,
         "fullscreen": false,
         "transparent": true,
+        "decorations": false,
         "backgroundColor": "#1a1a1a"
       }
     ],

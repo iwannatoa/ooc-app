@@ -1,0 +1,63 @@
+@use '@/styles/variables' as *;
+
+.thinkContent {
+  margin: $spacing-sm 0;
+  border-radius: $border-radius;
+  background: rgba(128, 128, 128, 0.1);
+  border: 1px solid rgba(128, 128, 128, 0.2);
+  color: rgba(0, 0, 0, 0.5);
+  font-size: $font-size-sm;
+  overflow: hidden;
+}
+
+.thinkHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: $spacing-xs $spacing-sm;
+  cursor: pointer;
+  user-select: none;
+  background: rgba(128, 128, 128, 0.05);
+  
+  &:hover {
+    background: rgba(128, 128, 128, 0.1);
+  }
+}
+
+.thinkLabel {
+  font-weight: 500;
+  font-style: italic;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.collapseIcon {
+  font-size: $font-size-xs;
+  opacity: 0.6;
+  transition: transform 0.2s ease;
+}
+
+.thinkBody {
+  padding: $spacing-sm;
+  max-height: 300px;
+  overflow-y: auto;
+  border-top: 1px solid rgba(128, 128, 128, 0.1);
+  line-height: 1.4;
+}
+
+.thinkLine {
+  color: rgba(255, 255, 255, 0.5);
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  margin-bottom: $spacing-xs;
+  
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.collapsed {
+  .thinkBody {
+    display: none;
+  }
+}
+

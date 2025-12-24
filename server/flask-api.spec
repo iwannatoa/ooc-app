@@ -1,12 +1,35 @@
 # -*- mode: python ; coding: utf-8 -*-
+import os
+from pathlib import Path
+from PyInstaller.utils.hooks import collect_submodules
 
+# Get current directory (where spec file is located)
+current_dir = Path(os.path.dirname(os.path.abspath(SPEC)))
+
+# Automatically collect all submodules under src package
+src_modules = collect_submodules('src')
 
 a = Analysis(
-    ['E:\\project\\ooc-app\\server\\src\\app.py'],
-    pathex=[],
+    [os.path.join(current_dir, 'src', 'app.py')],
+    pathex=[str(current_dir)],
     binaries=[],
-    datas=[('E:\\project\\ooc-app\\server\\requirements.txt', '.')],
-    hiddenimports=['flask', 'flask_cors', 'requests'],
+    datas=[
+        (os.path.join(current_dir, 'requirements.txt'), '.'),
+        (os.path.join(current_dir, 'src', 'utils', 'prompt_templates'), 'utils/prompt_templates'),
+    ],
+    hiddenimports=[
+        # Flask related
+        'flask',
+        'flask_cors',
+        'flask_injector',
+        'injector',
+        # Request library
+        'requests',
+        # SQLAlchemy related
+        'sqlalchemy',
+        'sqlalchemy.dialects.sqlite',
+        # Source code modules (automatically collect all submodules)
+    ] + src_modules,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -35,4 +58,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    onefile=True,
 )

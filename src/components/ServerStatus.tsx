@@ -5,7 +5,12 @@ import { ENV_CONFIG } from '@/types/constants';
 import { useServerState } from '@/hooks/useServerState';
 import { useChatState } from '@/hooks/useChatState';
 import { useSettingsState } from '@/hooks/useSettingsState';
-import StatusIndicator from './StatusIndicator';
+import { useFlaskPort } from '@/hooks/useFlaskPort';
+import { useI18n } from '@/i18n';
+import { useConversationClient } from '@/hooks/useConversationClient';
+import { useConversationManagement } from '@/hooks/useConversationManagement';
+import { isMockMode, mockServerClient } from '@/mock';
+import StatusIndicator from './common/StatusIndicator';
 import styles from './ServerStatus.module.scss';
 
 const ServerStatus: React.FC = () => {
@@ -16,61 +21,143 @@ const ServerStatus: React.FC = () => {
     setOllamaStatus,
     setError,
   } = useServerState();
+  const { apiUrl, refetch: refetchPort } = useFlaskPort();
+  const { t } = useI18n();
 
-  const { setModels, setSelectedModel } = useChatState();
+  const { setModels, setSelectedModel, activeConversationId, setMessages } = useChatState();
   const { settings, updateOllamaConfig } = useSettingsState();
+  const conversationClient = useConversationClient();
+  const { loadConversations } = useConversationManagement();
   const intervalId = useRef<number | null>(null);
   const hasGetModels = useRef<boolean>(false);
+  const apiUrlRef = useRef<string>(apiUrl);
+  const isServerHealthy = useRef<boolean>(false);
+  const lastReloadedConversationId = useRef<string | null>(null);
+  
+  // Short interval: used when server is not healthy (3 seconds)
+  const SHORT_INTERVAL = 3000;
+  // Long interval: used when server is healthy (15 seconds)
+  const LONG_INTERVAL = 15000;
+
+  useEffect(() => {
+    apiUrlRef.current = apiUrl;
+  }, [apiUrl]);
 
   useEffect(() => {
     initializeCheckServerStatusInterval();
-
+    // Execute check immediately
+    checkPythonServerStatus();
     return () => {
       if (intervalId.current) {
         clearInterval(intervalId.current);
         intervalId.current = null;
-        console.log('clear in effect');
       }
     };
-  }, []);
+  }, [apiUrl]);
 
   const initializeCheckServerStatusInterval = async (): Promise<void> => {
-    console.log('init ');
-    if (!intervalId.current) {
-      setPythonServerStatus('started');
-    } else {
-      console.log('clear in init');
+    refetchPort();
+    if (intervalId.current) {
       clearInterval(intervalId.current);
       intervalId.current = null;
     }
+    // Reset health status, start checking with short interval
+    isServerHealthy.current = false;
+    setPythonServerStatus('started');
+    startHealthCheckInterval();
+  };
+
+  const startHealthCheckInterval = (): void => {
+    if (intervalId.current) {
+      clearInterval(intervalId.current);
+    }
+    // Choose interval based on server health status
+    const interval = isServerHealthy.current ? LONG_INTERVAL : SHORT_INTERVAL;
     intervalId.current = window.setInterval(() => {
-      console.log('check in interval');
       checkPythonServerStatus();
-    }, 5000);
+    }, interval);
   };
 
   const checkPythonServerStatus = async (): Promise<void> => {
     try {
-      const response = await fetch(
-        `${ENV_CONFIG.VITE_FLASK_API_URL}/api/health`
-      );
-      const data: HealthResponse = await response.json();
+      const currentApiUrl = apiUrlRef.current;
+      
+      let data: HealthResponse;
+      
+      if (isMockMode()) {
+        data = await mockServerClient.checkHealth();
+      } else {
+        const response = await fetch(
+          `${currentApiUrl}/api/health`
+        );
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        data = await response.json();
+      }
+      
       setOllamaStatus(
         settings.ai.provider !== 'ollama' || data.ollama_available
           ? 'connected'
           : 'disconnected'
       );
       if (data.status === 'healthy') {
+        const wasHealthy = isServerHealthy.current;
         setPythonServerStatus('started');
+        isServerHealthy.current = true;
+        // If changed from unhealthy to healthy, switch to long interval
+        if (!wasHealthy) {
+          startHealthCheckInterval();
+          // Refresh port first to ensure using correct port number
+          refetchPort().then(() => {
+            // Wait a bit to ensure React state is updated
+            setTimeout(() => {
+              // Reload conversations list
+              loadConversations().catch((error) => {
+                console.error('Failed to reload conversations list:', error);
+              });
+              // Reload current conversation history
+              if (activeConversationId) {
+                reloadConversationHistory(activeConversationId);
+                lastReloadedConversationId.current = activeConversationId;
+              }
+            }, 100);
+          }).catch((error) => {
+            console.error('Failed to refetch port:', error);
+          });
+        }
         if (settings.ai.provider === 'ollama' && !hasGetModels.current) {
           fetchModels();
         }
       } else {
+        const wasHealthy = isServerHealthy.current;
         setPythonServerStatus('error');
+        isServerHealthy.current = false;
+        // If changed from healthy to unhealthy, switch to short interval
+        if (wasHealthy) {
+          startHealthCheckInterval();
+          lastReloadedConversationId.current = null;
+        }
       }
     } catch (error) {
+      const wasHealthy = isServerHealthy.current;
       setPythonServerStatus('error');
       setOllamaStatus('disconnected');
+      isServerHealthy.current = false;
+      // 如果从正常状态变为异常状态，切换到短 interval
+      if (wasHealthy) {
+        startHealthCheckInterval();
+        lastReloadedConversationId.current = null;
+      }
+    }
+  };
+  
+  const reloadConversationHistory = async (conversationId: string): Promise<void> => {
+    try {
+      const messages = await conversationClient.getConversationMessages(conversationId);
+      setMessages(messages);
+    } catch (error) {
+      console.error('Failed to reload conversation history:', error);
     }
   };
 
@@ -78,10 +165,18 @@ const ServerStatus: React.FC = () => {
     if (settings.ai.provider !== 'ollama') return;
 
     try {
-      const response = await fetch(
-        `${ENV_CONFIG.VITE_FLASK_API_URL}/api/models`
-      );
-      const data: ModelsResponse = await response.json();
+      const currentApiUrl = apiUrlRef.current;
+      let data: ModelsResponse;
+      
+      if (isMockMode()) {
+        data = await mockServerClient.getModels('ollama');
+      } else {
+        const response = await fetch(
+          `${currentApiUrl}/api/models`
+        );
+        data = await response.json();
+      }
+      
       if (data.success) {
         setModels(data.models);
         hasGetModels.current = true;
@@ -94,7 +189,7 @@ const ServerStatus: React.FC = () => {
         }
       }
     } catch (error) {
-      console.error('获取模型列表失败:', error);
+      console.error(t('serverStatus.fetchModelsFailed'), error);
     }
   };
 
@@ -105,7 +200,7 @@ const ServerStatus: React.FC = () => {
       await invoke<ApiResponse<string>>('start_python_server');
     } catch (error) {
       setPythonServerStatus('error');
-      setError('重启服务器失败');
+      setError(t('serverStatus.restartFailed'));
     }
   };
 
@@ -121,25 +216,30 @@ const ServerStatus: React.FC = () => {
           onClick={restartServer}
           className={styles.retryBtn}
         >
-          重启服务
+          {t('serverStatus.restartServer')}
         </button>
       )}
       {ENV_CONFIG.VITE_DEV_MODE && (
-        <span className={styles.devBadge}>开发模式</span>
+        <>
+          <span className={styles.devBadge}>{t('serverStatus.devMode')}</span>
+          {isMockMode() && (
+            <span className={styles.mockBadge}>{t('serverStatus.mockMode')}</span>
+          )}
+        </>
       )}
 
       {ollamaStatus === 'disconnected' &&
         pythonServerStatus === 'started' &&
         settings.ai.provider === 'ollama' && (
           <div className={styles.connectionHelp}>
-            <h4>无法连接到Ollama</h4>
-            <p>请确保：</p>
+            <h4>{t('serverStatus.cannotConnectToOllama')}</h4>
+            <p>{t('serverStatus.pleaseEnsure')}</p>
             <ul>
-              <li>已安装Ollama</li>
+              <li>{t('serverStatus.ollamaInstalled')}</li>
               <li>
-                Ollama服务正在运行 (运行命令: <code>ollama serve</code>)
+                {t('serverStatus.ollamaRunning')}
               </li>
-              <li>服务运行在默认端口 11434</li>
+              <li>{t('serverStatus.defaultPort')}</li>
             </ul>
           </div>
         )}

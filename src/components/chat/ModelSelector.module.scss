@@ -1,0 +1,15 @@
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.modelSelector {
+  @include input-style;
+  padding: $spacing-sm $spacing-md;
+  font-size: $font-size-base;
+  min-width: 200px;
+
+  option {
+    background: $bg-darker;
+    color: $text-primary;
+    padding: $spacing-sm;
+  }
+}

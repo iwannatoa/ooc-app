@@ -1,0 +1,130 @@
+@use '@/styles/variables' as *;
+@use '@/styles/mixins' as *;
+
+.storyActions {
+  padding: $spacing-md;
+  border-top: 1px solid $border-color;
+  background: $bg-darker;
+}
+
+.actionButtons {
+  @include flex-row;
+  gap: $spacing-sm;
+  flex-wrap: wrap;
+}
+
+.actionButton {
+  padding: $spacing-sm $spacing-md;
+  background: $primary-color;
+  color: white;
+  border: none;
+  border-radius: $border-radius;
+  cursor: pointer;
+  font-size: $font-size-sm;
+  transition: background 0.2s;
+  white-space: nowrap;
+
+  &:hover:not(:disabled) {
+    background: $primary-color-hover;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.dialogOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.dialog {
+  background: $bg-dark;
+  border: 1px solid $border-color;
+  border-radius: $border-radius;
+  padding: $spacing-lg;
+  min-width: 400px;
+  max-width: 600px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+
+  h3 {
+    margin: 0 0 $spacing-md 0;
+    color: $text-primary;
+    font-size: $font-size-lg;
+  }
+
+  p {
+    margin: 0 0 $spacing-sm 0;
+    color: $text-secondary;
+    font-size: $font-size-sm;
+  }
+}
+
+.feedbackInput {
+  width: 100%;
+  padding: $spacing-sm;
+  background: $bg-darker;
+  border: 1px solid $border-color;
+  border-radius: $border-radius;
+  color: $text-primary;
+  font-size: $font-size-sm;
+  font-family: inherit;
+  resize: vertical;
+  margin-bottom: $spacing-md;
+
+  &:focus {
+    outline: none;
+    border-color: $primary-color;
+  }
+}
+
+.dialogActions {
+  @include flex-row;
+  justify-content: flex-end;
+  gap: $spacing-sm;
+}
+
+.cancelButton {
+  padding: $spacing-sm $spacing-md;
+  background: transparent;
+  color: $text-secondary;
+  border: 1px solid $border-color;
+  border-radius: $border-radius;
+  cursor: pointer;
+  font-size: $font-size-sm;
+  transition: all 0.2s;
+
+  &:hover {
+    background: $bg-darker;
+    color: $text-primary;
+  }
+}
+
+.confirmButton {
+  padding: $spacing-sm $spacing-md;
+  background: $primary-color;
+  color: white;
+  border: none;
+  border-radius: $border-radius;
+  cursor: pointer;
+  font-size: $font-size-sm;
+  transition: background 0.2s;
+
+  &:hover:not(:disabled) {
+    background: $primary-color-hover;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}

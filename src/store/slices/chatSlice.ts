@@ -66,7 +66,7 @@ const chatSlice = createSlice({
   name: 'chat',
   initialState,
   reducers: {
-    // 消息相关
+    // Message related
     setMessages: (state, action: PayloadAction<ChatMessage[]>) => {
       state.messages = action.payload;
     },
@@ -93,7 +93,7 @@ const chatSlice = createSlice({
       state.messages = [];
     },
 
-    // 模型相关
+    // Model related
     setModels: (state, action: PayloadAction<OllamaModel[]>) => {
       state.models = action.payload;
     },
@@ -109,12 +109,12 @@ const chatSlice = createSlice({
       state.selectedModel = action.payload;
     },
 
-    // 发送状态
+    // Sending state
     setSending: (state, action: PayloadAction<boolean>) => {
       state.isSending = action.payload;
     },
 
-    // 当前消息
+    // Current message
     setCurrentMessage: (state, action: PayloadAction<string>) => {
       state.currentMessage = action.payload;
     },
@@ -122,7 +122,7 @@ const chatSlice = createSlice({
       state.currentMessage = '';
     },
 
-    // 对话历史
+    // Conversation history
     setConversationHistory: (
       state,
       action: PayloadAction<ChatState['conversationHistory']>
@@ -164,20 +164,17 @@ const chatSlice = createSlice({
       state.messages = [];
     },
 
-    // 活跃对话
+    // Active conversation
     setActiveConversation: (state, action: PayloadAction<string | null>) => {
       state.activeConversationId = action.payload;
-      if (action.payload) {
-        const conversation = state.conversationHistory.find(
-          (conv) => conv.id === action.payload
-        );
-        state.messages = conversation ? conversation.messages : [];
-      } else {
+      // Don't auto-load messages from conversationHistory, messages should be explicitly set by caller via setMessages
+      // Only clear messages when set to null
+      if (!action.payload) {
         state.messages = [];
       }
     },
 
-    // 批量操作
+    // Batch operations
     loadConversation: (
       state,
       action: PayloadAction<{
@@ -189,7 +186,7 @@ const chatSlice = createSlice({
       state.messages = action.payload.messages;
     },
 
-    // 重置状态
+    // Reset state
     resetChat: (state) => {
       Object.assign(state, initialState);
     },

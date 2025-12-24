@@ -1,6 +1,6 @@
 @use './variables' as *;
 
-// 混入函数
+// Mixin functions
 @mixin flex-center {
   display: flex;
   align-items: center;
@@ -16,6 +16,12 @@
 @mixin flex-column {
   display: flex;
   flex-direction: column;
+}
+
+@mixin flex-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
 }
 
 @mixin scrollbar {

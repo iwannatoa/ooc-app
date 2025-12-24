@@ -9,9 +9,6 @@ export const useChatActions = () => {
     settings,
     updateOllamaConfig,
     updateDeepSeekConfig,
-    updateOpenAIConfig,
-    updateAnthropicConfig,
-    updateCustomConfig,
   } = useSettingsState();
   const { sendMessage: sendAIMessage } = useAiClient(settings);
 
@@ -25,24 +22,13 @@ export const useChatActions = () => {
   const handleModelChange = useCallback(
     (model: string) => {
       const provider = settings.ai.provider;
-      const updateActions = {
-        ollama: updateOllamaConfig,
-        deepseek: updateDeepSeekConfig,
-        openai: updateOpenAIConfig,
-        anthropic: updateAnthropicConfig,
-        custom: updateCustomConfig,
-      };
-
-      updateActions[provider]?.({ model });
+      if (provider === 'ollama') {
+        updateOllamaConfig({ model });
+      } else if (provider === 'deepseek') {
+        updateDeepSeekConfig({ model });
+      }
     },
-    [
-      settings.ai.provider,
-      updateOllamaConfig,
-      updateDeepSeekConfig,
-      updateOpenAIConfig,
-      updateAnthropicConfig,
-      updateCustomConfig,
-    ]
+    [settings.ai.provider, updateOllamaConfig, updateDeepSeekConfig]
   );
 
   const getCurrentModel = useCallback((): string => {
