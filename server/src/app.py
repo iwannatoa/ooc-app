@@ -121,8 +121,8 @@ def health_check():
 def stop_server():
     import threading
     import time
+
     def shutdown():
-        global _server_instance
         time.sleep(1)
         if _server_instance:
             logger.info("Shutting down server via server.shutdown()")

@@ -14,7 +14,6 @@ from service.story_generation_service import StoryGenerationService
 from service.chat_service import ChatService
 from utils.logger import get_logger
 from utils.stream_response import create_stream_response
-from utils.i18n import get_i18n_text
 from utils.controller_helpers import error_response, handle_errors
 import json
 
@@ -485,7 +484,6 @@ class SettingsController:
             - success: Success flag
         """
         try:
-            import json
             data = request.json or {}
             settings = data.get('settings')
             
