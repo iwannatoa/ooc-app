@@ -200,7 +200,12 @@ def get_target_triple() -> str:
 
 def main():
     """Main build function"""
-    print("Building Flask API for multiple platforms...")
+    import argparse
+    
+    parser = argparse.ArgumentParser(description='Build Flask API executable')
+    parser.add_argument('--current-platform-only', action='store_true',
+                        help='Build only for current platform (faster for CI)')
+    args = parser.parse_args()
     
     current_dir = Path(__file__).parent
     
@@ -215,17 +220,34 @@ def main():
     except subprocess.CalledProcessError as e:
         print(f"Warning: Failed to install dependencies: {e}")
     
-    # Build all platforms
-    built_files = build_all_platforms()
-    
-    if built_files:
-        print("\n[OK] Build completed successfully!")
-        print("Built files:")
-        for file in built_files:
-            print(f"  - {file}")
+    if args.current_platform_only:
+        # Build only for current platform
+        print("Building Flask API for current platform only...")
+        target_name = get_target_triple()
+        extension = ".exe" if sys.platform == "win32" else ""
+        built_file = build_for_platform("flask-api", target_name, extension)
+        
+        if built_file:
+            # Copy to resources directory
+            copy_current_platform_binary("flask-api")
+            print("\n[OK] Build completed successfully!")
+            print(f"Built file: {built_file}")
+        else:
+            print("\n✗ Build failed!")
+            sys.exit(1)
     else:
-        print("\n✗ Build failed!")
-        sys.exit(1)
+        # Build all platforms
+        print("Building Flask API for multiple platforms...")
+        built_files = build_all_platforms()
+        
+        if built_files:
+            print("\n[OK] Build completed successfully!")
+            print("Built files:")
+            for file in built_files:
+                print(f"  - {file}")
+        else:
+            print("\n✗ Build failed!")
+            sys.exit(1)
 
 if __name__ == "__main__":
     main()
