@@ -17,6 +17,8 @@ import {
 
 // ===== Styles and Utilities =====
 import styles from './styles.module.scss';
+import { useEffect } from 'react';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 
 /**
  * Main application component
@@ -42,6 +44,21 @@ function App() {
 
   // ===== Toast Notifications =====
   const { toasts, removeToast } = useToast();
+
+  // Show window after content is loaded
+  useEffect(() => {
+    const showWindow = async () => {
+      try {
+        const window = getCurrentWindow();
+        // Wait for React to render, then show window
+        await new Promise(resolve => setTimeout(resolve, 100));
+        await window.show();
+      } catch (error) {
+        console.error('Failed to show window:', error);
+      }
+    };
+    showWindow();
+  }, []);
 
   return (
     <div className={styles.app}>

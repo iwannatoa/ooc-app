@@ -1,15 +1,16 @@
 use reqwest;
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, State};
-use tauri_plugin_shell::{
-    process::{CommandChild, CommandEvent},
-    ShellExt,
-};
+use tauri_plugin_shell::process::CommandChild;
+
+#[cfg(not(target_os = "windows"))]
+use tauri_plugin_shell::{process::CommandEvent, ShellExt};
 
 use tokio::sync::Mutex as TokioMutex;
 
-#[cfg(target_os = "windows")]
-use kill_tree::blocking::kill_tree;
+// kill_tree is no longer used since we only use API shutdown
+// #[cfg(target_os = "windows")]
+// use kill_tree::blocking::kill_tree;
 
 #[derive(Debug, Serialize)]
 pub struct ApiResponse<T> {
@@ -60,67 +61,277 @@ pub async fn start_python_server(
         Err(_) => None,
     };
 
-    let command = if cfg!(debug_assertions) {
-        let project_root = std::env::current_dir()
-            .ok()
-            .and_then(|dir| {
-                if dir
-                    .file_name()
-                    .and_then(|name| name.to_str())
-                    .map(|name| name == "src-tauri")
-                    .unwrap_or(false)
-                {
-                    dir.parent().map(|p| p.to_path_buf())
-                } else {
-                    std::env::current_exe()
-                        .ok()
-                        .and_then(|exe| {
-                            exe.parent()
-                                .and_then(|p| p.parent())
-                                .and_then(|p| p.parent())
-                                .and_then(|p| p.parent())
-                                .and_then(|p| p.parent())
-                                .map(|p| p.to_path_buf())
-                        })
-                        .or(Some(dir))
-                }
-            })
-            .unwrap_or_else(|| std::path::PathBuf::from("."));
+    // Use native tokio::process::Command on Windows to hide console window
+    // Tauri shell plugin doesn't support CREATE_NO_WINDOW flag
+    #[cfg(target_os = "windows")]
+    {
+        use tokio::process::Command;
+        use tokio::io::{AsyncBufReadExt, BufReader};
 
-        let run_script = project_root.join("server").join("run.py");
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
 
-        let mut cmd = app_handle.shell().command("python");
-        cmd = cmd.args(&[run_script.to_string_lossy().as_ref()]);
-        cmd = cmd.current_dir(&project_root);
-        // Enable debug logging in development mode (debug_assertions means dev build)
-        cmd = cmd.env("LOG_LEVEL_DEBUG", "true");
-        cmd = cmd.env("FLASK_ENV", "development");
-        if let Some(path) = &db_path {
-            cmd = cmd.env("DB_PATH", path);
-        }
-        cmd
-    } else {
-        match app_handle.shell().sidecar("flask-api") {
-            Ok(mut cmd) => {
-                if let Some(path) = &db_path {
-                    cmd = cmd.env("DB_PATH", path);
-                }
-                cmd
+        let mut native_cmd = if cfg!(debug_assertions) {
+            let project_root = std::env::current_dir()
+                .ok()
+                .and_then(|dir| {
+                    if dir
+                        .file_name()
+                        .and_then(|name| name.to_str())
+                        .map(|name| name == "src-tauri")
+                        .unwrap_or(false)
+                    {
+                        dir.parent().map(|p| p.to_path_buf())
+                    } else {
+                        std::env::current_exe()
+                            .ok()
+                            .and_then(|exe| {
+                                exe.parent()
+                                    .and_then(|p| p.parent())
+                                    .and_then(|p| p.parent())
+                                    .and_then(|p| p.parent())
+                                    .and_then(|p| p.parent())
+                                    .map(|p| p.to_path_buf())
+                            })
+                            .or(Some(dir))
+                    }
+                })
+                .unwrap_or_else(|| std::path::PathBuf::from("."));
+
+            let run_script = project_root.join("server").join("run.py");
+
+            let mut cmd = Command::new("python");
+            cmd.args(&[run_script.to_string_lossy().as_ref()]);
+            cmd.current_dir(&project_root);
+            cmd.env("LOG_LEVEL_DEBUG", "true");
+            cmd.env("FLASK_ENV", "development");
+            if let Some(path) = &db_path {
+                cmd.env("DB_PATH", path);
             }
+            cmd.stdout(std::process::Stdio::piped());
+            cmd.stderr(std::process::Stdio::piped());
+            // Set CREATE_NO_WINDOW flag on Windows
+            cmd.creation_flags(CREATE_NO_WINDOW);
+            cmd
+        } else {
+            // For production, find the sidecar executable
+            let exe_path = match app_handle.path().resource_dir() {
+                Ok(dir) => {
+                    // Try to find flask-api executable with platform-specific name
+                    let platform_exe = if cfg!(target_arch = "x86_64") {
+                        "flask-api-x86_64-pc-windows-msvc.exe"
+                    } else {
+                        return Ok(ApiResponse {
+                            success: false,
+                            data: None,
+                            error: Some("Unsupported architecture".to_string()),
+                        });
+                    };
+                    let exe = dir.join(platform_exe);
+                    if exe.exists() {
+                        exe
+                    } else {
+                        // Fallback to generic name
+                        let generic_exe = dir.join("flask-api.exe");
+                        if generic_exe.exists() {
+                            generic_exe
+                        } else {
+                            return Ok(ApiResponse {
+                                success: false,
+                                data: None,
+                                error: Some(
+                                    "Cannot find embedded Python server executable".to_string(),
+                                ),
+                            });
+                        }
+                    }
+                }
+                Err(e) => {
+                    return Ok(ApiResponse {
+                        success: false,
+                        data: None,
+                        error: Some(format!("Failed to get resource directory: {}", e)),
+                    });
+                }
+            };
+
+            let mut cmd = Command::new(&exe_path);
+            if let Some(path) = &db_path {
+                cmd.env("DB_PATH", path);
+            }
+            cmd.stdout(std::process::Stdio::piped());
+            cmd.stderr(std::process::Stdio::piped());
+            // Set CREATE_NO_WINDOW flag on Windows
+            cmd.creation_flags(CREATE_NO_WINDOW);
+            cmd
+        };
+
+        let mut child = match native_cmd.spawn() {
+            Ok(child) => child,
             Err(e) => {
                 return Ok(ApiResponse {
                     success: false,
                     data: None,
-                    error: Some(format!(
-                        "Cannot find embedded Python server executable: {}",
-                        e
-                    )),
+                    error: Some(format!("Failed to start Python server: {}", e)),
                 });
             }
-        }
-    };
+        };
 
-    match command.spawn() {
+        let pid = child.id().unwrap_or(0);
+        let stdout = match child.stdout.take() {
+            Some(stdout) => stdout,
+            None => {
+                return Ok(ApiResponse {
+                    success: false,
+                    data: None,
+                    error: Some("Failed to get stdout".to_string()),
+                });
+            }
+        };
+        let stderr = match child.stderr.take() {
+            Some(stderr) => stderr,
+            None => {
+                return Ok(ApiResponse {
+                    success: false,
+                    data: None,
+                    error: Some("Failed to get stderr".to_string()),
+                });
+            }
+        };
+
+        // Store PID
+        server.pid = Some(pid);
+
+        // Spawn tasks to read stdout and stderr
+        let app_handle_clone = app_handle.clone();
+        tokio::spawn(async move {
+            let mut reader = BufReader::new(stdout);
+            let mut line = String::new();
+            while let Ok(n) = reader.read_line(&mut line).await {
+                if n == 0 {
+                    break;
+                }
+                let trimmed = line.trim();
+                if trimmed.contains("FLASK_PORT:") {
+                    if let Some(port_part) = trimmed.split("FLASK_PORT:").nth(1) {
+                        let port_str = port_part
+                            .split_whitespace()
+                            .next()
+                            .unwrap_or(port_part)
+                            .trim();
+                        if let Ok(port) = port_str.parse::<u16>() {
+                            if let Some(window) = app_handle_clone.get_webview_window("main") {
+                                let _ = window.emit("flask-port-ready", port);
+                            } else {
+                                let _ = app_handle_clone.emit("flask-port-ready", port);
+                            }
+
+                            if let Some(server_state) =
+                                app_handle_clone.try_state::<TokioMutex<PythonServer>>()
+                            {
+                                let mut server = server_state.lock().await;
+                                server.port = Some(port);
+                                server.pid = Some(pid);
+                            }
+                        }
+                    }
+                }
+                line.clear();
+            }
+        });
+
+        tokio::spawn(async move {
+            let mut reader = BufReader::new(stderr);
+            let mut line = String::new();
+            while let Ok(n) = reader.read_line(&mut line).await {
+                if n == 0 {
+                    break;
+                }
+                let error_msg = format!("Flask: {}", line.trim());
+                eprintln!("{}", error_msg);
+                crate::logger::log_error(&error_msg);
+                line.clear();
+            }
+        });
+
+        // Store child handle for later termination
+        // We need to keep the child alive, so we'll store it in a way that allows us to kill it later
+        // For now, we'll use the PID-based approach in stop_python_server_internal
+        let mut child_handle = child;
+        tokio::spawn(async move {
+            let _ = child_handle.wait().await;
+        });
+
+        return Ok(ApiResponse {
+            success: true,
+            data: Some("Python Flask server started successfully".to_string()),
+            error: None,
+        });
+    }
+
+    // For non-Windows platforms, use Tauri shell plugin as before
+    #[cfg(not(target_os = "windows"))]
+    {
+        let command = if cfg!(debug_assertions) {
+            let project_root = std::env::current_dir()
+                .ok()
+                .and_then(|dir| {
+                    if dir
+                        .file_name()
+                        .and_then(|name| name.to_str())
+                        .map(|name| name == "src-tauri")
+                        .unwrap_or(false)
+                    {
+                        dir.parent().map(|p| p.to_path_buf())
+                    } else {
+                        std::env::current_exe()
+                            .ok()
+                            .and_then(|exe| {
+                                exe.parent()
+                                    .and_then(|p| p.parent())
+                                    .and_then(|p| p.parent())
+                                    .and_then(|p| p.parent())
+                                    .and_then(|p| p.parent())
+                                    .map(|p| p.to_path_buf())
+                            })
+                            .or(Some(dir))
+                    }
+                })
+                .unwrap_or_else(|| std::path::PathBuf::from("."));
+
+            let run_script = project_root.join("server").join("run.py");
+
+            let mut cmd = app_handle.shell().command("python");
+            cmd = cmd.args(&[run_script.to_string_lossy().as_ref()]);
+            cmd = cmd.current_dir(&project_root);
+            // Enable debug logging in development mode (debug_assertions means dev build)
+            cmd = cmd.env("LOG_LEVEL_DEBUG", "true");
+            cmd = cmd.env("FLASK_ENV", "development");
+            if let Some(path) = &db_path {
+                cmd = cmd.env("DB_PATH", path);
+            }
+            cmd
+        } else {
+            match app_handle.shell().sidecar("flask-api") {
+                Ok(mut cmd) => {
+                    if let Some(path) = &db_path {
+                        cmd = cmd.env("DB_PATH", path);
+                    }
+                    cmd
+                }
+                Err(e) => {
+                    return Ok(ApiResponse {
+                        success: false,
+                        data: None,
+                        error: Some(format!(
+                            "Cannot find embedded Python server executable: {}",
+                            e
+                        )),
+                    });
+                }
+            }
+        };
+
+        match command.spawn() {
         Ok((mut rx, child)) => {
             server.process = Some(child);
 
@@ -202,6 +413,7 @@ pub async fn start_python_server(
             data: None,
             error: Some(format!("Failed to start Python server: {}", e)),
         }),
+        }
     }
 }
 
@@ -279,7 +491,9 @@ pub async fn get_flask_port(
 }
 
 // Helper function to find PID by port on Windows
+// Currently not used since we only use API shutdown, but kept for potential future use
 #[cfg(target_os = "windows")]
+#[allow(dead_code)]
 fn find_pid_by_port(port: u16) -> Option<u32> {
     use std::process::Command;
 
@@ -311,120 +525,55 @@ pub async fn stop_python_server_internal(
     let mut server = server_state.lock().await;
 
     let port = server.port;
-    let process = server.process.take();
-    let stored_pid = server.pid;
+    let _process = server.process.take(); // Take ownership but don't use it unless API fails
+    let _stored_pid = server.pid;
 
     if let Some(port_val) = port {
         println!("[FLASK_STOP] Current Flask port: {}", port_val);
 
-        // First, try to gracefully shutdown via API
+        // Use API to gracefully shutdown the server
         let client = reqwest::Client::new();
         let shutdown_url = format!("http://localhost:{}/api/stop", port_val);
 
         println!("[FLASK_STOP] Attempting graceful shutdown via API...");
         match client
             .post(&shutdown_url)
-            .timeout(std::time::Duration::from_secs(2))
+            .timeout(std::time::Duration::from_secs(10))
             .send()
             .await
         {
-            Ok(_) => {
-                println!("[FLASK_STOP] Graceful shutdown API call successful");
-                // Wait a bit for graceful shutdown
-                tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
+            Ok(response) => {
+                if response.status().is_success() {
+                    // Try to read the response body to get the message
+                    match response.json::<serde_json::Value>().await {
+                        Ok(json) => {
+                            if let Some(message) = json.get("message").and_then(|m| m.as_str()) {
+                                println!("[FLASK_STOP] Server response: {}", message);
+                            }
+                        }
+                        Err(_) => {
+                            // Response might not be JSON, that's okay
+                        }
+                    }
+                    println!("[FLASK_STOP] Graceful shutdown API call successful, server has been shut down");
+                } else {
+                    println!(
+                        "[FLASK_STOP] API returned status {}, but continuing shutdown",
+                        response.status()
+                    );
+                }
             }
             Err(e) => {
+                // If API call fails, the server might already be down or unreachable
+                // This is expected if the server has already shut down
                 println!(
-                    "[FLASK_STOP] Graceful shutdown API call failed: {}, will use process kill",
+                    "[FLASK_STOP] API call failed (server may have already shut down): {}",
                     e
                 );
             }
         }
-    }
-
-    // Try to kill using stored PID or find PID by port
-    let pid_to_kill = stored_pid.or_else(|| {
-        #[cfg(target_os = "windows")]
-        {
-            if let Some(port_val) = port {
-                println!("[FLASK_STOP] Attempting to find PID by port: {}", port_val);
-                find_pid_by_port(port_val)
-            } else {
-                None
-            }
-        }
-        #[cfg(not(target_os = "windows"))]
-        {
-            None
-        }
-    });
-
-    // Use kill_tree to terminate process tree on Windows
-    #[cfg(target_os = "windows")]
-    {
-        if let Some(pid) = pid_to_kill {
-            println!(
-                "[FLASK_STOP] Found PID: {}, using kill_tree to terminate process tree",
-                pid
-            );
-            match kill_tree(pid) {
-                Ok(outputs) => {
-                    for output in outputs {
-                        match output {
-                            kill_tree::Output::Killed {
-                                process_id, name, ..
-                            } => {
-                                println!("[FLASK_STOP] Killed process {}: {}", process_id, name);
-                            }
-                            kill_tree::Output::MaybeAlreadyTerminated { process_id, .. } => {
-                                println!(
-                                    "[FLASK_STOP] Process {} was already terminated",
-                                    process_id
-                                );
-                            }
-                        }
-                    }
-                    println!("[FLASK_STOP] Process tree terminated successfully");
-                    // Wait a bit to ensure termination
-                    tokio::time::sleep(tokio::time::Duration::from_millis(300)).await;
-                }
-                Err(e) => {
-                    let error_msg = format!(
-                        "[FLASK_STOP] Failed to kill process tree (PID {}): {}",
-                        pid, e
-                    );
-                    eprintln!("{}", error_msg);
-                    crate::logger::log_error(&error_msg);
-                    // Fall through to try process.kill()
-                }
-            }
-        }
-    }
-
-    // Fallback: Try to kill the process using CommandChild.kill()
-    if let Some(process) = process {
-        println!(
-            "[FLASK_STOP] Found Flask process, attempting to kill using CommandChild.kill()..."
-        );
-
-        // Try to kill the process (this takes ownership of process)
-        let kill_result = process.kill();
-        match kill_result {
-            Ok(_) => {
-                println!("[FLASK_STOP] Flask process kill signal sent");
-                // Wait a bit for process to terminate
-                tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
-                println!("[FLASK_STOP] Flask process terminated");
-            }
-            Err(e) => {
-                let error_msg = format!("[FLASK_STOP] Failed to kill Flask process: {}", e);
-                eprintln!("{}", error_msg);
-                crate::logger::log_error(&error_msg);
-                // Don't return error, just log it - we still want to clear state
-            }
-        }
     } else {
-        println!("[FLASK_STOP] No Flask process found, nothing to stop");
+        println!("[FLASK_STOP] No port information available, cannot call shutdown API");
     }
 
     // Clear port, process, and PID state

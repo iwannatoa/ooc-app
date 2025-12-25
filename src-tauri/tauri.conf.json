@@ -7,7 +7,7 @@
     "frontendDist": "../dist",
     "devUrl": "http://localhost:1420",
     "beforeDevCommand": "",
-    "beforeBuildCommand": "cd server && python build.py"
+    "beforeBuildCommand": "npm run build:python && npm run build"
   },
   "bundle": {
     "active": true,
@@ -20,7 +20,7 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "externalBin": []
+    "externalBin": ["resources/flask-api"]
   },
   "app": {
     "windows": [
@@ -32,11 +32,12 @@
         "fullscreen": false,
         "transparent": true,
         "decorations": false,
-        "backgroundColor": "#1a1a1a"
+        "backgroundColor": "#1a1a1a",
+        "visible": false
       }
     ],
     "security": {
-      "csp": "default-src 'self' http://localhost:5000; connect-src 'self' http://localhost:5000 ws://localhost:5000"
+      "csp": "default-src 'self' http://localhost:*; connect-src 'self' http://localhost:* ws://localhost:*"
     }
   },
   "plugins": {

@@ -267,24 +267,33 @@ Backend configuration can be set via environment variables:
 
 ```bash
 # Flask Configuration
-FLASK_HOST=127.0.0.1
-FLASK_PORT=5000          # Set to 0 for dynamic port allocation
-FLASK_DEBUG=false
-FLASK_ENV=development
+FLASK_HOST=127.0.0.1              # Default: 127.0.0.1
+FLASK_PORT=0                      # Set to 0 for dynamic port allocation (default: 0)
+FLASK_DEBUG=false                 # Enable debug mode (default: false)
+FLASK_ENV=development             # Environment: development, production, testing
 
 # Database Configuration
-DB_PATH=/path/to/database.db  # Auto-detected if not set
+DB_PATH=/path/to/database.db      # Database file path
+                                  # - If not set in development: auto-created at server/data/local/chat.db
+                                  # - In production: obtained from Tauri app data directory
 
 # Ollama Configuration
-OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_REQUEST_TIMEOUT=300
+OLLAMA_BASE_URL=http://localhost:11434  # Default: http://localhost:11434
+OLLAMA_REQUEST_TIMEOUT=300               # Request timeout in seconds (default: 300)
 
 # DeepSeek Configuration
-DEEPSEEK_BASE_URL=https://api.deepseek.com
-DEEPSEEK_TIMEOUT=60
+DEEPSEEK_BASE_URL=https://api.deepseek.com  # Default: https://api.deepseek.com
+DEEPSEEK_TIMEOUT=60                        # Request timeout in seconds (default: 60)
 
 # Logging Configuration
-LOG_LEVEL=INFO
+LOG_LEVEL=INFO                     # Log level: DEBUG, INFO, WARNING, ERROR (default: INFO)
+
+# Story Summarization Configuration (optional)
+SUMMARY_THRESHOLD=150              # Message count threshold for summarization (default: 150)
+MAX_MESSAGE_HISTORY=100            # Max messages without summary (default: 100)
+RECENT_MESSAGES_WITH_SUMMARY=15    # Recent messages to keep with summary (default: 15)
+ESTIMATED_TOKENS_PER_MESSAGE=500  # Estimated tokens per message (default: 500)
+MAX_CONTEXT_TOKENS=60000          # Max context tokens (default: 60000)
 ```
 
 ### Application Settings
@@ -330,25 +339,48 @@ Templates are stored in JSON files (`server/src/utils/prompt_templates/`) for ea
 
 ### Story Management
 - `GET /api/conversations/list` - List all stories
+- `GET /api/conversations` - Get conversations (alternative endpoint)
 - `GET /api/conversation/settings?conversation_id=<id>` - Get story settings
 - `POST /api/conversation/settings` - Create or update story settings
 - `GET /api/conversation?conversation_id=<id>` - Get story messages
 - `DELETE /api/conversation?conversation_id=<id>` - Delete story
+- `POST /api/conversation/delete-last-message` - Delete last message in conversation
 
 ### Story Generation
 - `POST /api/story/generate` - Generate story section
+- `POST /api/story/generate-stream` - Generate story section (streaming)
 - `POST /api/story/confirm` - Confirm current section and generate next
 - `POST /api/story/rewrite` - Rewrite current section
 - `POST /api/story/modify` - Modify current section
+
+### Story Outline & Progress
+- `POST /api/conversation/generate-outline` - Generate story outline
+- `POST /api/conversation/generate-outline-stream` - Generate story outline (streaming)
+- `GET /api/conversation/progress?conversation_id=<id>` - Get story progress
+- `POST /api/conversation/progress` - Update story progress
+- `POST /api/conversation/progress/confirm-outline` - Confirm outline
 
 ### Story Summarization
 - `GET /api/conversation/summary?conversation_id=<id>` - Get story summary
 - `POST /api/conversation/summary/generate` - Generate summary
 - `POST /api/conversation/summary` - Save summary
 
+### Character Management
+- `GET /api/conversation/characters?conversation_id=<id>` - Get characters
+- `POST /api/conversation/characters/update` - Update character
+- `POST /api/conversation/characters/generate` - Generate characters
+- `POST /api/conversation/characters/generate-stream` - Generate characters (streaming)
+
+### Chat
+- `POST /api/chat` - Send chat message
+- `POST /api/chat-stream` - Send chat message (streaming)
+- `GET /api/models?provider=<provider>` - Get available models
+
 ### Application Settings
 - `GET /api/app-settings/language` - Get language setting
 - `POST /api/app-settings/language` - Set language setting
+- `GET /api/app-settings` - Get all app settings
+- `POST /api/app-settings` - Save app settings
 
 ### AI Configuration
 - `GET /api/ai-config` - Get AI configurations
