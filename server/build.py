@@ -229,8 +229,10 @@ def main():
         built_file = build_for_platform("flask-api", target_name, extension)
         
         if built_file:
-            # Copy to resources directory
-            copy_current_platform_binary("flask-api")
+            # Copy to resources directory for Tauri
+            current_dir = Path(__file__).parent
+            resources_dir = current_dir.parent / "src-tauri" / "resources"
+            copy_current_platform_binary("flask-api", resources_dir)
             print("\n[OK] Build completed successfully!")
             print(f"Built file: {built_file}")
         else:
