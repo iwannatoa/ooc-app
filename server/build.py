@@ -49,8 +49,9 @@ def build_for_platform(base_name: str, target_triple: str, output_suffix: str):
     
     # Build using spec file (clearer, centralized configuration)
     spec_file = current_dir / "flask-api.spec"
+    # Use python -m PyInstaller to ensure it's found even if not in PATH
     pyinstaller_cmd = [
-        "pyinstaller",
+        sys.executable, "-m", "PyInstaller",
         "--clean",
         str(spec_file)
     ]
