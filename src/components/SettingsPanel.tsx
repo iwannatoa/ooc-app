@@ -14,9 +14,6 @@ import {
 import styles from './SettingsPanel.module.scss';
 
 interface SettingsPanelProps {
-  // Optional props for backward compatibility, but component will use hooks directly
-  settings?: never;
-  onSettingsChange?: never;
   onClose: () => void;
   open: boolean;
 }

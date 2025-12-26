@@ -2,7 +2,7 @@
 Character service layer
 """
 import re
-from typing import List, Optional, Dict, Set, Generator, Tuple, TYPE_CHECKING, Any
+from typing import List, Optional, Dict, Generator, Tuple, TYPE_CHECKING, Any
 from repository.character_record_repository import CharacterRecordRepository
 from repository.chat_repository import ChatRepository
 from utils.logger import get_logger

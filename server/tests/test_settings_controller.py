@@ -14,6 +14,7 @@ from controller.settings_controller import SettingsController
 from service.conversation_service import ConversationService
 from service.story_service import StoryService
 from service.ai_service import AIService
+from service.ai_service_streaming import AIServiceStreaming
 from service.ai_config_service import AIConfigService
 from service.app_settings_service import AppSettingsService
 from service.character_service import CharacterService
@@ -38,6 +39,7 @@ class TestSettingsController:
             'conversation_service': Mock(spec=ConversationService),
             'story_service': Mock(spec=StoryService),
             'ai_service': Mock(spec=AIService),
+            'ai_service_streaming': Mock(spec=AIServiceStreaming),
             'ai_config_service': Mock(spec=AIConfigService),
             'app_settings_service': Mock(spec=AppSettingsService),
             'character_service': Mock(spec=CharacterService),
@@ -52,6 +54,7 @@ class TestSettingsController:
             conversation_service=mock_services['conversation_service'],
             story_service=mock_services['story_service'],
             ai_service=mock_services['ai_service'],
+            ai_service_streaming=mock_services['ai_service_streaming'],
             ai_config_service=mock_services['ai_config_service'],
             app_settings_service=mock_services['app_settings_service'],
             character_service=mock_services['character_service'],

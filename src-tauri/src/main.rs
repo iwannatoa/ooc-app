@@ -45,21 +45,26 @@ fn main() {
                 .await;
             });
 
-            #[cfg(debug_assertions)]
-            {
-                if let Some(window) = app.get_webview_window("main") {
+            // Show window after content is loaded
+            if let Some(window) = app.get_webview_window("main") {
+                #[cfg(debug_assertions)]
+                {
                     window.open_devtools();
                 }
+                
+                // Wait a bit for content to load, then show window
+                let window_clone = window.clone();
+                tauri::async_runtime::spawn(async move {
+                    tokio::time::sleep(tokio::time::Duration::from_millis(300)).await;
+                    let _ = window_clone.show();
+                });
             }
 
             Ok(())
         })
         .on_window_event(|_window, event| {
             if let tauri::WindowEvent::CloseRequested { .. } = event {
-                // 标记正在关闭
-                CLOSING.store(true, Ordering::SeqCst);
-                // 允许窗口立即关闭，不阻塞用户界面
-                println!("[WINDOW_CLOSE] Window close requested, allowing immediate close");
+                // 不设置 CLOSING，让 RunEvent::ExitRequested 来处理关闭逻辑
                 // 不调用 prevent_close()，让窗口立即关闭
                 // Flask 会在 RunEvent::ExitRequested 中关闭
             }
@@ -69,16 +74,14 @@ fn main() {
         .run(|app_handle, event| {
             match event {
                 RunEvent::ExitRequested { api, .. } => {
-                    // 检查是否已经在处理退出流程，防止无限循环
-                    if CLOSING.load(Ordering::SeqCst) {
-                        println!("[APP_EXIT] Already closing, allowing immediate exit");
+                    // 检查是否已经在处理退出流程，防止重复执行
+                    if CLOSING.swap(true, Ordering::SeqCst) {
+                        // 如果已经在关闭中，直接返回，不重复执行
+                        // 不打印日志，避免干扰
                         return;
                     }
 
                     println!("[APP_EXIT] Exit requested, starting Flask cleanup");
-
-                    // 标记正在关闭
-                    CLOSING.store(true, Ordering::SeqCst);
 
                     // 防止应用立即退出，确保清理完成
                     api.prevent_exit();

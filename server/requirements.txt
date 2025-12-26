@@ -4,3 +4,4 @@ flask-injector==0.15.0
 injector==0.20.1
 requests==2.31.0
 sqlalchemy>=2.0.23,<3.0.0
+pyinstaller>=5.13.0

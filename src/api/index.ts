@@ -77,15 +77,4 @@ export class ApiClientFactory {
   }
 }
 
-/**
- * Create API client factory
- * This is a convenience function for creating the factory
- */
-export function createApiClientFactory(
-  getApiUrl: GetApiUrlFn,
-  t: TranslationFn,
-  settings: AppSettings
-): ApiClientFactory {
-  return new ApiClientFactory(getApiUrl, t, settings);
-}
 

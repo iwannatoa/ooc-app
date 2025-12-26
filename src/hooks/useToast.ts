@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Toast, ToastType } from '@/components/Toast';
+import { Toast, ToastType } from '@/components/common/Toast';
 
 let toastIdCounter = 0;
 

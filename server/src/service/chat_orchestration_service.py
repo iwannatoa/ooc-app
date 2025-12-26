@@ -71,8 +71,6 @@ class ChatOrchestrationService:
         
         if result.get('success'):
             try:
-                # Import here to avoid circular dependency
-                from service.conversation_service import ConversationService
                 # Note: This is a temporary solution. In production, ConversationService
                 # should be injected via dependency injection
                 # For now, we'll strip think content using a simple regex

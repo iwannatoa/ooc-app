@@ -4,7 +4,7 @@ Provides common functions for controllers
 """
 from functools import wraps
 from flask import jsonify
-from typing import Optional, Callable, Any
+from typing import Optional, Callable
 from utils.i18n import get_i18n_text
 from utils.exceptions import APIError, ValidationError, ProviderError, ServiceError
 from utils.logger import get_logger

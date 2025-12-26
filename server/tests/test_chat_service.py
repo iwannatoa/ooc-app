@@ -95,10 +95,18 @@ class TestChatService:
     
     def test_delete_last_message(self, service, mock_repo):
         """Test deleting last message"""
-        mock_repo.delete_last_message.return_value = 1
+        # Create a mock ChatRecord object
+        mock_message = Mock(spec=ChatRecord)
+        mock_message.to_dict.return_value = {
+            'id': 1,
+            'role': 'assistant',
+            'content': 'Test message'
+        }
+        mock_repo.delete_last_message.return_value = mock_message
         
         result = service.delete_last_message('test_conv_001')
         
-        assert result == 1
+        assert result == mock_message.to_dict.return_value
         mock_repo.delete_last_message.assert_called_once_with('test_conv_001')
+        mock_message.to_dict.assert_called_once()
 

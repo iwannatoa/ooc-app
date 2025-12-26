@@ -1,5 +1,4 @@
 # build.py
-import os
 import sys
 import subprocess
 import platform
@@ -49,8 +48,9 @@ def build_for_platform(base_name: str, target_triple: str, output_suffix: str):
     
     # Build using spec file (clearer, centralized configuration)
     spec_file = current_dir / "flask-api.spec"
+    # Use python -m PyInstaller to ensure it's found even if not in PATH
     pyinstaller_cmd = [
-        "pyinstaller",
+        sys.executable, "-m", "PyInstaller",
         "--clean",
         str(spec_file)
     ]
@@ -65,7 +65,7 @@ def build_for_platform(base_name: str, target_triple: str, output_suffix: str):
         
         if original_exe.exists():
             original_exe.rename(new_exe_path)
-            print(f"✓ Built: {new_name}")
+            print(f"[OK] Built: {new_name}")
             return new_exe_path
         else:
             print(f"✗ Build failed: {original_exe} not found")
@@ -107,6 +107,18 @@ def build_all_platforms():
     current_platform_file = copy_current_platform_binary(base_name, final_output_dir)
     if current_platform_file:
         built_files.append(current_platform_file)
+    
+    # Copy to Tauri resources directory for sidecar
+    # Tauri expects platform-specific names: flask-api-{target-triple}
+    tauri_resources_dir = current_dir.parent / "src-tauri" / "resources"
+    if current_platform_file:
+        tauri_resources_dir.mkdir(parents=True, exist_ok=True)
+        # Get the platform-specific name that Tauri expects
+        tauri_sidecar_name = get_tauri_binary_name(base_name)
+        tauri_sidecar_file = tauri_resources_dir / tauri_sidecar_name
+        shutil.copy2(current_platform_file, tauri_sidecar_file)
+        print(f"[OK] Copied to Tauri resources: {tauri_sidecar_file}")
+        built_files.append(tauri_sidecar_file)
     
     return built_files
 
@@ -161,7 +173,7 @@ def copy_current_platform_binary(base_name: str, output_dir: Path) -> Path:
         # Copy file
         dest_file = output_dir / current_platform_name
         shutil.copy2(source_file, dest_file)
-        print(f"✓ Copied to: {dest_file}")
+        print(f"[OK] Copied to: {dest_file}")
         return dest_file
     
     return None
@@ -187,7 +199,12 @@ def get_target_triple() -> str:
 
 def main():
     """Main build function"""
-    print("Building Flask API for multiple platforms...")
+    import argparse
+    
+    parser = argparse.ArgumentParser(description='Build Flask API executable')
+    parser.add_argument('--current-platform-only', action='store_true',
+                        help='Build only for current platform (faster for CI)')
+    args = parser.parse_args()
     
     current_dir = Path(__file__).parent
     
@@ -202,17 +219,35 @@ def main():
     except subprocess.CalledProcessError as e:
         print(f"Warning: Failed to install dependencies: {e}")
     
-    # Build all platforms
-    built_files = build_all_platforms()
-    
-    if built_files:
-        print("\n✓ Build completed successfully!")
-        print("Built files:")
-        for file in built_files:
-            print(f"  - {file}")
+    if args.current_platform_only:
+        # Build only for current platform
+        print("Building Flask API for current platform only...")
+        target_name = get_target_triple()
+        extension = ".exe" if sys.platform == "win32" else ""
+        built_file = build_for_platform("flask-api", target_name, extension)
+        
+        if built_file:
+            # Copy to resources directory for Tauri
+            resources_dir = current_dir.parent / "src-tauri" / "resources"
+            copy_current_platform_binary("flask-api", resources_dir)
+            print("\n[OK] Build completed successfully!")
+            print(f"Built file: {built_file}")
+        else:
+            print("\n✗ Build failed!")
+            sys.exit(1)
     else:
-        print("\n✗ Build failed!")
-        sys.exit(1)
+        # Build all platforms
+        print("Building Flask API for multiple platforms...")
+        built_files = build_all_platforms()
+        
+        if built_files:
+            print("\n[OK] Build completed successfully!")
+            print("Built files:")
+            for file in built_files:
+                print(f"  - {file}")
+        else:
+            print("\n✗ Build failed!")
+            sys.exit(1)
 
 if __name__ == "__main__":
     main()

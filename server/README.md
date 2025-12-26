@@ -70,7 +70,7 @@ You can configure the server through environment variables:
 ```bash
 # Flask configuration
 FLASK_HOST=127.0.0.1
-FLASK_PORT=5000
+FLASK_PORT=0
 FLASK_DEBUG=false
 FLASK_ENV=development
 

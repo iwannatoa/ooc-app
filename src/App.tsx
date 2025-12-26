@@ -17,6 +17,8 @@ import {
 
 // ===== Styles and Utilities =====
 import styles from './styles.module.scss';
+import { useEffect } from 'react';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 
 /**
  * Main application component
@@ -32,7 +34,8 @@ import styles from './styles.module.scss';
 function App() {
   // ===== UI State Management =====
   const uiState = useUIState();
-  const { activeConversationId, currentSettings } = useConversationManagement();
+  const { activeConversationId, conversationSettings } =
+    useConversationManagement();
 
   // Load app settings from backend
   useAppSettings();
@@ -42,6 +45,21 @@ function App() {
 
   // ===== Toast Notifications =====
   const { toasts, removeToast } = useToast();
+
+  // Show window after content is loaded
+  useEffect(() => {
+    const showWindow = async () => {
+      try {
+        const window = getCurrentWindow();
+        // Wait for React to render, then show window
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        await window.show();
+      } catch (error) {
+        console.error('Failed to show window:', error);
+      }
+    };
+    showWindow();
+  }, []);
 
   return (
     <div className={styles.app}>
@@ -59,9 +77,9 @@ function App() {
             <div className={styles.conversationContainer}>
               <div className={styles.chatWithSidebar}>
                 <ChatInterface />
-                {activeConversationId && currentSettings && (
+                {activeConversationId && conversationSettings && (
                   <StorySettingsSidebar
-                    settings={currentSettings}
+                    settings={conversationSettings}
                     onToggle={() =>
                       uiState.setSettingsSidebarCollapsed(
                         !uiState.settingsSidebarCollapsed
