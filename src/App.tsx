@@ -34,7 +34,8 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 function App() {
   // ===== UI State Management =====
   const uiState = useUIState();
-  const { activeConversationId, currentSettings } = useConversationManagement();
+  const { activeConversationId, conversationSettings } =
+    useConversationManagement();
 
   // Load app settings from backend
   useAppSettings();
@@ -51,7 +52,7 @@ function App() {
       try {
         const window = getCurrentWindow();
         // Wait for React to render, then show window
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 100));
         await window.show();
       } catch (error) {
         console.error('Failed to show window:', error);
@@ -76,9 +77,9 @@ function App() {
             <div className={styles.conversationContainer}>
               <div className={styles.chatWithSidebar}>
                 <ChatInterface />
-                {activeConversationId && currentSettings && (
+                {activeConversationId && conversationSettings && (
                   <StorySettingsSidebar
-                    settings={currentSettings}
+                    settings={conversationSettings}
                     onToggle={() =>
                       uiState.setSettingsSidebarCollapsed(
                         !uiState.settingsSidebarCollapsed

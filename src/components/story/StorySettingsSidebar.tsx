@@ -20,7 +20,8 @@ const StorySettingsSidebar: React.FC<StorySettingsSidebarProps> = ({
   const [isExpanded, setIsExpanded] = useState(false);
   const settingsDialog = useConversationSettingsDialog();
   const viewDialog = useStorySettingsViewDialog();
-  const { activeConversationId, currentSettings } = useConversationManagement();
+  const { activeConversationId, conversationSettings: currentSettings } =
+    useConversationManagement();
 
   const handleEdit = () => {
     if (activeConversationId) {

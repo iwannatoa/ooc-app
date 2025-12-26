@@ -24,6 +24,7 @@ logs/
 .vscode/launch.json
 .vscode/tasks.json
 .vscode/*.code-workspace
+.vscode/settings.json
 .idea/
 *.swp
 *.swo

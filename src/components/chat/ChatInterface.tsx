@@ -7,25 +7,10 @@ import MessageList from './MessageList';
 import { StoryActions } from '../story';
 import styles from './ChatInterface.module.scss';
 
-interface ChatInterfaceProps {
-  // Optional props for backward compatibility, but component will use hooks directly
-  messages?: never;
-  onGenerate?: never;
-  onConfirm?: never;
-  onRewrite?: never;
-  onModify?: never;
-  onAddSettings?: never;
-  onDeleteLastMessage?: never;
-  loading?: never;
-  disabled?: never;
-  canConfirm?: never;
-  canGenerate?: never;
-  canDeleteLast?: never;
-}
-
-const ChatInterface: React.FC<ChatInterfaceProps> = () => {
+const ChatInterface: React.FC = () => {
   const { messages, isSending } = useChatState();
-  const { activeConversationId, currentSettings } = useConversationManagement();
+  const { activeConversationId, conversationSettings } =
+    useConversationManagement();
   const {
     handleGenerateStory,
     handleConfirmSection,
@@ -42,7 +27,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = () => {
   const handleAddSettings = () => {
     if (activeConversationId) {
       settingsDialog.open(activeConversationId, {
-        settings: currentSettings,
+        settings: conversationSettings,
       });
     }
   };

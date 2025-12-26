@@ -196,10 +196,7 @@ export const useAppLogic = () => {
 
   return {
     // State
-    messages,
     currentSettings,
-    settings,
-    summaryMessageCount,
     canGenerate,
     canConfirm,
     canDeleteLast: messages.length > 0,
@@ -216,8 +213,5 @@ export const useAppLogic = () => {
     handleRewriteSection,
     handleModifySection,
     handleDeleteLastMessage,
-
-    // Others
-    t,
   };
 };

@@ -1,5 +1,4 @@
 # build.py
-import os
 import sys
 import subprocess
 import platform
@@ -110,12 +109,11 @@ def build_all_platforms():
         built_files.append(current_platform_file)
     
     # Copy to Tauri resources directory for sidecar
-    # Tauri expects platform-specific names: flask-api-{target-triple
+    # Tauri expects platform-specific names: flask-api-{target-triple}
     tauri_resources_dir = current_dir.parent / "src-tauri" / "resources"
     if current_platform_file:
         tauri_resources_dir.mkdir(parents=True, exist_ok=True)
         # Get the platform-specific name that Tauri expects
-        target_triple = get_target_triple()
         tauri_sidecar_name = get_tauri_binary_name(base_name)
         tauri_sidecar_file = tauri_resources_dir / tauri_sidecar_name
         shutil.copy2(current_platform_file, tauri_sidecar_file)
@@ -230,7 +228,6 @@ def main():
         
         if built_file:
             # Copy to resources directory for Tauri
-            current_dir = Path(__file__).parent
             resources_dir = current_dir.parent / "src-tauri" / "resources"
             copy_current_platform_binary("flask-api", resources_dir)
             print("\n[OK] Build completed successfully!")

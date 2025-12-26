@@ -324,14 +324,14 @@ export const useConversationManagement = () => {
   );
 
   // Get current settings for active conversation
-  const currentSettings = conversations.find(
+  const conversationSettings = conversations.find(
     (c) => c.id === (pendingConversationId || activeConversationId)
   )?.settings;
 
   return {
     conversations,
     activeConversationId,
-    currentSettings,
+    conversationSettings,
     isNewConversation,
     pendingConversationId,
     loading,

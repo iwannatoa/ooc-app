@@ -8,46 +8,10 @@
  * The actual business logic is in useAppLogic.
  */
 
-import { useCallback, useMemo } from 'react';
+import { useCallback } from 'react';
 import { ChatMessage } from '@/types';
 import { AppSettings } from '@/types';
 import { useStoryClient } from './useStoryClient';
-
-export interface StoryActionsState {
-  loading: boolean;
-  disabled: boolean;
-  canConfirm: boolean;
-  canGenerate: boolean;
-  canDeleteLast: boolean;
-}
-
-export interface StoryActionsHandlers {
-  onGenerate: () => void;
-  onConfirm: () => void;
-  onRewrite: (feedback: string) => void;
-  onModify: (feedback: string) => void;
-  onAddSettings: () => void;
-  onDeleteLastMessage?: () => void;
-}
-
-export interface UseStoryActionsGroupedParams {
-  activeConversationId: string | null;
-  canGenerate: boolean;
-  canConfirm: boolean;
-  canDeleteLast: boolean;
-  isSending: boolean;
-  onGenerate: () => void;
-  onConfirm: () => void;
-  onRewrite: (feedback: string) => void;
-  onModify: (feedback: string) => void;
-  onAddSettings: () => void;
-  onDeleteLastMessage?: () => void;
-}
-
-export interface UseStoryActionsGroupedReturn {
-  state: StoryActionsState;
-  handlers: StoryActionsHandlers;
-}
 
 export interface UseStoryActionsParams {
   activeConversationId: string | null;
@@ -307,56 +271,3 @@ export const useStoryActions = (
   };
 };
 
-/**
- * Hook to group story actions props into state and handlers
- *
- * This hook doesn't contain business logic, it just groups props
- * to reduce the number of props passed to components.
- *
- * @param params - All story action related props
- * @returns Grouped state and handlers
- */
-export const useStoryActionsGrouped = (
-  params: UseStoryActionsGroupedParams
-): UseStoryActionsGroupedReturn => {
-  const state: StoryActionsState = useMemo(
-    () => ({
-      loading: params.isSending,
-      disabled: !params.activeConversationId,
-      canConfirm: params.canConfirm,
-      canGenerate: params.canGenerate,
-      canDeleteLast: params.canDeleteLast,
-    }),
-    [
-      params.isSending,
-      params.activeConversationId,
-      params.canConfirm,
-      params.canGenerate,
-      params.canDeleteLast,
-    ]
-  );
-
-  const handlers: StoryActionsHandlers = useMemo(
-    () => ({
-      onGenerate: params.onGenerate,
-      onConfirm: params.onConfirm,
-      onRewrite: params.onRewrite,
-      onModify: params.onModify,
-      onAddSettings: params.onAddSettings,
-      onDeleteLastMessage: params.onDeleteLastMessage,
-    }),
-    [
-      params.onGenerate,
-      params.onConfirm,
-      params.onRewrite,
-      params.onModify,
-      params.onAddSettings,
-      params.onDeleteLastMessage,
-    ]
-  );
-
-  return {
-    state,
-    handlers,
-  };
-};

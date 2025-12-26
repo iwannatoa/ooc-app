@@ -33,6 +33,15 @@ export { useFlaskPort } from './useFlaskPort';
 export { useMockMode } from './useMockMode';
 export { useErrorHandler } from './useErrorHandler';
 
+// ===== Dialog Hooks =====
+export {
+  useDialog,
+  useConversationSettingsDialog,
+  useSummaryPromptDialog,
+  useStorySettingsViewDialog,
+  useSettingsPanelDialog,
+} from './useDialog';
+
 // ===== Redux Hooks =====
 export { useAppDispatch, useAppSelector } from './redux';
 
