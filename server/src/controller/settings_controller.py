@@ -318,8 +318,8 @@ class SettingsController:
         """
         try:
             conversation_id = request.args.get('conversation_id')
-            language = self.app_settings_service.get_language()
             if not conversation_id:
+                language = self.app_settings_service.get_language()
                 return error_response(language, 'error_messages.conversation_id_required')
             
             progress = self.story_service.get_progress(conversation_id)

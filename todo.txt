@@ -1,0 +1,5 @@
+Use langchain to deal with the logic on:
+1. Create prompt template
+2. Handle request with different llm provider (which will make adding new provider easier)
+3. Handle llm request
+4. Conversation history

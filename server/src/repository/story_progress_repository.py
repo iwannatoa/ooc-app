@@ -22,15 +22,24 @@ class StoryProgressRepository:
             db_path: Database file path
         """
         self.db_path = db_path
-        # Create database engine
         self.engine = create_engine(
             f'sqlite:///{db_path}',
             echo=False,
-            connect_args={'check_same_thread': False}
+            connect_args={
+                'check_same_thread': False,
+                'timeout': 20.0,
+            },
+            pool_pre_ping=True,
+            pool_size=5,
+            max_overflow=10,
         )
-        # Create session factory
+        with self.engine.connect() as conn:
+            conn.execute('PRAGMA journal_mode=WAL')
+            conn.execute('PRAGMA synchronous=NORMAL')
+            conn.execute('PRAGMA cache_size=-64000')
+            conn.execute('PRAGMA temp_store=MEMORY')
+            conn.commit()
         self.SessionLocal = sessionmaker(bind=self.engine)
-        # Create tables (if not exist)
         self._init_database()
     
     def _init_database(self):
