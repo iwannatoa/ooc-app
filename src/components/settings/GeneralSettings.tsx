@@ -1,11 +1,10 @@
 import React from 'react';
 import { AppSettings } from '@/types';
 import { useI18n, availableLocales } from '@/i18n';
-import styles from '../SettingsPanel.module.scss';
+import styles from './SettingsPanel.module.scss';
 
 interface GeneralSettingsProps {
   settings: AppSettings;
-  t: (key: string, params?: Record<string, string | number>) => string;
 }
 
 /**
@@ -14,9 +13,8 @@ interface GeneralSettingsProps {
  */
 export const GeneralSettings: React.FC<GeneralSettingsProps> = ({
   settings,
-  t,
 }) => {
-  const { locale, setLocale } = useI18n();
+  const { t, locale, setLocale } = useI18n();
 
   return (
     <div className={styles.settingsSection}>

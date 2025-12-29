@@ -1,15 +1,17 @@
-import React from 'react';
-import { useAppSelector } from '@/hooks/redux';
+import React, { useEffect, useRef } from 'react';
+import { useAppSelector, useAppDispatch } from '@/hooks/redux';
 import { Dialog } from '@/store/slices/dialogSlice';
 import {
   ConversationSettingsForm,
   SummaryPrompt,
   StorySettingsView,
 } from '../story';
-import SettingsPanel from '../SettingsPanel';
+import { SettingsPanel } from '../settings';
 import { useDialog, useConversationSettingsDialog } from '@/hooks/useDialog';
 import { useAppLogic } from '@/hooks/useAppLogic';
 import { useConversationManagement } from '@/hooks/useConversationManagement';
+import { useConversationSettingsForm } from '@/hooks/useConversationSettingsForm';
+import { clearForm } from '@/store/slices/conversationSettingsFormSlice';
 
 /**
  * Dialog Container Component
@@ -20,6 +22,7 @@ import { useConversationManagement } from '@/hooks/useConversationManagement';
  * This component should be rendered once at the app root level.
  */
 export const DialogContainer: React.FC = () => {
+  const dispatch = useAppDispatch();
   const dialogs = useAppSelector((state) => state.dialog.dialogs);
   const stack = useAppSelector((state) => state.dialog.stack);
   const { close } = useDialog();
@@ -35,6 +38,20 @@ export const DialogContainer: React.FC = () => {
 
   const { activeConversationId, pendingConversationId, isNewConversation } =
     useConversationManagement();
+
+  // Redux form state management
+  const { initialize } = useConversationSettingsForm();
+
+  // Clean up form state when all dialogs are closed
+  useEffect(() => {
+    const hasOpenDialogs = dialogs.some((d) => d.isOpen);
+    if (!hasOpenDialogs) {
+      dispatch(clearForm());
+    }
+  }, [dialogs, dispatch]);
+
+  // Track initialized dialog IDs to avoid re-initialization
+  const initializedDialogIdsRef = useRef<Set<string>>(new Set());
 
   // Get open dialogs sorted by stack order
   const openDialogs = dialogs
@@ -59,14 +76,31 @@ export const DialogContainer: React.FC = () => {
 
         if (!conversationId) return null;
 
+        // Initialize Redux form state when dialog opens (only once per dialog)
+        if (dialog.isOpen && !initializedDialogIdsRef.current.has(dialog.id)) {
+          initialize(
+            conversationId,
+            payload.settings || currentSettings,
+            payload.isNewConversation ?? isNewConversation
+          );
+          initializedDialogIdsRef.current.add(dialog.id);
+        }
+
+        // Clean up when dialog closes
+        if (!dialog.isOpen) {
+          initializedDialogIdsRef.current.delete(dialog.id);
+        }
+
         return (
           <ConversationSettingsForm
             key={dialog.id}
-            conversationId={conversationId}
-            settings={payload.settings || currentSettings}
             onSave={handleSaveSettings}
-            onCancel={() => close(dialog.id)}
-            isNewConversation={payload.isNewConversation ?? isNewConversation}
+            onCancel={() => {
+              close(dialog.id);
+              // Clear form state when dialog closes
+              dispatch(clearForm());
+              initializedDialogIdsRef.current.delete(dialog.id);
+            }}
           />
         );
       }

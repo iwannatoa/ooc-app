@@ -4,9 +4,6 @@ import { useApiClients } from './useApiClients';
 
 /**
  * Hook for AI client operations
- *
- * @deprecated This hook is maintained for backward compatibility.
- * Consider using useApiClients hook directly for new code.
  */
 export const useAiClient = (settings: AppSettings) => {
   const [loading, setLoading] = useState(false);

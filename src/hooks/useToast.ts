@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { Toast, ToastType } from '@/components/common/Toast';
+import { UI_CONSTANTS } from '@/constants';
 
 let toastIdCounter = 0;
 
@@ -17,22 +18,25 @@ export const useToast = () => {
     setToasts((prev) => prev.filter((toast) => toast.id !== id));
   }, []);
 
-  const showToast = useCallback((message: string, type: ToastType = 'info', duration?: number) => {
-    const id = `toast-${++toastIdCounter}`;
-    const toast: Toast = { id, message, type, duration };
-    
-    setToasts((prev) => [...prev, toast]);
-    
-    // Auto remove after duration
-    if (duration !== undefined && duration > 0) {
-      const timer = setTimeout(() => {
-        removeToast(id);
-      }, duration);
-      timersRef.current.set(id, timer);
-    }
-    
-    return id;
-  }, [removeToast]);
+  const showToast = useCallback(
+    (message: string, type: ToastType = 'info', duration?: number) => {
+      const id = `toast-${++toastIdCounter}`;
+      const toast: Toast = { id, message, type, duration };
+
+      setToasts((prev) => [...prev, toast]);
+
+      // Auto remove after duration
+      if (duration !== undefined && duration > 0) {
+        const timer = setTimeout(() => {
+          removeToast(id);
+        }, duration);
+        timersRef.current.set(id, timer);
+      }
+
+      return id;
+    },
+    [removeToast]
+  );
 
   // Cleanup timers on unmount
   useEffect(() => {
@@ -42,21 +46,37 @@ export const useToast = () => {
     };
   }, []);
 
-  const showSuccess = useCallback((message: string, duration?: number) => {
-    return showToast(message, 'success', duration);
-  }, [showToast]);
+  const showSuccess = useCallback(
+    (message: string, duration?: number) => {
+      return showToast(message, 'success', duration);
+    },
+    [showToast]
+  );
 
-  const showError = useCallback((message: string, duration?: number) => {
-    return showToast(message, 'error', duration || 5000);
-  }, [showToast]);
+  const showError = useCallback(
+    (message: string, duration?: number) => {
+      return showToast(message, 'error', duration);
+    },
+    [showToast]
+  );
 
-  const showWarning = useCallback((message: string, duration?: number) => {
-    return showToast(message, 'warning', duration);
-  }, [showToast]);
+  const showWarning = useCallback(
+    (message: string, duration?: number) => {
+      return showToast(message, 'warning', duration);
+    },
+    [showToast]
+  );
 
-  const showInfo = useCallback((message: string, duration?: number) => {
-    return showToast(message, 'info', duration || 3000);
-  }, [showToast]);
+  const showInfo = useCallback(
+    (message: string, duration?: number) => {
+      return showToast(
+        message,
+        'info',
+        duration || UI_CONSTANTS.TOAST_DURATION
+      );
+    },
+    [showToast]
+  );
 
   return {
     toasts,

@@ -1,47 +1,65 @@
 import React, { useRef, useEffect } from 'react';
+import { useI18n } from '@/i18n';
+import { useConversationSettingsForm } from '@/hooks/useConversationSettingsForm';
+import { useConversationSettingsGeneration } from '@/hooks/useConversationSettingsGeneration';
 import styles from './ConversationSettingsForm.module.scss';
-
-interface OutlineGenerationProps {
-  outline: string;
-  generatedOutline: string | null;
-  isGeneratingOutline: boolean;
-  outlineConfirmed: boolean;
-  onOutlineChange: (outline: string) => void;
-  onGenerateOutline: () => void;
-  onConfirmOutline: () => void;
-  onRegenerateOutline: () => void;
-  t: (key: string) => string;
-}
 
 /**
  * Outline Generation Section
  *
  * Handles story outline input and AI-powered outline generation.
+ * Uses Redux to manage state directly.
  */
-export const OutlineGeneration: React.FC<OutlineGenerationProps> = ({
-  outline,
-  generatedOutline,
-  isGeneratingOutline,
-  outlineConfirmed,
-  onOutlineChange,
-  onGenerateOutline,
-  onConfirmOutline,
-  onRegenerateOutline,
-  t,
-}) => {
+export const OutlineGeneration: React.FC = () => {
+  const { t } = useI18n();
+  const {
+    formData,
+    isGeneratingOutline,
+    updateFields,
+    confirmOutline,
+  } = useConversationSettingsForm();
+  const { generateOutline } = useConversationSettingsGeneration();
+
+  const { outline, generatedOutline, outlineConfirmed } = formData;
+  const isGenerating = isGeneratingOutline;
   const generatedContentRef = useRef<HTMLDivElement>(null);
+
+  // Handle outline generation
+  const handleGenerate = async () => {
+    const generated = await generateOutline(
+      (_: string, accumulated: string) => {
+        updateFields({ generatedOutline: accumulated });
+      }
+    );
+
+    if (generated) {
+      updateFields({
+        generatedOutline: generated,
+        outlineConfirmed: false,
+      });
+    }
+  };
+
+  // Handle outline regeneration
+  const handleRegenerate = async () => {
+    updateFields({
+      generatedOutline: null,
+      outlineConfirmed: false,
+    });
+    await handleGenerate();
+  };
 
   // Auto-scroll to bottom when generatedOutline updates during streaming
   useEffect(() => {
     if (
       generatedContentRef.current &&
       generatedOutline &&
-      isGeneratingOutline
+      isGenerating
     ) {
       generatedContentRef.current.scrollTop =
         generatedContentRef.current.scrollHeight;
     }
-  }, [generatedOutline, isGeneratingOutline]);
+  }, [generatedOutline, isGenerating]);
 
   return (
     <div className={styles.field}>
@@ -49,11 +67,11 @@ export const OutlineGeneration: React.FC<OutlineGenerationProps> = ({
         {t('conversationSettingsForm.outline')}
         <button
           type='button'
-          onClick={onGenerateOutline}
-          disabled={isGeneratingOutline}
+          onClick={handleGenerate}
+          disabled={isGenerating}
           className={styles.generateButton}
         >
-          {isGeneratingOutline ? (
+          {isGenerating ? (
             <span className={styles.loadingContainer}>
               <span className={styles.spinner}></span>
               {t('conversationSettingsForm.generating')}
@@ -71,15 +89,15 @@ export const OutlineGeneration: React.FC<OutlineGenerationProps> = ({
             <div className={styles.generatedActions}>
               <button
                 type='button'
-                onClick={onConfirmOutline}
+                onClick={confirmOutline}
                 className={styles.confirmButton}
               >
                 {t('conversationSettingsForm.confirmOutline')}
               </button>
               <button
                 type='button'
-                onClick={onRegenerateOutline}
-                disabled={isGeneratingOutline}
+                onClick={handleRegenerate}
+                disabled={isGenerating}
                 className={styles.regenerateButton}
               >
                 {t('conversationSettingsForm.regenerateOutline')}
@@ -98,10 +116,16 @@ export const OutlineGeneration: React.FC<OutlineGenerationProps> = ({
       <textarea
         id='outline'
         value={outline}
-        onChange={(e) => onOutlineChange(e.target.value)}
+        onChange={(e) =>
+          updateFields({
+            outline: e.target.value,
+            outlineConfirmed: true,
+          })
+        }
         placeholder={t('conversationSettingsForm.outlinePlaceholder')}
         rows={5}
       />
     </div>
   );
 };
+

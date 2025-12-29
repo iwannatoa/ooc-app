@@ -1,30 +1,18 @@
 import React from 'react';
+import { useI18n } from '@/i18n';
+import { useConversationSettingsForm } from '@/hooks/useConversationSettingsForm';
 import styles from './ConversationSettingsForm.module.scss';
-
-interface StoryBasicInfoProps {
-  title: string;
-  background: string;
-  supplement: string;
-  onTitleChange: (title: string) => void;
-  onBackgroundChange: (background: string) => void;
-  onSupplementChange: (supplement: string) => void;
-  t: (key: string) => string;
-}
 
 /**
  * Story Basic Information Section
  *
  * Handles story title, background, and supplementary settings input.
+ * Uses Redux to manage state directly.
  */
-export const StoryBasicInfo: React.FC<StoryBasicInfoProps> = ({
-  title,
-  background,
-  supplement,
-  onTitleChange,
-  onBackgroundChange,
-  onSupplementChange,
-  t,
-}) => {
+export const StoryBasicInfo: React.FC = () => {
+  const { t } = useI18n();
+  const { formData, updateFields } = useConversationSettingsForm();
+  const { title, background, supplement } = formData;
   return (
     <>
       <div className={styles.field}>
@@ -35,7 +23,7 @@ export const StoryBasicInfo: React.FC<StoryBasicInfoProps> = ({
           id='title'
           type='text'
           value={title}
-          onChange={(e) => onTitleChange(e.target.value)}
+          onChange={(e) => updateFields({ title: e.target.value })}
           placeholder={t('conversationSettingsForm.storyTitlePlaceholder')}
         />
       </div>
@@ -47,7 +35,7 @@ export const StoryBasicInfo: React.FC<StoryBasicInfoProps> = ({
         <textarea
           id='background'
           value={background}
-          onChange={(e) => onBackgroundChange(e.target.value)}
+          onChange={(e) => updateFields({ background: e.target.value })}
           placeholder={t('conversationSettingsForm.backgroundPlaceholder')}
           rows={4}
           required
@@ -61,7 +49,7 @@ export const StoryBasicInfo: React.FC<StoryBasicInfoProps> = ({
         <textarea
           id='supplement'
           value={supplement}
-          onChange={(e) => onSupplementChange(e.target.value)}
+          onChange={(e) => updateFields({ supplement: e.target.value })}
           placeholder={t('conversationSettingsForm.supplementPlaceholder')}
           rows={3}
         />
@@ -69,3 +57,4 @@ export const StoryBasicInfo: React.FC<StoryBasicInfoProps> = ({
     </>
   );
 };
+

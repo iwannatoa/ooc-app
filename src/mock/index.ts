@@ -3,10 +3,7 @@
  * Used in development environment to provide simulated API responses
  */
 
-export { mockConversationClient } from './conversationClient';
-export { mockAiClient } from './aiClient';
-export { mockServerClient } from './serverClient';
-export { mockStoryClient } from './storyClient';
+export { mockRouter } from './router';
 export {
   mockConversations,
   mockMessages,
@@ -14,6 +11,9 @@ export {
   mockDelay,
   generateMockId,
 } from './data';
+
+// Import routes to auto-register them
+import './routes';
 
 // Mock mode state (managed by useMockMode hook)
 let globalMockModeEnabled: boolean | null = null;

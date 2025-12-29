@@ -1,18 +1,19 @@
 import React from 'react';
 import { AIProvider, AppSettings } from '@/types';
 import { useSettingsState } from '@/hooks/useSettingsState';
-import styles from '../SettingsPanel.module.scss';
+import { useI18n } from '@/i18n';
+import styles from './SettingsPanel.module.scss';
 
 interface AISettingsProps {
   settings: AppSettings;
-  t: (key: string) => string;
 }
 
 /**
  * AI settings section component
  * Handles AI provider selection and configuration
  */
-export const AISettings: React.FC<AISettingsProps> = ({ settings, t }) => {
+export const AISettings: React.FC<AISettingsProps> = ({ settings }) => {
+  const { t } = useI18n();
   const {
     updateAiProvider,
     updateOllamaConfig,

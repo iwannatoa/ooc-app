@@ -5,12 +5,12 @@ import { useI18n } from '@/i18n';
 import { useApiClients } from '@/hooks/useApiClients';
 import {
   SettingsTabs,
-  type SettingsTab,
+  SettingsTabPane,
   GeneralSettings,
   AppearanceSettings,
   AISettings,
   AdvancedSettings,
-} from './settings';
+} from './index';
 import styles from './SettingsPanel.module.scss';
 
 interface SettingsPanelProps {
@@ -30,15 +30,12 @@ interface SettingsPanelProps {
  * The component uses local state for unsaved changes and syncs with Redux
  * store only when the user clicks "Save".
  */
-const SettingsPanel: React.FC<SettingsPanelProps> = ({
-  onClose,
-  open,
-}) => {
+const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, open }) => {
   const { t } = useI18n();
-  const { settings, updateSettings, updateAppearanceSettings } = useSettingsState();
+  const { settings, updateSettings, updateAppearanceSettings } =
+    useSettingsState();
   const { settingsApi } = useApiClients();
 
-  const [currentTab, setCurrentTab] = useState<SettingsTab>('general');
   const [localSettings, setLocalSettings] = useState(settings);
 
   // Sync localSettings with Redux store when settings prop changes
@@ -61,7 +58,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
 
       // Ensure compactMode is removed
       if ('compactMode' in settingsToSave.appearance) {
-        delete (settingsToSave.appearance as any).compactMode;
+        delete settingsToSave.appearance.compactMode;
       }
 
       // Save to Redux store (this will trigger appearance updates)
@@ -101,34 +98,16 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
   /**
    * Handle appearance settings changes (only update local state, not Redux)
    */
-  const handleAppearanceChange = {
-    theme: (theme: 'light' | 'dark' | 'auto') => {
-      setLocalSettings({
-        ...localSettings,
-        appearance: {
-          ...localSettings.appearance,
-          theme,
-        },
-      });
-    },
-    fontSize: (fontSize: 'small' | 'medium' | 'large') => {
-      setLocalSettings({
-        ...localSettings,
-        appearance: {
-          ...localSettings.appearance,
-          fontSize,
-        },
-      });
-    },
-    fontFamily: (fontFamily: string) => {
-      setLocalSettings({
-        ...localSettings,
-        appearance: {
-          ...localSettings.appearance,
-          fontFamily,
-        },
-      });
-    },
+  const handleAppearanceChange = (
+    updates: Partial<AppSettings['appearance']>
+  ) => {
+    setLocalSettings({
+      ...localSettings,
+      appearance: {
+        ...localSettings.appearance,
+        ...updates,
+      },
+    });
   };
 
   if (!open) return null;
@@ -149,44 +128,38 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
           </button>
         </div>
 
-        <SettingsTabs
-          currentTab={currentTab}
-          onTabChange={setCurrentTab}
-          t={t}
-        />
+        <SettingsTabs>
+          <SettingsTabPane
+            tab='general'
+            label={t('settingsPanel.tabs.general')}
+          >
+            <GeneralSettings settings={localSettings} />
+          </SettingsTabPane>
 
-        <div className={styles.settingsContent}>
-          {currentTab === 'general' && (
-            <GeneralSettings
-              settings={localSettings}
-              t={t}
-            />
-          )}
+          <SettingsTabPane
+            tab='ai'
+            label={t('settingsPanel.tabs.ai')}
+          >
+            <AISettings settings={localSettings} />
+          </SettingsTabPane>
 
-          {currentTab === 'ai' && (
-            <AISettings
-              settings={localSettings}
-              t={t}
-            />
-          )}
-
-          {currentTab === 'appearance' && (
+          <SettingsTabPane
+            tab='appearance'
+            label={t('settingsPanel.tabs.appearance')}
+          >
             <AppearanceSettings
               settings={localSettings.appearance}
-              onThemeChange={handleAppearanceChange.theme}
-              onFontSizeChange={handleAppearanceChange.fontSize}
-              onFontFamilyChange={handleAppearanceChange.fontFamily}
-              t={t}
+              onChange={handleAppearanceChange}
             />
-          )}
+          </SettingsTabPane>
 
-          {currentTab === 'advanced' && (
-            <AdvancedSettings
-              settings={localSettings}
-              t={t}
-            />
-          )}
-        </div>
+          <SettingsTabPane
+            tab='advanced'
+            label={t('settingsPanel.tabs.advanced')}
+          >
+            <AdvancedSettings settings={localSettings} />
+          </SettingsTabPane>
+        </SettingsTabs>
 
         <div className={styles.settingsActions}>
           <button onClick={handleCancel}>{t('common.cancel')}</button>

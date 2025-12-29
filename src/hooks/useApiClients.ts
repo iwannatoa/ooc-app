@@ -7,79 +7,56 @@
 
 import { useMemo, useEffect } from 'react';
 import { useFlaskPort } from './useFlaskPort';
-import { useMockMode } from './useMockMode';
 import { useSettingsState } from './useSettingsState';
 import { useI18n } from '@/i18n';
 import { isMockMode } from '@/mock';
-import {
-  ApiClientFactory,
-  ConversationApi,
-  AiApi,
-  StoryApi,
-  SettingsApi,
-} from '@/api';
-import { mockConversationClient, mockAiClient, mockStoryClient } from '@/mock';
+import { ApiClientFactory, AiApi, StoryApi } from '@/api';
 
 export const useApiClients = () => {
   const { waitForPort } = useFlaskPort();
-  const { mockModeEnabled } = useMockMode();
   const { settings } = useSettingsState();
   const { t } = useI18n();
 
   // Create getApiUrl function
   const getApiUrl = useMemo(() => {
     return async (): Promise<string> => {
-      if (mockModeEnabled || isMockMode()) {
-        return 'http://localhost:5000'; // Mock mode doesn't need real port
+      if (isMockMode()) {
+        return 'http://localhost:5000';
       }
       return await waitForPort();
     };
-  }, [waitForPort, mockModeEnabled]);
+  }, [waitForPort]);
 
   // Create API client factory
   const apiFactory = useMemo(() => {
-    if (mockModeEnabled || isMockMode()) {
-      // Return mock clients in mock mode
-      return null;
-    }
     return new ApiClientFactory(getApiUrl, t, settings);
-  }, [getApiUrl, t, settings, mockModeEnabled]);
+  }, [getApiUrl, t, settings]);
 
-  // Create API clients
+  // Create API clients (router handles mock mode automatically)
   const conversationApi = useMemo(() => {
-    if (mockModeEnabled || isMockMode()) {
-      return mockConversationClient;
-    }
-    return apiFactory?.createConversationApi() as ConversationApi;
-  }, [apiFactory, mockModeEnabled]);
+    return apiFactory.createConversationApi();
+  }, [apiFactory]);
 
   const aiApi = useMemo(() => {
-    if (mockModeEnabled || isMockMode()) {
-      return mockAiClient;
-    }
-    return apiFactory?.createAiApi() as AiApi;
-  }, [apiFactory, mockModeEnabled]);
+    return apiFactory.createAiApi();
+  }, [apiFactory]);
 
   const storyApi = useMemo(() => {
-    if (mockModeEnabled || isMockMode()) {
-      return mockStoryClient;
-    }
-    return apiFactory?.createStoryApi() as StoryApi;
-  }, [apiFactory, mockModeEnabled]);
+    return apiFactory.createStoryApi();
+  }, [apiFactory]);
 
   const settingsApi = useMemo(() => {
-    if (mockModeEnabled || isMockMode()) {
-      // Mock settings API (if needed)
-      return null;
-    }
-    return apiFactory?.createSettingsApi() as SettingsApi;
-  }, [apiFactory, mockModeEnabled]);
+    return apiFactory.createSettingsApi();
+  }, [apiFactory]);
+
+  const serverApi = useMemo(() => {
+    return apiFactory.createServerApi();
+  }, [apiFactory]);
 
   // Update API clients when settings change
   useEffect(() => {
-    if (apiFactory && !mockModeEnabled && !isMockMode()) {
+    if (!isMockMode()) {
       apiFactory.updateSettings(settings);
-      // Update AI and Story APIs with new settings
       if (aiApi instanceof AiApi) {
         aiApi.updateSettings(settings);
       }
@@ -87,13 +64,14 @@ export const useApiClients = () => {
         storyApi.updateSettings(settings);
       }
     }
-  }, [settings, apiFactory, aiApi, storyApi, mockModeEnabled]);
+  }, [settings, apiFactory, aiApi, storyApi]);
 
   return {
     conversationApi,
     aiApi,
     storyApi,
     settingsApi,
+    serverApi,
     apiFactory,
   };
 };

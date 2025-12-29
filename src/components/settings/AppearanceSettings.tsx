@@ -1,13 +1,11 @@
 import React from 'react';
 import { AppearanceSettings as AppearanceSettingsType } from '@/types';
-import styles from '../SettingsPanel.module.scss';
+import { useI18n } from '@/i18n';
+import styles from './SettingsPanel.module.scss';
 
 interface AppearanceSettingsProps {
   settings: AppearanceSettingsType;
-  onThemeChange: (theme: 'light' | 'dark' | 'auto') => void;
-  onFontSizeChange: (fontSize: 'small' | 'medium' | 'large') => void;
-  onFontFamilyChange: (fontFamily: string) => void;
-  t: (key: string) => string;
+  onChange: (updates: Partial<AppearanceSettingsType>) => void;
 }
 
 /**
@@ -16,11 +14,9 @@ interface AppearanceSettingsProps {
  */
 export const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({
   settings,
-  onThemeChange,
-  onFontSizeChange,
-  onFontFamilyChange,
-  t,
+  onChange,
 }) => {
+  const { t } = useI18n();
   return (
     <div className={styles.settingsSection}>
       <h3>{t('settingsPanel.tabs.appearance')}</h3>
@@ -29,7 +25,7 @@ export const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({
         <select
           value={settings.theme}
           onChange={(e) =>
-            onThemeChange(e.target.value as 'light' | 'dark' | 'auto')
+            onChange({ theme: e.target.value as 'light' | 'dark' | 'auto' })
           }
         >
           <option value='dark'>{t('settingsPanel.themeDark')}</option>
@@ -42,7 +38,7 @@ export const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({
         <select
           value={settings.fontSize}
           onChange={(e) =>
-            onFontSizeChange(e.target.value as 'small' | 'medium' | 'large')
+            onChange({ fontSize: e.target.value as 'small' | 'medium' | 'large' })
           }
         >
           <option value='small'>{t('settingsPanel.fontSizeSmall')}</option>
@@ -55,7 +51,7 @@ export const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({
         <input
           type='text'
           value={settings.fontFamily}
-          onChange={(e) => onFontFamilyChange(e.target.value)}
+          onChange={(e) => onChange({ fontFamily: e.target.value })}
           placeholder={t('settingsPanel.fontFamilyPlaceholder')}
         />
       </div>

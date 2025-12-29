@@ -9,9 +9,10 @@
  * - AdvancedSettings: Advanced configuration options
  */
 
-export { SettingsTabs, type SettingsTab } from './SettingsTabs';
+export { SettingsTabs, SettingsTabPane, type SettingsTab } from './SettingsTabs';
 export { GeneralSettings } from './GeneralSettings';
 export { AppearanceSettings } from './AppearanceSettings';
 export { AISettings } from './AISettings';
 export { AdvancedSettings } from './AdvancedSettings';
+export { default as SettingsPanel } from './SettingsPanel';
 

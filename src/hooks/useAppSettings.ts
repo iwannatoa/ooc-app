@@ -53,7 +53,7 @@ export const useAppSettings = () => {
         };
         // Remove compactMode if it exists in the loaded settings
         if ('compactMode' in mergedSettings.appearance) {
-          delete (mergedSettings.appearance as any).compactMode;
+          delete mergedSettings.appearance.compactMode;
         }
         dispatch(setSettings(mergedSettings));
       } catch (error) {

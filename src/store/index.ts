@@ -4,6 +4,7 @@ import chatSlice from './slices/chatSlice';
 import settingsSlice from './slices/settingsSlice';
 import uiSlice from './slices/uiSlice';
 import dialogSlice from './slices/dialogSlice';
+import conversationSettingsFormSlice from './slices/conversationSettingsFormSlice';
 
 export const store = configureStore({
   reducer: {
@@ -12,6 +13,7 @@ export const store = configureStore({
     settings: settingsSlice,
     ui: uiSlice,
     dialog: dialogSlice,
+    conversationSettingsForm: conversationSettingsFormSlice,
   },
 });
 

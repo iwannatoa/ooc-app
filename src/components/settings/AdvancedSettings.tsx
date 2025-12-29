@@ -1,11 +1,11 @@
 import React from 'react';
 import { AppSettings } from '@/types';
 import { useSettingsState } from '@/hooks/useSettingsState';
-import styles from '../SettingsPanel.module.scss';
+import { useI18n } from '@/i18n';
+import styles from './SettingsPanel.module.scss';
 
 interface AdvancedSettingsProps {
   settings: AppSettings;
-  t: (key: string) => string;
 }
 
 /**
@@ -14,8 +14,8 @@ interface AdvancedSettingsProps {
  */
 export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
   settings,
-  t,
 }) => {
+  const { t } = useI18n();
   const { updateAdvancedSettings } = useSettingsState();
 
   return (

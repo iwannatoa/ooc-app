@@ -13,7 +13,6 @@ vi.mock('../useFlaskPort', () => ({
 // Mock @/mock module
 vi.mock('@/mock', () => ({
   isMockMode: () => false,
-  mockConversationClient: {},
   setMockModeEnabled: vi.fn(),
 }));
 

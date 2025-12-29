@@ -89,7 +89,6 @@ export const useAppLogic = () => {
     conversations,
     activeConversationId,
     pendingConversationId,
-    summaryMessageCount,
     handleSaveSettings,
     handleGenerateSummary,
     handleSaveSummary,

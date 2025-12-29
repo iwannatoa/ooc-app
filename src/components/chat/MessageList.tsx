@@ -1,17 +1,13 @@
 import React, { useEffect, useRef } from 'react';
-import { ChatMessage } from '@/types';
 import { useI18n } from '@/i18n';
+import { useChatState } from '@/hooks/useChatState';
 import { parseThinkContent } from '@/utils/parseThinkContent';
 import ThinkContent from '../ThinkContent';
 import styles from './MessageList.module.scss';
 
-interface MessageListProps {
-  messages: ChatMessage[];
-  loading?: boolean;
-}
-
-const MessageList: React.FC<MessageListProps> = ({ messages, loading }) => {
+const MessageList: React.FC = () => {
   const { t } = useI18n();
+  const { messages, isSending: loading } = useChatState();
   const messageListRef = useRef<HTMLDivElement>(null);
 
   // Only show AI messages, filter out user messages

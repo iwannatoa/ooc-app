@@ -9,7 +9,7 @@
 import { BaseApiClient } from './base';
 import type { GetApiUrlFn } from './base';
 import { AppSettings, ChatMessage, ChatResponse } from '@/types';
-import { stripThinkContent } from '@/utils/stripThinkContent';
+import { stripThinkContent } from '@/utils/parseThinkContent';
 
 export class AiApi extends BaseApiClient {
   private settings: AppSettings;
