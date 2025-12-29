@@ -8,7 +8,7 @@
 import { useMemo, useEffect } from 'react';
 import { useFlaskPort } from './useFlaskPort';
 import { useSettingsState } from './useSettingsState';
-import { useI18n } from '@/i18n';
+import { useI18n } from '@/i18n/i18n';
 import { isMockMode } from '@/mock';
 import { ApiClientFactory, AiApi, StoryApi } from '@/api';
 

@@ -5,7 +5,7 @@
 import React, { useCallback } from 'react';
 import { save } from '@tauri-apps/plugin-dialog';
 import { writeTextFile } from '@tauri-apps/plugin-fs';
-import { useI18n } from '@/i18n';
+import { useI18n } from '@/i18n/i18n';
 import { useConversationManagement } from '@/hooks/useConversationManagement';
 import { useChatState } from '@/hooks/useChatState';
 import { useChatActions } from '@/hooks/useChatActions';

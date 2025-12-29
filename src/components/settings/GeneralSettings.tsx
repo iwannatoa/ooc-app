@@ -1,6 +1,6 @@
 import React from 'react';
 import { AppSettings } from '@/types';
-import { useI18n, availableLocales } from '@/i18n';
+import { useI18n, availableLocales } from '@/i18n/i18n';
 import styles from './SettingsPanel.module.scss';
 
 interface GeneralSettingsProps {

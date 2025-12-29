@@ -6,7 +6,7 @@ import { useServerState } from '@/hooks/useServerState';
 import { useChatState } from '@/hooks/useChatState';
 import { useSettingsState } from '@/hooks/useSettingsState';
 import { useFlaskPort } from '@/hooks/useFlaskPort';
-import { useI18n } from '@/i18n';
+import { useI18n } from '@/i18n/i18n';
 import { useConversationClient } from '@/hooks/useConversationClient';
 import { useConversationManagement } from '@/hooks/useConversationManagement';
 import { useApiClients } from '@/hooks/useApiClients';

@@ -1,10 +1,22 @@
+import React from 'react';
 import { describe, it, expect } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
+import { Provider } from 'react-redux';
 import { useUIState } from '../useUIState';
+import { createTestStore } from '@/test/utils';
+
+const createWrapper = (store: ReturnType<typeof createTestStore>) => {
+  return ({ children }: { children: React.ReactNode }) => (
+    <Provider store={store}>{children}</Provider>
+  );
+};
 
 describe('useUIState', () => {
   it('should initialize with default values', () => {
-    const { result } = renderHook(() => useUIState());
+    const store = createTestStore();
+    const { result } = renderHook(() => useUIState(), {
+      wrapper: createWrapper(store),
+    });
 
     expect(result.current.settingsSidebarCollapsed).toBe(false);
     expect(result.current.conversationListCollapsed).toBe(false);
@@ -13,7 +25,10 @@ describe('useUIState', () => {
   });
 
   it('should update settingsSidebarCollapsed', () => {
-    const { result } = renderHook(() => useUIState());
+    const store = createTestStore();
+    const { result } = renderHook(() => useUIState(), {
+      wrapper: createWrapper(store),
+    });
 
     act(() => {
       result.current.setSettingsSidebarCollapsed(true);
@@ -23,7 +38,10 @@ describe('useUIState', () => {
   });
 
   it('should update conversationListCollapsed', () => {
-    const { result } = renderHook(() => useUIState());
+    const store = createTestStore();
+    const { result } = renderHook(() => useUIState(), {
+      wrapper: createWrapper(store),
+    });
 
     act(() => {
       result.current.setConversationListCollapsed(true);

@@ -1,4 +1,4 @@
-import { useI18n, availableLocales } from '@/i18n';
+import { useI18n, availableLocales } from '@/i18n/i18n';
 import { useMockMode } from '@/hooks/useMockMode';
 import { useSettingsPanelDialog } from '@/hooks/useDialog';
 import ServerStatus from './ServerStatus';
@@ -58,4 +58,3 @@ export const AppHeader = ({ onOpenSettings }: AppHeaderProps) => {
     </div>
   );
 };
-

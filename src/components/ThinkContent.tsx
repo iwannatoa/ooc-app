@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useI18n } from '@/i18n';
+import { useI18n } from '@/i18n/i18n';
 import styles from './ThinkContent.module.scss';
 
 interface ThinkContentProps {

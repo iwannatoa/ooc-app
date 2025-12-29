@@ -10,7 +10,7 @@ import { useStoryActions } from './useStoryActions';
 import { useSettingsState } from './useSettingsState';
 import { useToast } from './useToast';
 import { useStoryProgress } from './useStoryProgress';
-import { useI18n } from '@/i18n';
+import { useI18n } from '@/i18n/i18n';
 import { confirmDialog } from '@/services/confirmDialogService';
 import {
   ConversationWithSettings,

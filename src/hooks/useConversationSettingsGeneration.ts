@@ -8,7 +8,7 @@ import { useCallback } from 'react';
 import { useConversationClient } from './useConversationClient';
 import { useSettingsState } from './useSettingsState';
 import { useToast } from './useToast';
-import { useI18n } from '@/i18n';
+import { useI18n } from '@/i18n/i18n';
 import { useConversationSettingsForm } from './useConversationSettingsForm';
 
 /**

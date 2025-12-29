@@ -1,12 +1,19 @@
 import * as useMockMode from '@/hooks/useMockMode';
-import * as useI18n from '@/i18n';
-import { fireEvent, render, screen } from '@testing-library/react';
+import * as useI18n from '@/i18n/i18n';
+import { fireEvent, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppHeader } from '../AppHeader';
+import { renderWithProviders } from '@/test/utils';
 
 // Mock dependencies
-vi.mock('@/i18n');
+vi.mock('@/i18n/i18n');
 vi.mock('@/hooks/useMockMode');
+const mockOpen = vi.fn();
+vi.mock('@/hooks/useDialog', () => ({
+  useSettingsPanelDialog: () => ({
+    open: mockOpen,
+  }),
+}));
 vi.mock('../ServerStatus', () => ({
   default: () => <div data-testid='server-status'>Server Status</div>,
 }));
@@ -33,22 +40,24 @@ describe('AppHeader', () => {
   });
 
   it('should render header with title', () => {
-    render(<AppHeader onOpenSettings={mockOnOpenSettings} />);
+    renderWithProviders(<AppHeader />);
 
     expect(screen.getByText('app.title')).toBeInTheDocument();
   });
 
-  it('should call onOpenSettings when settings button is clicked', () => {
-    render(<AppHeader onOpenSettings={mockOnOpenSettings} />);
+  it('should open settings dialog when settings button is clicked', () => {
+    renderWithProviders(<AppHeader />);
 
     const settingsButton = screen.getByText('common.settings');
     fireEvent.click(settingsButton);
 
-    expect(mockOnOpenSettings).toHaveBeenCalledTimes(1);
+    // Settings dialog should be opened via hook
+    // mockOpen is already defined at the top level
+    expect(mockOpen).toHaveBeenCalled();
   });
 
   it('should toggle locale when language button is clicked', () => {
-    render(<AppHeader onOpenSettings={mockOnOpenSettings} />);
+    renderWithProviders(<AppHeader />);
 
     const languageButton = screen.getByText('EN');
     fireEvent.click(languageButton);
@@ -59,7 +68,7 @@ describe('AppHeader', () => {
   });
 
   it('should show mock mode button in dev mode', () => {
-    render(<AppHeader onOpenSettings={mockOnOpenSettings} />);
+    renderWithProviders(<AppHeader />);
 
     expect(screen.getByText('app.mockModeOff')).toBeInTheDocument();
   });
@@ -71,13 +80,13 @@ describe('AppHeader', () => {
       isDev: false,
     });
 
-    render(<AppHeader onOpenSettings={mockOnOpenSettings} />);
+    renderWithProviders(<AppHeader />);
 
     expect(screen.queryByText('app.mockModeOff')).not.toBeInTheDocument();
   });
 
   it('should toggle mock mode when mock button is clicked', () => {
-    render(<AppHeader onOpenSettings={mockOnOpenSettings} />);
+    renderWithProviders(<AppHeader />);
 
     const mockButton = screen.getByText('app.mockModeOff');
     fireEvent.click(mockButton);
@@ -86,7 +95,7 @@ describe('AppHeader', () => {
   });
 
   it('should render server status', () => {
-    render(<AppHeader onOpenSettings={mockOnOpenSettings} />);
+    renderWithProviders(<AppHeader />);
 
     expect(screen.getByTestId('server-status')).toBeInTheDocument();
   });

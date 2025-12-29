@@ -1,5 +1,5 @@
 import React from 'react';
-import { useI18n } from '@/i18n';
+import { useI18n } from '@/i18n/i18n';
 import { useConversationManagement } from '@/hooks/useConversationManagement';
 import { useUIState } from '@/hooks/useUIState';
 import styles from './ConversationList.module.scss';

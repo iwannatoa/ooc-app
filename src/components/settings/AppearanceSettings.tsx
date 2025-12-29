@@ -1,6 +1,6 @@
 import React from 'react';
 import { AppearanceSettings as AppearanceSettingsType } from '@/types';
-import { useI18n } from '@/i18n';
+import { useI18n } from '@/i18n/i18n';
 import styles from './SettingsPanel.module.scss';
 
 interface AppearanceSettingsProps {

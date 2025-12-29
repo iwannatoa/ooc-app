@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ConversationSettings, CharacterRecord } from '@/types';
-import { useI18n } from '@/i18n';
+import { useI18n } from '@/i18n/i18n';
 import { useConversationClient } from '@/hooks/useConversationClient';
 import styles from './StorySettingsView.module.scss';
 

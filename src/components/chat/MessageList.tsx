@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { useI18n } from '@/i18n';
+import { useI18n } from '@/i18n/i18n';
 import { useChatState } from '@/hooks/useChatState';
 import { parseThinkContent } from '@/utils/parseThinkContent';
 import ThinkContent from '../ThinkContent';

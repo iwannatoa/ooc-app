@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import { store } from './store';
 import { Provider } from 'react-redux';
-import { I18nProvider } from './i18n';
+import { I18nProvider } from './i18n/i18n';
 import { initializeTheme } from './utils/theme';
 import './styles/global.scss';
 

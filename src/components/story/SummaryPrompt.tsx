@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useI18n } from '@/i18n';
+import { useI18n } from '@/i18n/i18n';
 import { useToast } from '@/hooks/useToast';
 import styles from './SummaryPrompt.module.scss';
 

@@ -20,9 +20,11 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
       exclude: [
+        'scripts/**',
         'node_modules/',
         'src/test/',
         'src-tauri/**',
+        '**/__tests__/',
         '**/*.d.ts',
         '**/*.config.*',
         '**/mock/**',

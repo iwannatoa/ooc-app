@@ -6,7 +6,9 @@ import { useAppearance } from './hooks/useAppearance';
 import { useAppSettings } from './hooks/useAppSettings';
 
 // ===== UI Components =====
-import { TitleBar, AppHeader, ConversationList } from './components';
+import { TitleBar } from './components/TitleBar';
+import { AppHeader } from './components/AppHeader';
+import ConversationList from './components/ConversationList';
 import { ChatControls, ChatInterface } from './components/chat';
 import { StorySettingsSidebar } from './components/story';
 import {

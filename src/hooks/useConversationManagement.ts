@@ -15,7 +15,7 @@ import { useSettingsState } from './useSettingsState';
 import { useUIState } from './useUIState';
 import { useConversationSettingsDialog, useSummaryPromptDialog } from './useDialog';
 import { confirmDialog } from '@/services/confirmDialogService';
-import { useI18n } from '@/i18n';
+import { useI18n } from '@/i18n/i18n';
 
 export const useConversationManagement = () => {
   const [conversations, setConversations] = useState<

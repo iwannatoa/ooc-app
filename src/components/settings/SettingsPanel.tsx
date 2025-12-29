@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { AppSettings } from '@/types';
 import { useSettingsState } from '@/hooks/useSettingsState';
-import { useI18n } from '@/i18n';
+import { useI18n } from '@/i18n/i18n';
 import { useApiClients } from '@/hooks/useApiClients';
 import {
   SettingsTabs,

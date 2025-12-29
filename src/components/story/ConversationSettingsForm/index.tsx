@@ -1,5 +1,5 @@
 import { useConversationClient } from '@/hooks/useConversationClient';
-import { useI18n } from '@/i18n';
+import { useI18n } from '@/i18n/i18n';
 import React from 'react';
 import { useConversationSettingsForm } from '@/hooks/useConversationSettingsForm';
 import { useConversationSettingsGeneration } from '@/hooks/useConversationSettingsGeneration';

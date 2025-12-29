@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { useI18n } from '@/i18n';
+import { useI18n } from '@/i18n/i18n';
 import { useConversationSettingsForm } from '@/hooks/useConversationSettingsForm';
 import { useConversationSettingsGeneration } from '@/hooks/useConversationSettingsGeneration';
 import styles from './ConversationSettingsForm.module.scss';

@@ -1,7 +1,7 @@
 import React from 'react';
 import { AppSettings } from '@/types';
 import { useSettingsState } from '@/hooks/useSettingsState';
-import { useI18n } from '@/i18n';
+import { useI18n } from '@/i18n/i18n';
 import styles from './SettingsPanel.module.scss';
 
 interface AdvancedSettingsProps {

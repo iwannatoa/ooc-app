@@ -15,7 +15,7 @@ vi.mock('@/hooks/useFlaskPort', () => ({
 
 // Mock useI18n hook
 let mockLocale = 'zh';
-vi.mock('@/i18n', async () => {
+vi.mock('@/i18n/i18n', async () => {
   return {
     useI18n: () => {
       const translations = mockLocale === 'zh' ? zhLocale : enLocale;
@@ -33,11 +33,15 @@ vi.mock('@/i18n', async () => {
       };
       return {
         locale: mockLocale,
-        setLocale: vi.fn((newLocale: string) => { mockLocale = newLocale; }),
+        setLocale: vi.fn((newLocale: string) => {
+          mockLocale = newLocale;
+        }),
         t: (key: string) => getNestedValue(translations, key),
       };
     },
-    I18nProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+    I18nProvider: ({ children }: { children: React.ReactNode }) => (
+      <>{children}</>
+    ),
   };
 });
 

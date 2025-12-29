@@ -4,19 +4,16 @@ const path = require('path');
 const sourceDir = path.join(__dirname, '../src-tauri/target/release/bundle');
 const targetDir = path.join(__dirname, '../release');
 
-// 创建目标目录（如果不存在）
 if (!fs.existsSync(targetDir)) {
   fs.mkdirSync(targetDir, { recursive: true });
 }
 
-// 复制整个 bundle 目录
 function copyDir(src, dest) {
   if (!fs.existsSync(src)) {
     console.error(`Source directory does not exist: ${src}`);
     process.exit(1);
   }
 
-  // 如果目标目录已存在，先删除
   if (fs.existsSync(dest)) {
     fs.rmSync(dest, { recursive: true, force: true });
   }
