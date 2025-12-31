@@ -130,7 +130,6 @@ const ServerStatus: React.FC = () => {
       setPythonServerStatus('error');
       setOllamaStatus('disconnected');
       isServerHealthy.current = false;
-      // 如果从正常状态变为异常状态，切换到短 interval
       if (wasHealthy) {
         startHealthCheckInterval();
         lastReloadedConversationId.current = null;

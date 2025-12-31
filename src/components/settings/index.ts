@@ -10,9 +10,9 @@
  */
 
 export { SettingsTabs, SettingsTabPane, type SettingsTab } from './SettingsTabs';
-export { GeneralSettings } from './GeneralSettings';
-export { AppearanceSettings } from './AppearanceSettings';
-export { AISettings } from './AISettings';
-export { AdvancedSettings } from './AdvancedSettings';
+export { GeneralSettings, type GeneralSettingsRef } from './GeneralSettings';
+export { AppearanceSettings, type AppearanceSettingsRef } from './AppearanceSettings';
+export { AISettings, type AISettingsRef } from './AISettings';
+export { AdvancedSettings, type AdvancedSettingsRef } from './AdvancedSettings';
 export { default as SettingsPanel } from './SettingsPanel';
 

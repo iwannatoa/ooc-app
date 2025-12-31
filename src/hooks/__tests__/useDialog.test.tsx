@@ -143,10 +143,9 @@ describe('useDialog', () => {
         wrapper: createWrapper(store),
       });
 
-      let dialogId1: string;
-      let dialogId2: string;
+      let dialogId2: string = '';
       act(() => {
-        dialogId1 = result.current.open('settingsPanel', undefined);
+        result.current.open('settingsPanel', undefined);
         dialogId2 = result.current.open('confirm', { message: 'Test' });
       });
 
@@ -232,12 +231,12 @@ describe('useDialog', () => {
         wrapper: createWrapper(store),
       });
 
-      let dialogId: string;
+      let dialogId: string = '';
       act(() => {
         dialogId = result.current.open('settingsPanel', undefined);
       });
 
-      const dialog = result.current.getDialog(dialogId!);
+      const dialog = result.current.getDialog(dialogId);
       expect(dialog).toBeDefined();
       expect(dialog?.id).toBe(dialogId);
     });
@@ -307,10 +306,9 @@ describe('useDialog', () => {
         wrapper: createWrapper(store),
       });
 
-      let dialogId1: string;
-      let dialogId2: string;
+      let dialogId2: string = '';
       act(() => {
-        dialogId1 = result.current.open('settingsPanel', undefined);
+        result.current.open('settingsPanel', undefined);
         dialogId2 = result.current.open('confirm', { message: 'Test' });
       });
 
@@ -388,7 +386,7 @@ describe('useDialog', () => {
         wrapper: createWrapper(store),
       });
 
-      let dialogId: string;
+      let dialogId: string = '';
       act(() => {
         dialogId = result.current.open('conv_001', { id: 'custom-id' });
       });
@@ -457,7 +455,7 @@ describe('useDialog', () => {
         wrapper: createWrapper(store),
       });
 
-      let dialogId: string;
+      let dialogId: string = '';
       act(() => {
         dialogId = result.current.open('conv_001', 50, 'custom-id');
       });
@@ -526,7 +524,7 @@ describe('useDialog', () => {
         wrapper: createWrapper(store),
       });
 
-      let dialogId: string;
+      let dialogId: string = '';
       act(() => {
         dialogId = result.current.open(
           'conv_001',

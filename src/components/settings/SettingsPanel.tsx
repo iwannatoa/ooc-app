@@ -1,15 +1,19 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { AppSettings } from '@/types';
 import { useSettingsState } from '@/hooks/useSettingsState';
-import { useI18n } from '@/i18n/i18n';
+import { useI18n, type Locale } from '@/i18n/i18n';
 import { useApiClients } from '@/hooks/useApiClients';
 import {
   SettingsTabs,
   SettingsTabPane,
   GeneralSettings,
+  GeneralSettingsRef,
   AppearanceSettings,
+  AppearanceSettingsRef,
   AISettings,
+  AISettingsRef,
   AdvancedSettings,
+  AdvancedSettingsRef,
 } from './index';
 import styles from './SettingsPanel.module.scss';
 
@@ -31,12 +35,16 @@ interface SettingsPanelProps {
  * store only when the user clicks "Save".
  */
 const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, open }) => {
-  const { t } = useI18n();
+  const { t, setLocale } = useI18n();
   const { settings, updateSettings, updateAppearanceSettings } =
     useSettingsState();
   const { settingsApi } = useApiClients();
 
   const [localSettings, setLocalSettings] = useState(settings);
+  const generalSettingsRef = useRef<GeneralSettingsRef>(null);
+  const aiSettingsRef = useRef<AISettingsRef>(null);
+  const appearanceSettingsRef = useRef<AppearanceSettingsRef>(null);
+  const advancedSettingsRef = useRef<AdvancedSettingsRef>(null);
 
   // Sync localSettings with Redux store when settings prop changes
   useEffect(() => {
@@ -44,21 +52,54 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, open }) => {
   }, [settings]);
 
   /**
+   * Collect current settings from all child components
+   */
+  const collectCurrentSettings = (): AppSettings => {
+    const currentSettings = { ...localSettings };
+
+    // Collect general settings from GeneralSettings component
+    if (generalSettingsRef.current) {
+      currentSettings.general = generalSettingsRef.current.getCurrentSettings();
+    }
+
+    // Collect AI settings from AISettings component
+    if (aiSettingsRef.current) {
+      currentSettings.ai = aiSettingsRef.current.getCurrentSettings();
+    }
+
+    // Collect appearance settings from AppearanceSettings component
+    if (appearanceSettingsRef.current) {
+      currentSettings.appearance =
+        appearanceSettingsRef.current.getCurrentSettings();
+    }
+
+    // Collect advanced settings from AdvancedSettings component
+    if (advancedSettingsRef.current) {
+      currentSettings.advanced =
+        advancedSettingsRef.current.getCurrentSettings();
+    }
+
+    return currentSettings;
+  };
+
+  /**
    * Handle saving settings to Redux store and backend
+   * Collects current settings from all child components before saving
    */
   const handleSave = async () => {
     try {
-      // Remove compactMode from appearance settings before saving
-      const settingsToSave = {
-        ...localSettings,
-        appearance: {
-          ...localSettings.appearance,
-        },
-      };
+      // Collect current settings from all child components
+      const settingsToSave = collectCurrentSettings();
+      console.log('settingsToSave', settingsToSave);
 
-      // Ensure compactMode is removed
+      // Remove compactMode from appearance settings before saving
       if ('compactMode' in settingsToSave.appearance) {
         delete settingsToSave.appearance.compactMode;
+      }
+
+      // Apply language change if it was modified
+      if (settingsToSave.general.language !== settings.general.language) {
+        await setLocale(settingsToSave.general.language as Locale);
       }
 
       // Save to Redux store (this will trigger appearance updates)
@@ -96,18 +137,13 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, open }) => {
   };
 
   /**
-   * Handle appearance settings changes (only update local state, not Redux)
+   * Handle tab change - collect current settings from all tabs before switching
+   * This ensures we don't lose any changes made in the current tab
    */
-  const handleAppearanceChange = (
-    updates: Partial<AppSettings['appearance']>
-  ) => {
-    setLocalSettings({
-      ...localSettings,
-      appearance: {
-        ...localSettings.appearance,
-        ...updates,
-      },
-    });
+  const handleTabChange = () => {
+    // Collect current settings from all child components before tab switch
+    const currentSettings = collectCurrentSettings();
+    setLocalSettings(currentSettings);
   };
 
   if (!open) return null;
@@ -128,19 +164,25 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, open }) => {
           </button>
         </div>
 
-        <SettingsTabs>
+        <SettingsTabs onChange={handleTabChange}>
           <SettingsTabPane
             tab='general'
             label={t('settingsPanel.tabs.general')}
           >
-            <GeneralSettings settings={localSettings} />
+            <GeneralSettings
+              ref={generalSettingsRef}
+              settings={localSettings.general}
+            />
           </SettingsTabPane>
 
           <SettingsTabPane
             tab='ai'
             label={t('settingsPanel.tabs.ai')}
           >
-            <AISettings settings={localSettings} />
+            <AISettings
+              ref={aiSettingsRef}
+              settings={localSettings.ai}
+            />
           </SettingsTabPane>
 
           <SettingsTabPane
@@ -148,8 +190,8 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, open }) => {
             label={t('settingsPanel.tabs.appearance')}
           >
             <AppearanceSettings
+              ref={appearanceSettingsRef}
               settings={localSettings.appearance}
-              onChange={handleAppearanceChange}
             />
           </SettingsTabPane>
 
@@ -157,7 +199,10 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, open }) => {
             tab='advanced'
             label={t('settingsPanel.tabs.advanced')}
           >
-            <AdvancedSettings settings={localSettings} />
+            <AdvancedSettings
+              ref={advancedSettingsRef}
+              settings={localSettings.advanced}
+            />
           </SettingsTabPane>
         </SettingsTabs>
 

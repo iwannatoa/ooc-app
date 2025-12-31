@@ -166,7 +166,8 @@
     "logLevelWarn": "警告",
     "logLevelInfo": "信息",
     "logLevelDebug": "调试",
-    "enableDiagnostics": "启用诊断信息"
+    "enableDiagnostics": "启用诊断信息",
+    "fieldRequired": "此字段为必填项"
   },
   "conversationSettingsForm": {
     "title": "故事设置",

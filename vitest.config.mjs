@@ -16,6 +16,7 @@ export default defineConfig({
         resources: 'usable',
       },
     },
+    reporters: ['verbose'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
@@ -33,6 +34,7 @@ export default defineConfig({
         'dist/**',
       ],
     },
+    silent: false,
   },
   resolve: {
     alias: {

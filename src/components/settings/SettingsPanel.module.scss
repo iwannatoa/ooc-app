@@ -152,6 +152,20 @@
     padding: $spacing-sm $spacing-md;
     font-size: $font-size-base;
     box-sizing: border-box;
+
+    &.inputWarning {
+      border-color: $warning-color;
+      box-shadow: 0 0 0 1px $warning-color;
+    }
+  }
+
+  .warningMessage {
+    margin-top: $spacing-xs;
+    font-size: $font-size-sm;
+    color: $warning-color;
+    display: flex;
+    align-items: center;
+    gap: $spacing-xs;
   }
 
   input[type='checkbox'] {

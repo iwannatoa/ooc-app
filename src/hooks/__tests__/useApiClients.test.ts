@@ -44,9 +44,31 @@ describe('useApiClients', () => {
     expect(result.current.serverApi).toBeDefined();
   });
 
-  it('should use mock URL in mock mode', () => {
+  it('should use mock URL in mock mode', async () => {
     (isMockMode as any).mockReturnValue(true);
     const { result } = renderHook(() => useApiClients());
     expect(result.current.apiFactory).toBeDefined();
+
+    // Test that getApiUrl returns mock URL when in mock mode
+    const getApiUrl = (result.current.apiFactory as any).getApiUrl;
+    const url = await getApiUrl();
+    expect(url).toBe('http://localhost:5000');
+  });
+
+  it('should use waitForPort when not in mock mode', async () => {
+    (isMockMode as any).mockReturnValue(false);
+    const mockWaitForPort = vi.fn().mockResolvedValue('http://localhost:5001');
+    
+    (useFlaskPort.useFlaskPort as any).mockReturnValue({
+      waitForPort: mockWaitForPort,
+    });
+
+    const { result } = renderHook(() => useApiClients());
+    
+    // Test that getApiUrl calls waitForPort when not in mock mode
+    const getApiUrl = (result.current.apiFactory as any).getApiUrl;
+    const url = await getApiUrl();
+    expect(mockWaitForPort).toHaveBeenCalled();
+    expect(url).toBe('http://localhost:5001');
   });
 });

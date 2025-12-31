@@ -1,8 +1,9 @@
-import { store } from '@/store';
+import { RootState } from '@/store';
 import { setFlaskPort } from '@/store/slices/serverSlice';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { useCallback, useEffect } from 'react';
+import { useStore } from 'react-redux';
 import { useAppDispatch, useAppSelector } from './redux';
 
 interface ApiResponse<T> {
@@ -11,22 +12,77 @@ interface ApiResponse<T> {
   error?: string;
 }
 
-let portFetchPromise: Promise<void> | null = null;
-let eventListenerSetup = false;
-let globalInitialized = false;
+// Module state management
+class FlaskPortManager {
+  private portFetchPromise: Promise<void> | null = null;
+  private eventListenerSetup = false;
+  private globalInitialized = false;
+  private unsubscribeListener: (() => void) | null = null;
 
+  getPortFetchPromise(): Promise<void> | null {
+    return this.portFetchPromise;
+  }
+
+  setPortFetchPromise(promise: Promise<void> | null): void {
+    this.portFetchPromise = promise;
+  }
+
+  isEventListenerSetup(): boolean {
+    return this.eventListenerSetup;
+  }
+
+  setEventListenerSetup(value: boolean): void {
+    this.eventListenerSetup = value;
+  }
+
+  isGlobalInitialized(): boolean {
+    return this.globalInitialized;
+  }
+
+  setGlobalInitialized(value: boolean): void {
+    this.globalInitialized = value;
+  }
+
+  setUnsubscribeListener(unsubscribe: (() => void) | null): void {
+    this.unsubscribeListener = unsubscribe;
+  }
+
+  cleanup(): void {
+    if (this.unsubscribeListener) {
+      this.unsubscribeListener();
+      this.unsubscribeListener = null;
+    }
+  }
+
+  // Reset all state (for testing)
+  reset(): void {
+    this.portFetchPromise = null;
+    this.eventListenerSetup = false;
+    this.globalInitialized = false;
+    this.cleanup();
+  }
+}
+
+const flaskPortManager = new FlaskPortManager();
 const MAX_WAIT_TIME = 10000; // 10 seconds
+
+// Export reset function for testing
+export const resetFlaskPortManager = () => {
+  flaskPortManager.reset();
+};
 
 export const useFlaskPort = () => {
   const dispatch = useAppDispatch();
+  const store = useStore<RootState>();
   const { flaskPort, apiUrl } = useAppSelector((state) => state.server);
 
   const fetchPort = useCallback(async () => {
-    if (portFetchPromise) {
-      return portFetchPromise;
+    const existingPromise = flaskPortManager.getPortFetchPromise();
+    if (existingPromise) {
+      return existingPromise;
     }
 
-    portFetchPromise = (async () => {
+    const promise = (async () => {
       try {
         const response = await invoke<ApiResponse<number>>('get_flask_port');
         if (response.success && response.data) {
@@ -36,11 +92,12 @@ export const useFlaskPort = () => {
         // Don't set fallback port, let it remain null so we can retry
         console.error('Failed to fetch Flask port:', err);
       } finally {
-        portFetchPromise = null;
+        flaskPortManager.setPortFetchPromise(null);
       }
     })();
 
-    return portFetchPromise;
+    flaskPortManager.setPortFetchPromise(promise);
+    return promise;
   }, [dispatch]);
 
   // Wait for port to be ready, with maximum wait time of 10 seconds
@@ -50,94 +107,74 @@ export const useFlaskPort = () => {
       return `http://localhost:${flaskPort}`;
     }
 
-    // First, try to fetch port immediately
+    // Try to fetch port immediately
     await fetchPort();
 
-    // Wait for port to be ready, with timeout
+    // Check if port is available after fetch
+    const portAfterFetch = store.getState().server?.flaskPort;
+    if (portAfterFetch) {
+      return `http://localhost:${portAfterFetch}`;
+    }
+
+    // Poll for port with timeout
     const startTime = Date.now();
+    const pollInterval = 100; // Check every 100ms
 
     return new Promise((resolve, reject) => {
-      let timeoutId: NodeJS.Timeout | null = null;
-      let unsubscribe: (() => void) | null = null;
-
-      const cleanup = () => {
-        if (timeoutId) {
-          clearTimeout(timeoutId);
-          timeoutId = null;
-        }
-        if (unsubscribe) {
-          unsubscribe();
-          unsubscribe = null;
-        }
-      };
-
-      // Subscribe to store changes
-      unsubscribe = store.subscribe(() => {
-        const state = store.getState();
-        const currentPort = state.server?.flaskPort;
+      const checkPort = () => {
+        const currentPort = store.getState().server?.flaskPort;
+        const elapsed = Date.now() - startTime;
 
         if (currentPort) {
-          cleanup();
           resolve(`http://localhost:${currentPort}`);
           return;
         }
 
-        const elapsed = Date.now() - startTime;
         if (elapsed >= MAX_WAIT_TIME) {
-          cleanup();
-          // Timeout reached, try to fetch port once more
+          // Final attempt to fetch before rejecting
           fetchPort()
             .then(() => {
-              // Check again after fetch
-              setTimeout(() => {
-                const finalState = store.getState();
-                const finalPort = finalState.server?.flaskPort;
-                if (finalPort) {
-                  resolve(`http://localhost:${finalPort}`);
-                } else {
-                  reject(
-                    new Error('Failed to get Flask port after 10 seconds')
-                  );
-                }
-              }, 100);
+              const finalPort = store.getState().server?.flaskPort;
+              if (finalPort) {
+                resolve(`http://localhost:${finalPort}`);
+              } else {
+                reject(new Error('Failed to get Flask port after 10 seconds'));
+              }
             })
             .catch(() => {
               reject(new Error('Failed to get Flask port after 10 seconds'));
             });
+          return;
         }
-      });
 
-      // Also check immediately
-      const state = store.getState();
-      const currentPort = state.server?.flaskPort;
-      if (currentPort) {
-        cleanup();
-        resolve(`http://localhost:${currentPort}`);
-        return;
-      }
+        // Continue polling
+        setTimeout(checkPort, pollInterval);
+      };
 
-      // Set timeout to cleanup subscription
-      timeoutId = setTimeout(() => {
-        cleanup();
-      }, MAX_WAIT_TIME + 1000);
+      // Start polling immediately
+      checkPort();
     });
-  }, [flaskPort, fetchPort]);
+  }, [flaskPort, fetchPort, store]);
 
   useEffect(() => {
-    if (globalInitialized) {
+    if (flaskPortManager.isGlobalInitialized()) {
       return;
     }
-    globalInitialized = true;
+    flaskPortManager.setGlobalInitialized(true);
 
-    if (!eventListenerSetup) {
-      eventListenerSetup = true;
+    if (!flaskPortManager.isEventListenerSetup()) {
+      flaskPortManager.setEventListenerSetup(true);
       (async () => {
         try {
-          await listen<number>('flask-port-ready', (event) => {
-            dispatch(setFlaskPort(event.payload));
-          });
+          const unsubscribe = await listen<number>(
+            'flask-port-ready',
+            (event) => {
+              dispatch(setFlaskPort(event.payload));
+            }
+          );
+          flaskPortManager.setUnsubscribeListener(unsubscribe);
         } catch (err) {
-          eventListenerSetup = false;
+          flaskPortManager.setEventListenerSetup(false);
         }
       })();
     }

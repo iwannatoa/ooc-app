@@ -41,12 +41,11 @@ export const CharacterManagement: React.FC = () => {
     const newPersonality = { ...characterPersonality };
 
     // Remove last empty character if exists
-    const lastEmptyIndex =
-      newCharacters.length > 0 && newCharacters[newCharacters.length - 1] === ''
-        ? newCharacters.length - 1
-        : -1;
-    if (lastEmptyIndex >= 0) {
-      newCharacters.splice(lastEmptyIndex, 1);
+    if (
+      newCharacters.length > 0 &&
+      newCharacters[newCharacters.length - 1] === ''
+    ) {
+      newCharacters.pop();
     }
 
     // Add generated characters

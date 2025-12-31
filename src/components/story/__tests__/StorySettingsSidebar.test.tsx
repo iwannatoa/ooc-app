@@ -63,6 +63,7 @@ describe('StorySettingsSidebar', () => {
 
   it('should render when settings is provided', () => {
     const settings = {
+      conversation_id: 'conv1',
       title: 'Test Story',
       background: 'Test background',
     };
@@ -79,6 +80,7 @@ describe('StorySettingsSidebar', () => {
 
   it('should show empty state when no content', () => {
     const settings = {
+      conversation_id: 'conv1',
       title: 'Test Story',
     };
 
@@ -95,6 +97,7 @@ describe('StorySettingsSidebar', () => {
 
   it('should render background section', () => {
     const settings = {
+      conversation_id: 'conv1',
       title: 'Test Story',
       background: 'This is a test background story setting',
     };
@@ -117,6 +120,7 @@ describe('StorySettingsSidebar', () => {
   it('should truncate long background text', () => {
     const longBackground = 'a'.repeat(150);
     const settings = {
+      conversation_id: 'conv1',
       title: 'Test Story',
       background: longBackground,
     };
@@ -135,6 +139,7 @@ describe('StorySettingsSidebar', () => {
   it('should expand/collapse long background text', () => {
     const longBackground = 'a'.repeat(150);
     const settings = {
+      conversation_id: 'conv1',
       title: 'Test Story',
       background: longBackground,
     };
@@ -155,6 +160,7 @@ describe('StorySettingsSidebar', () => {
 
   it('should render characters section', () => {
     const settings = {
+      conversation_id: 'conv1',
       title: 'Test Story',
       characters: ['Character 1', 'Character 2'],
     };
@@ -173,6 +179,7 @@ describe('StorySettingsSidebar', () => {
 
   it('should show character personality', () => {
     const settings = {
+      conversation_id: 'conv1',
       title: 'Test Story',
       characters: ['Character 1'],
       character_personality: {
@@ -193,6 +200,7 @@ describe('StorySettingsSidebar', () => {
   it('should truncate long character personality', () => {
     const longPersonality = 'a'.repeat(50);
     const settings = {
+      conversation_id: 'conv1',
       title: 'Test Story',
       characters: ['Character 1'],
       character_personality: {
@@ -212,6 +220,7 @@ describe('StorySettingsSidebar', () => {
 
   it('should show more characters indicator', () => {
     const settings = {
+      conversation_id: 'conv1',
       title: 'Test Story',
       characters: ['Char 1', 'Char 2', 'Char 3', 'Char 4', 'Char 5'],
     };
@@ -230,6 +239,7 @@ describe('StorySettingsSidebar', () => {
 
   it('should render outline section', () => {
     const settings = {
+      conversation_id: 'conv1',
       title: 'Test Story',
       outline: 'This is the story outline',
     };
@@ -248,6 +258,7 @@ describe('StorySettingsSidebar', () => {
   it('should truncate long outline text', () => {
     const longOutline = 'a'.repeat(200);
     const settings = {
+      conversation_id: 'conv1',
       title: 'Test Story',
       outline: longOutline,
     };
@@ -264,6 +275,7 @@ describe('StorySettingsSidebar', () => {
 
   it('should call onToggle when toggle button is clicked', () => {
     const settings = {
+      conversation_id: 'conv1',
       title: 'Test Story',
     };
 
@@ -282,6 +294,7 @@ describe('StorySettingsSidebar', () => {
 
   it('should show collapsed state', () => {
     const settings = {
+      conversation_id: 'conv1',
       title: 'Test Story',
       background: 'Test background',
     };
@@ -300,6 +313,7 @@ describe('StorySettingsSidebar', () => {
 
   it('should call open settings dialog when edit button is clicked', () => {
     const settings = {
+      conversation_id: 'conv1',
       title: 'Test Story',
     };
 
@@ -320,6 +334,7 @@ describe('StorySettingsSidebar', () => {
 
   it('should call open view dialog when view button is clicked', () => {
     const settings = {
+      conversation_id: 'conv1',
       title: 'Test Story',
     };
 
@@ -345,6 +360,7 @@ describe('StorySettingsSidebar', () => {
     });
 
     const settings = {
+      conversation_id: 'conv1',
       title: 'Test Story',
     };
 

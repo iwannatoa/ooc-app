@@ -95,7 +95,7 @@ export const useConversationManagement = () => {
   const handleNewConversation = useCallback(() => {
     const newId = `conv_${Date.now()}_${Math.random()
       .toString(36)
-      .substr(2, 9)}`;
+      .substring(2, 9)}`;
     setPendingConversationId(newId);
     setIsNewConversation(true);
     // Open settings dialog for new conversation

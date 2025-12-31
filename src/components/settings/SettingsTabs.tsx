@@ -32,6 +32,7 @@ SettingsTabPane.displayName = 'SettingsTabPane';
 interface SettingsTabsProps {
   defaultTab?: SettingsTab;
   children: React.ReactNode;
+  onChange?: (tab: SettingsTab) => void;
 }
 
 /**
@@ -56,8 +57,14 @@ interface SettingsTabsProps {
 export const SettingsTabs: React.FC<SettingsTabsProps> = ({
   defaultTab = 'general',
   children,
+  onChange,
 }) => {
   const [currentTab, setCurrentTab] = useState<SettingsTab>(defaultTab);
+
+  const handleTabChange = (tab: SettingsTab) => {
+    setCurrentTab(tab);
+    onChange?.(tab);
+  };
 
   // 使用 useMemo 优化性能，避免每次渲染都重新计算
   const { tabs, activePane } = useMemo(() => {
@@ -101,7 +108,7 @@ export const SettingsTabs: React.FC<SettingsTabsProps> = ({
             className={`${styles.tab} ${
               currentTab === tab.key ? styles.active : ''
             }`}
-            onClick={() => setCurrentTab(tab.key)}
+            onClick={() => handleTabChange(tab.key)}
           >
             {tab.label}
           </button>
