@@ -77,7 +77,10 @@ export const SettingsTabs: React.FC<SettingsTabsProps> = ({
         const isTabPane =
           child.type === SettingsTabPane ||
           (typeof child.type !== 'string' &&
-            (child.type as any)?.displayName === 'SettingsTabPane');
+            typeof child.type === 'function' &&
+            'displayName' in child.type &&
+            (child.type as { displayName?: string }).displayName ===
+              'SettingsTabPane');
 
         if (!isTabPane) return false;
 

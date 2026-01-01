@@ -4,6 +4,14 @@ import * as useConversationSettingsGeneration from '@/hooks/useConversationSetti
 import * as useConversationSettingsConverter from '@/hooks/useConversationSettingsConverter';
 import * as useI18n from '@/i18n/i18n';
 import {
+  createMockConversationClient,
+  createMockConversationSettingsForm,
+  createMockConversationSettingsGeneration,
+  createMockConversationSettingsConverter,
+  createMockI18n,
+} from '@/mock';
+import { vi } from 'vitest';
+import {
   cleanup,
   fireEvent,
   screen,
@@ -33,42 +41,52 @@ describe('ConversationSettingsForm', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    (useConversationClient.useConversationClient as any).mockReturnValue(
-      mockConversationClient
+    vi.mocked(useConversationClient.useConversationClient).mockReturnValue(
+      createMockConversationClient({
+        confirmOutline: mockConversationClient.confirmOutline,
+      })
     );
 
-    (useConversationSettingsForm.useConversationSettingsForm as any).mockReturnValue({
-      formData: {
-        title: '',
-        background: '',
-        supplement: '',
-        characters: [],
-        characterPersonality: {},
-        characterIsMain: {},
-        characterGenerationHints: '',
-        outline: '',
-        generatedOutline: null,
-        outlineConfirmed: false,
-        allowAutoGenerateCharacters: false,
-        allowAutoGenerateMainCharacters: false,
-      },
-      conversationId: 'test_001',
-      isNewConversation: false,
-      updateFields: mockUpdateFields,
-    });
+    vi.mocked(useConversationSettingsForm.useConversationSettingsForm).mockReturnValue(
+      createMockConversationSettingsForm({
+        formData: {
+          title: '',
+          background: '',
+          supplement: '',
+          characters: [],
+          characterPersonality: {},
+          characterIsMain: {},
+          characterGenerationHints: '',
+          outline: '',
+          generatedOutline: null,
+          outlineConfirmed: false,
+          allowAutoGenerateCharacters: false,
+          allowAutoGenerateMainCharacters: false,
+        },
+        conversationId: 'test_001',
+        isNewConversation: false,
+        updateFields: mockUpdateFields,
+      })
+    );
 
-    (useConversationSettingsGeneration.useConversationSettingsGeneration as any).mockReturnValue({
-      generateOutline: mockGenerateOutline,
-      generateCharacter: vi.fn(),
-    });
+    vi.mocked(useConversationSettingsGeneration.useConversationSettingsGeneration).mockReturnValue(
+      createMockConversationSettingsGeneration({
+        generateOutline: mockGenerateOutline,
+        generateCharacter: vi.fn(),
+      })
+    );
 
-    (useConversationSettingsConverter.useConversationSettingsConverter as any).mockReturnValue({
-      toApiFormat: mockToApiFormat,
-    });
+    vi.mocked(useConversationSettingsConverter.useConversationSettingsConverter).mockReturnValue(
+      createMockConversationSettingsConverter({
+        toApiFormat: mockToApiFormat,
+      })
+    );
 
-    (useI18n.useI18n as any).mockReturnValue({
-      t: (key: string) => key,
-    });
+    vi.mocked(useI18n.useI18n).mockReturnValue(
+      createMockI18n({
+        t: (key: string) => key,
+      })
+    );
   });
 
   afterEach(() => {

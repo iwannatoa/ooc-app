@@ -181,9 +181,9 @@ describe('AdvancedSettings', () => {
   });
 
   it('should use default value for enableDiagnostics when undefined', () => {
-    const settingsWithUndefined = {
+    const settingsWithUndefined: Partial<typeof defaultSettings> = {
       ...defaultSettings,
-      enableDiagnostics: undefined as any,
+      enableDiagnostics: undefined,
     };
     renderWithProviders(<AdvancedSettings settings={settingsWithUndefined} />);
     const checkbox = screen.getByLabelText(

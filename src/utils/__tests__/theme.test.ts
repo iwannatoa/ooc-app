@@ -5,6 +5,8 @@ import {
   applyTheme,
   getEffectiveTheme,
   initializeTheme,
+  loadAppearanceFromStorage,
+  saveAppearanceToStorage,
 } from '../theme';
 
 describe('theme utils', () => {
@@ -38,6 +40,30 @@ describe('theme utils', () => {
     it('should return null if no theme is stored', () => {
       expect(loadThemeFromStorage()).toBeNull();
     });
+
+    it('should return null for invalid theme values', () => {
+      localStorage.setItem('app-theme', 'invalid');
+      expect(loadThemeFromStorage()).toBeNull();
+    });
+
+    it('should handle localStorage errors gracefully', () => {
+      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      // Mock localStorage.getItem to throw an error
+      const originalGetItem = Storage.prototype.getItem;
+      Storage.prototype.getItem = vi.fn(() => {
+        throw new Error('Storage quota exceeded');
+      });
+
+      expect(loadThemeFromStorage()).toBeNull();
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        'Failed to load theme from localStorage:',
+        expect.any(Error)
+      );
+
+      // Restore
+      Storage.prototype.getItem = originalGetItem;
+      consoleWarnSpy.mockRestore();
+    });
   });
 
   describe('saveThemeToStorage', () => {
@@ -49,6 +75,25 @@ describe('theme utils', () => {
     it('should handle auto theme', () => {
       saveThemeToStorage('auto');
       expect(localStorage.getItem('app-theme')).toBe('auto');
+    });
+
+    it('should handle localStorage errors gracefully', () => {
+      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      // Mock localStorage.setItem to throw an error
+      const originalSetItem = Storage.prototype.setItem;
+      Storage.prototype.setItem = vi.fn(() => {
+        throw new Error('Storage quota exceeded');
+      });
+
+      saveThemeToStorage('dark');
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        'Failed to save theme to localStorage:',
+        expect.any(Error)
+      );
+
+      // Restore
+      Storage.prototype.setItem = originalSetItem;
+      consoleWarnSpy.mockRestore();
     });
   });
 
@@ -125,6 +170,91 @@ describe('theme utils', () => {
     it('should default to dark if no theme is stored', () => {
       initializeTheme();
       expect(document.documentElement.classList.contains('theme-dark')).toBe(true);
+    });
+  });
+
+  describe('loadAppearanceFromStorage', () => {
+    it('should return appearance data from localStorage', () => {
+      const appearance = { theme: 'dark', fontSize: 'large' as const };
+      localStorage.setItem('app-appearance', JSON.stringify(appearance));
+      expect(loadAppearanceFromStorage()).toEqual(appearance);
+    });
+
+    it('should return null if no appearance is stored', () => {
+      expect(loadAppearanceFromStorage()).toBeNull();
+    });
+
+    it('should return null for invalid JSON', () => {
+      localStorage.setItem('app-appearance', 'invalid json');
+      expect(loadAppearanceFromStorage()).toBeNull();
+    });
+
+    it('should return null for data without theme', () => {
+      localStorage.setItem('app-appearance', JSON.stringify({ fontSize: 'large' }));
+      expect(loadAppearanceFromStorage()).toBeNull();
+    });
+
+    it('should return null for non-object data', () => {
+      localStorage.setItem('app-appearance', JSON.stringify('string'));
+      expect(loadAppearanceFromStorage()).toBeNull();
+    });
+
+    it('should handle localStorage errors gracefully', () => {
+      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      // Mock localStorage.getItem to throw an error
+      const originalGetItem = Storage.prototype.getItem;
+      Storage.prototype.getItem = vi.fn(() => {
+        throw new Error('Storage quota exceeded');
+      });
+
+      expect(loadAppearanceFromStorage()).toBeNull();
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        'Failed to load appearance from localStorage:',
+        expect.any(Error)
+      );
+
+      // Restore
+      Storage.prototype.getItem = originalGetItem;
+      consoleWarnSpy.mockRestore();
+    });
+  });
+
+  describe('saveAppearanceToStorage', () => {
+    it('should save appearance data to localStorage', () => {
+      const appearance = { theme: 'light', fontSize: 'medium' as const };
+      saveAppearanceToStorage(appearance);
+      expect(localStorage.getItem('app-appearance')).toBe(JSON.stringify(appearance));
+      expect(localStorage.getItem('app-theme')).toBe('light');
+    });
+
+    it('should save appearance with all optional fields', () => {
+      const appearance = {
+        theme: 'dark',
+        fontSize: 'small' as const,
+        fontFamily: 'Arial',
+      };
+      saveAppearanceToStorage(appearance);
+      expect(localStorage.getItem('app-appearance')).toBe(JSON.stringify(appearance));
+      expect(localStorage.getItem('app-theme')).toBe('dark');
+    });
+
+    it('should handle localStorage errors gracefully', () => {
+      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      // Mock localStorage.setItem to throw an error
+      const originalSetItem = Storage.prototype.setItem;
+      Storage.prototype.setItem = vi.fn(() => {
+        throw new Error('Storage quota exceeded');
+      });
+
+      saveAppearanceToStorage({ theme: 'light' });
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        'Failed to save appearance to localStorage:',
+        expect.any(Error)
+      );
+
+      // Restore
+      Storage.prototype.setItem = originalSetItem;
+      consoleWarnSpy.mockRestore();
     });
   });
 });

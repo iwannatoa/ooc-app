@@ -5,6 +5,7 @@ import ConversationList from '../ConversationList';
 import * as useI18n from '@/i18n/i18n';
 import * as useConversationManagement from '@/hooks/useConversationManagement';
 import * as useUIState from '@/hooks/useUIState';
+import { createMockI18n, createMockConversationManagement, createMockUIState } from '@/mock';
 
 vi.mock('@/i18n/i18n');
 vi.mock('@/hooks/useConversationManagement');
@@ -20,32 +21,38 @@ describe('ConversationList', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    (useI18n.useI18n as any).mockReturnValue({
-      t: (key: string) => key,
-    });
+    vi.mocked(useI18n.useI18n).mockReturnValue(
+      createMockI18n({
+        t: (key: string) => key,
+      })
+    );
 
-    (
-      useConversationManagement.useConversationManagement as any
-    ).mockReturnValue({
-      conversations: [
-        {
-          id: '1',
-          title: 'Test Conversation',
-          settings: { title: 'Test', updated_at: '2024-01-01T00:00:00Z' },
-          updatedAt: new Date('2024-01-01'),
-        },
-      ],
-      activeConversationId: '1',
-      handleSelectConversation: mockHandleSelectConversation,
-      handleDeleteConversation: mockHandleDeleteConversation,
-      handleNewConversation: mockHandleNewConversation,
-      loadConversations: mockLoadConversations,
-    });
+    vi.mocked(useConversationManagement.useConversationManagement).mockReturnValue(
+      createMockConversationManagement({
+        conversations: [
+          {
+            id: '1',
+            title: 'Test Conversation',
+            messages: [],
+            createdAt: Date.now(),
+            updatedAt: new Date('2024-01-01').getTime(),
+            settings: { conversation_id: '1', title: 'Test', updated_at: '2024-01-01T00:00:00Z' },
+          },
+        ],
+        activeConversationId: '1',
+        handleSelectConversation: mockHandleSelectConversation,
+        handleDeleteConversation: mockHandleDeleteConversation,
+        handleNewConversation: mockHandleNewConversation,
+        loadConversations: mockLoadConversations,
+      })
+    );
 
-    (useUIState.useUIState as any).mockReturnValue({
-      conversationListCollapsed: false,
-      setConversationListCollapsed: mockSetConversationListCollapsed,
-    });
+    vi.mocked(useUIState.useUIState).mockReturnValue(
+      createMockUIState({
+        conversationListCollapsed: false,
+        setConversationListCollapsed: mockSetConversationListCollapsed,
+      })
+    );
   });
 
   it('should render conversation list', () => {
@@ -54,16 +61,16 @@ describe('ConversationList', () => {
   });
 
   it('should show empty state', () => {
-    (
-      useConversationManagement.useConversationManagement as any
-    ).mockReturnValue({
-      conversations: [],
-      activeConversationId: null,
-      handleSelectConversation: mockHandleSelectConversation,
-      handleDeleteConversation: mockHandleDeleteConversation,
-      handleNewConversation: mockHandleNewConversation,
-      loadConversations: mockLoadConversations,
-    });
+    vi.mocked(useConversationManagement.useConversationManagement).mockReturnValue(
+      createMockConversationManagement({
+        conversations: [],
+        activeConversationId: null,
+        handleSelectConversation: mockHandleSelectConversation,
+        handleDeleteConversation: mockHandleDeleteConversation,
+        handleNewConversation: mockHandleNewConversation,
+        loadConversations: mockLoadConversations,
+      })
+    );
 
     renderWithProviders(<ConversationList />);
     expect(
@@ -90,5 +97,74 @@ describe('ConversationList', () => {
     const deleteButton = screen.getByTitle('conversation.deleteConversation');
     fireEvent.click(deleteButton);
     expect(mockHandleDeleteConversation).toHaveBeenCalledWith('1');
+  });
+
+  it('should show expand button when collapsed', () => {
+    vi.mocked(useUIState.useUIState).mockReturnValue(
+      createMockUIState({
+        conversationListCollapsed: true,
+        setConversationListCollapsed: mockSetConversationListCollapsed,
+      })
+    );
+
+    renderWithProviders(<ConversationList />);
+    const expandButton = screen.getByTitle('common.expand');
+    expect(expandButton).toBeInTheDocument();
+    fireEvent.click(expandButton);
+    expect(mockSetConversationListCollapsed).toHaveBeenCalledWith(false);
+  });
+
+  it('should use conversation title when settings title is missing', () => {
+    (
+      useConversationManagement.useConversationManagement
+    ).mockReturnValue(
+      createMockConversationManagement({
+        conversations: [
+          {
+            id: '1',
+            title: 'Fallback Title',
+            messages: [],
+            createdAt: Date.now(),
+            updatedAt: new Date('2024-01-01').getTime(),
+            settings: { conversation_id: '1', updated_at: '2024-01-01T00:00:00Z' },
+          },
+        ],
+        activeConversationId: '1',
+        handleSelectConversation: mockHandleSelectConversation,
+        handleDeleteConversation: mockHandleDeleteConversation,
+        handleNewConversation: mockHandleNewConversation,
+        loadConversations: mockLoadConversations,
+      })
+    );
+
+    renderWithProviders(<ConversationList />);
+    expect(screen.getByText('Fallback Title')).toBeInTheDocument();
+  });
+
+  it('should use unnamed conversation text when both titles are missing', () => {
+    (
+      useConversationManagement.useConversationManagement
+    ).mockReturnValue(
+      createMockConversationManagement({
+        conversations: [
+          {
+            id: '1',
+            title: '',
+            settings: { updated_at: '2024-01-01T00:00:00Z' },
+            updatedAt: new Date('2024-01-01'),
+          },
+        ],
+        activeConversationId: '1',
+        handleSelectConversation: mockHandleSelectConversation,
+        handleDeleteConversation: mockHandleDeleteConversation,
+        handleNewConversation: mockHandleNewConversation,
+        loadConversations: mockLoadConversations,
+      })
+    );
+
+    renderWithProviders(<ConversationList />);
+    expect(
+      screen.getByText('conversation.unnamedConversation')
+    ).toBeInTheDocument();
   });
 });

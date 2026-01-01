@@ -343,15 +343,17 @@ describe('AISettings', () => {
   });
 
   it('should display default values when config values are missing', () => {
-    const settingsWithMissingValues: AppSettings['ai'] = {
+    // Create settings with missing values to test default handling
+    const settingsWithMissingValues = {
       ...defaultSettings,
       ollama: {
         ...defaultSettings.ollama,
-        timeout: undefined as any,
-        maxTokens: undefined as any,
-        temperature: undefined as any,
+        timeout: undefined,
+        maxTokens: undefined,
+        temperature: undefined,
+        // Omit properties to test default value handling
       },
-    };
+    } as unknown as AppSettings['ai'];
     renderWithProviders(<AISettings settings={settingsWithMissingValues} />);
     const timeoutInput = getInputByLabel(
       'settingsPanel.timeout'

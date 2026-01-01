@@ -1,4 +1,4 @@
-import { ChatMessage } from '@/types';
+import { ChatMessage, AppSettings } from '@/types';
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useStoryActions } from '../useStoryActions';
@@ -25,22 +25,57 @@ describe('useStoryActions', () => {
     },
   ];
 
-  const mockSettings = {
+  const mockSettings: AppSettings = {
+    general: {
+      language: 'en',
+      autoStart: false,
+      minimizeToTray: false,
+      startWithSystem: false,
+    },
+    appearance: {
+      theme: 'dark',
+      fontSize: 'medium',
+      fontFamily: 'system-ui',
+    },
     ai: {
       provider: 'deepseek',
-      deepseek: { model: 'deepseek-chat' },
+      deepseek: {
+        provider: 'deepseek',
+        baseUrl: 'https://api.deepseek.com',
+        model: 'deepseek-chat',
+        timeout: 60000,
+        maxTokens: 2048,
+        temperature: 0.7,
+        apiKey: '',
+      },
+      ollama: {
+        provider: 'ollama',
+        baseUrl: 'http://localhost:11434',
+        model: 'llama2',
+        timeout: 120000,
+        maxTokens: 2048,
+        temperature: 0.7,
+      },
     },
-  } as any;
+    advanced: {
+      enableStreaming: false,
+      apiTimeout: 120000,
+      maxRetries: 3,
+      logLevel: 'info',
+      enableDiagnostics: false,
+    },
+  };
 
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers();
 
-    (useStoryClient.useStoryClient as any).mockReturnValue({
+    vi.mocked(useStoryClient.useStoryClient).mockReturnValue({
       generateStory: mockGenerateStory,
       confirmSection: mockConfirmSection,
       rewriteSection: mockRewriteSection,
       modifySection: mockModifySection,
+      loading: false,
     });
   });
 

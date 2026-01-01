@@ -11,6 +11,17 @@ import * as useConversationManagement from '@/hooks/useConversationManagement';
 import * as useApiClients from '@/hooks/useApiClients';
 import * as useI18n from '@/i18n/i18n';
 import { invoke } from '@tauri-apps/api/core';
+import {
+  createMockI18n,
+  createMockServerState,
+  createMockFlaskPort,
+  createMockChatState,
+  createMockSettingsState,
+  createMockSettingsStateWithProvider,
+  createMockConversationClient,
+  createMockConversationManagement,
+  createMockApiClients,
+} from '@/mock';
 
 vi.mock('@/hooks/useServerState');
 vi.mock('@/hooks/useFlaskPort');
@@ -21,9 +32,13 @@ vi.mock('@/hooks/useConversationManagement');
 vi.mock('@/hooks/useApiClients');
 vi.mock('@/i18n/i18n');
 vi.mock('@tauri-apps/api/core');
-vi.mock('@/mock', () => ({
-  isMockMode: vi.fn(() => false),
-}));
+vi.mock('@/mock', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/mock')>();
+  return {
+    ...actual,
+    isMockMode: vi.fn(() => false),
+  };
+});
 
 describe('ServerStatus', () => {
   const mockSetPythonServerStatus = vi.fn();
@@ -45,56 +60,69 @@ describe('ServerStatus', () => {
     mockLoadConversations.mockResolvedValue(undefined);
     vi.useFakeTimers();
 
-    (useI18n.useI18n as any).mockReturnValue({
-      t: (key: string) => key,
-    });
+    vi.mocked(useI18n.useI18n).mockReturnValue(createMockI18n());
 
-    (useServerState.useServerState as any).mockReturnValue({
-      pythonServerStatus: 'started',
-      ollamaStatus: 'connected',
-      setPythonServerStatus: mockSetPythonServerStatus,
-      setOllamaStatus: mockSetOllamaStatus,
-      setError: mockSetError,
-    });
+    vi.mocked(useServerState.useServerState).mockReturnValue(
+      createMockServerState({
+        pythonServerStatus: 'started',
+        ollamaStatus: 'connected',
+        setPythonServerStatus: mockSetPythonServerStatus,
+        setOllamaStatus: mockSetOllamaStatus,
+        setError: mockSetError,
+      })
+    );
 
-    (useFlaskPort.useFlaskPort as any).mockReturnValue({
-      apiUrl: 'http://localhost:5000',
-      refetch: mockRefetchPort,
-    });
+    vi.mocked(useFlaskPort.useFlaskPort).mockReturnValue(
+      createMockFlaskPort({
+        apiUrl: 'http://localhost:5000',
+        refetch: mockRefetchPort,
+      })
+    );
 
-    (useChatState.useChatState as any).mockReturnValue({
-      setModels: mockSetModels,
-      setSelectedModel: mockSetSelectedModel,
-      activeConversationId: null,
-      setMessages: mockSetMessages,
-    });
+    vi.mocked(useChatState.useChatState).mockReturnValue(
+      createMockChatState({
+        setModels: mockSetModels,
+        setSelectedModel: mockSetSelectedModel,
+        activeConversationId: null,
+        setMessages: mockSetMessages,
+      })
+    );
 
-    (useSettingsState.useSettingsState as any).mockReturnValue({
-      settings: {
-        ai: {
-          provider: 'ollama',
-          ollama: { model: 'test-model' },
+    vi.mocked(useSettingsState.useSettingsState).mockReturnValue(
+      createMockSettingsState({
+        settings: {
+          ai: {
+            ollama: {
+              model: 'test-model',
+            },
+          },
         },
-      },
-      updateOllamaConfig: mockUpdateOllamaConfig,
-    });
+        updateOllamaConfig: mockUpdateOllamaConfig,
+      })
+    );
 
-    (useConversationClient.useConversationClient as any).mockReturnValue({
-      getConversationMessages: mockGetConversationMessages,
-    });
+    vi.mocked(useConversationClient.useConversationClient).mockReturnValue(
+      createMockConversationClient({
+        getConversationMessages: mockGetConversationMessages,
+      })
+    );
 
-    (
-      useConversationManagement.useConversationManagement as any
-    ).mockReturnValue({
-      loadConversations: mockLoadConversations,
-    });
+    vi.mocked(
+      useConversationManagement.useConversationManagement
+    ).mockReturnValue(
+      createMockConversationManagement({
+        loadConversations: mockLoadConversations,
+      })
+    );
 
-    (useApiClients.useApiClients as any).mockReturnValue({
-      serverApi: {
-        checkHealth: mockCheckHealth,
-        getModels: mockGetModels,
-      },
-    });
+    vi.mocked(useApiClients.useApiClients).mockReturnValue(
+      createMockApiClients({
+        serverApi: {
+          checkHealth: mockCheckHealth,
+          getModels: mockGetModels,
+        },
+      })
+    );
 
     mockCheckHealth.mockResolvedValue({
       status: 'healthy',
@@ -112,13 +140,15 @@ describe('ServerStatus', () => {
   });
 
   it('should show restart button when server error', () => {
-    (useServerState.useServerState as any).mockReturnValue({
-      pythonServerStatus: 'error',
-      ollamaStatus: 'disconnected',
-      setPythonServerStatus: mockSetPythonServerStatus,
-      setOllamaStatus: mockSetOllamaStatus,
-      setError: mockSetError,
-    });
+    vi.mocked(useServerState.useServerState).mockReturnValue(
+      createMockServerState({
+        pythonServerStatus: 'error',
+        ollamaStatus: 'disconnected',
+        setPythonServerStatus: mockSetPythonServerStatus,
+        setOllamaStatus: mockSetOllamaStatus,
+        setError: mockSetError,
+      })
+    );
 
     renderWithProviders(<ServerStatus />);
     expect(screen.getByText('serverStatus.restartServer')).toBeInTheDocument();
@@ -128,15 +158,17 @@ describe('ServerStatus', () => {
     // Use real timers for this test since waitFor needs them
     vi.useRealTimers();
 
-    (useServerState.useServerState as any).mockReturnValue({
-      pythonServerStatus: 'error',
-      ollamaStatus: 'disconnected',
-      setPythonServerStatus: mockSetPythonServerStatus,
-      setOllamaStatus: mockSetOllamaStatus,
-      setError: mockSetError,
-    });
+    vi.mocked(useServerState.useServerState).mockReturnValue(
+      createMockServerState({
+        pythonServerStatus: 'error',
+        ollamaStatus: 'disconnected',
+        setPythonServerStatus: mockSetPythonServerStatus,
+        setOllamaStatus: mockSetOllamaStatus,
+        setError: mockSetError,
+      })
+    );
 
-    (invoke as any).mockResolvedValue({ success: true });
+    vi.mocked(invoke).mockResolvedValue({ success: true });
 
     const { container } = renderWithProviders(<ServerStatus />);
     const restartButton = screen.getByText('serverStatus.restartServer');
@@ -186,6 +218,24 @@ describe('ServerStatus', () => {
 
   it('should fetch models when provider is ollama and server is healthy', async () => {
     vi.useRealTimers();
+
+    // Ensure provider is ollama (default should be ollama, but be explicit)
+    vi.mocked(useSettingsState.useSettingsState).mockReturnValue(
+      createMockSettingsState({
+        settings: {
+          ai: {
+            provider: 'ollama',
+          },
+        },
+        updateOllamaConfig: mockUpdateOllamaConfig,
+      })
+    );
+
+    mockCheckHealth.mockResolvedValue({
+      status: 'healthy',
+      ollama_available: true,
+    });
+
     mockGetModels.mockResolvedValue({
       success: true,
       models: [{ name: 'llama2' }, { name: 'mistral' }],
@@ -196,7 +246,7 @@ describe('ServerStatus', () => {
 
     renderWithProviders(<ServerStatus />);
 
-    // Wait for initial health check
+    // Wait for health check to be called
     await waitFor(
       () => {
         expect(mockCheckHealth).toHaveBeenCalled();
@@ -204,26 +254,23 @@ describe('ServerStatus', () => {
       { timeout: 3000 }
     );
 
-    // Wait for models to be fetched (happens after health check succeeds)
+    // Wait for the health check promise to resolve and fetchModels to be called
+    // fetchModels is called synchronously after health check resolves
     await waitFor(
       () => {
-        expect(mockGetModels).toHaveBeenCalled();
+        expect(mockGetModels).toHaveBeenCalledWith('ollama');
       },
-      { timeout: 3000 }
+      { timeout: 5000 }
     );
   });
 
   it('should not fetch models when provider is not ollama', async () => {
     vi.useRealTimers();
-    (useSettingsState.useSettingsState as any).mockReturnValue({
-      settings: {
-        ai: {
-          provider: 'deepseek',
-          deepseek: { model: 'deepseek-chat' },
-        },
-      },
-      updateOllamaConfig: mockUpdateOllamaConfig,
-    });
+    vi.mocked(useSettingsState.useSettingsState).mockReturnValue(
+      createMockSettingsStateWithProvider('deepseek', {
+        updateOllamaConfig: mockUpdateOllamaConfig,
+      })
+    );
 
     renderWithProviders(<ServerStatus />);
 
@@ -241,12 +288,14 @@ describe('ServerStatus', () => {
       { id: '1', role: 'user', content: 'Hello', timestamp: Date.now() },
     ]);
 
-    (useChatState.useChatState as any).mockReturnValue({
-      setModels: mockSetModels,
-      setSelectedModel: mockSetSelectedModel,
-      activeConversationId: 'conv-1',
-      setMessages: mockSetMessages,
-    });
+    vi.mocked(useChatState.useChatState).mockReturnValue(
+      createMockChatState({
+        setModels: mockSetModels,
+        setSelectedModel: mockSetSelectedModel,
+        activeConversationId: 'conv-1',
+        setMessages: mockSetMessages,
+      })
+    );
 
     // First return unhealthy, then healthy
     let callCount = 0;
@@ -279,41 +328,79 @@ describe('ServerStatus', () => {
     );
   });
 
-  it('should show Ollama connection help when disconnected', () => {
-    (useServerState.useServerState as any).mockReturnValue({
-      pythonServerStatus: 'started',
-      ollamaStatus: 'disconnected',
-      setPythonServerStatus: mockSetPythonServerStatus,
-      setOllamaStatus: mockSetOllamaStatus,
-      setError: mockSetError,
+  it('should show Ollama connection help when disconnected', async () => {
+    vi.useRealTimers();
+
+    // Mock health check to return healthy but ollama not available
+    mockCheckHealth.mockResolvedValue({
+      status: 'healthy',
+      ollama_available: false,
     });
+
+    // Mock refetchPort to resolve immediately
+    mockRefetchPort.mockResolvedValue(undefined);
+
+    // Ensure provider is ollama
+    vi.mocked(useSettingsState.useSettingsState).mockReturnValue(
+      createMockSettingsState({
+        settings: {
+          ai: {
+            provider: 'ollama',
+          },
+        },
+        updateOllamaConfig: mockUpdateOllamaConfig,
+      })
+    );
+
+    vi.mocked(useServerState.useServerState).mockReturnValue(
+      createMockServerState({
+        pythonServerStatus: 'started',
+        ollamaStatus: 'disconnected',
+        setPythonServerStatus: mockSetPythonServerStatus,
+        setOllamaStatus: mockSetOllamaStatus,
+        setError: mockSetError,
+      })
+    );
 
     renderWithProviders(<ServerStatus />);
 
-    expect(
-      screen.getByText('serverStatus.cannotConnectToOllama')
-    ).toBeInTheDocument();
+    // Wait for health check to complete and set ollama status
+    await waitFor(
+      () => {
+        expect(mockSetOllamaStatus).toHaveBeenCalledWith('disconnected');
+      },
+      { timeout: 3000 }
+    );
+
+    // Wait for the component to re-render with the updated status
+    await waitFor(
+      () => {
+        expect(
+          screen.getByText('serverStatus.cannotConnectToOllama')
+        ).toBeInTheDocument();
+      },
+      { timeout: 3000 }
+    );
+
     expect(screen.getByText('serverStatus.pleaseEnsure')).toBeInTheDocument();
   });
 
   it('should not show Ollama help when provider is not ollama', () => {
-    (useServerState.useServerState as any).mockReturnValue({
-      pythonServerStatus: 'started',
-      ollamaStatus: 'disconnected',
-      setPythonServerStatus: mockSetPythonServerStatus,
-      setOllamaStatus: mockSetOllamaStatus,
-      setError: mockSetError,
-    });
+    vi.mocked(useServerState.useServerState).mockReturnValue(
+      createMockServerState({
+        pythonServerStatus: 'started',
+        ollamaStatus: 'disconnected',
+        setPythonServerStatus: mockSetPythonServerStatus,
+        setOllamaStatus: mockSetOllamaStatus,
+        setError: mockSetError,
+      })
+    );
 
-    (useSettingsState.useSettingsState as any).mockReturnValue({
-      settings: {
-        ai: {
-          provider: 'deepseek',
-          deepseek: { model: 'deepseek-chat' },
-        },
-      },
-      updateOllamaConfig: mockUpdateOllamaConfig,
-    });
+    vi.mocked(useSettingsState.useSettingsState).mockReturnValue(
+      createMockSettingsStateWithProvider('deepseek', {
+        updateOllamaConfig: mockUpdateOllamaConfig,
+      })
+    );
 
     renderWithProviders(<ServerStatus />);
 
@@ -324,15 +411,17 @@ describe('ServerStatus', () => {
 
   it('should handle restart server error', async () => {
     vi.useRealTimers();
-    (useServerState.useServerState as any).mockReturnValue({
-      pythonServerStatus: 'error',
-      ollamaStatus: 'disconnected',
-      setPythonServerStatus: mockSetPythonServerStatus,
-      setOllamaStatus: mockSetOllamaStatus,
-      setError: mockSetError,
-    });
+    vi.mocked(useServerState.useServerState).mockReturnValue(
+      createMockServerState({
+        pythonServerStatus: 'error',
+        ollamaStatus: 'disconnected',
+        setPythonServerStatus: mockSetPythonServerStatus,
+        setOllamaStatus: mockSetOllamaStatus,
+        setError: mockSetError,
+      })
+    );
 
-    (invoke as any).mockRejectedValue(new Error('Restart failed'));
+    vi.mocked(invoke).mockRejectedValue(new Error('Restart failed'));
 
     renderWithProviders(<ServerStatus />);
     const restartButton = screen.getByText('serverStatus.restartServer');
@@ -380,15 +469,11 @@ describe('ServerStatus', () => {
 
   it('should handle ollama status when provider is not ollama', async () => {
     vi.useRealTimers();
-    (useSettingsState.useSettingsState as any).mockReturnValue({
-      settings: {
-        ai: {
-          provider: 'deepseek',
-          deepseek: { model: 'deepseek-chat' },
-        },
-      },
-      updateOllamaConfig: mockUpdateOllamaConfig,
-    });
+    vi.mocked(useSettingsState.useSettingsState).mockReturnValue(
+      createMockSettingsStateWithProvider('deepseek', {
+        updateOllamaConfig: mockUpdateOllamaConfig,
+      })
+    );
 
     mockCheckHealth.mockResolvedValue({
       status: 'healthy',
@@ -400,5 +485,249 @@ describe('ServerStatus', () => {
     await waitFor(() => {
       expect(mockSetOllamaStatus).toHaveBeenCalledWith('connected');
     });
+  });
+
+  it('should clear existing interval when initializing', async () => {
+    vi.useRealTimers();
+    const { rerender } = renderWithProviders(<ServerStatus />);
+
+    // Change apiUrl to trigger re-initialization
+    vi.mocked(useFlaskPort.useFlaskPort).mockReturnValue(
+      createMockFlaskPort({
+        apiUrl: 'http://localhost:5001',
+        refetch: mockRefetchPort,
+      })
+    );
+
+    rerender(<ServerStatus />);
+
+    // Should call refetchPort when re-initializing
+    await waitFor(() => {
+      expect(mockRefetchPort).toHaveBeenCalled();
+    });
+  });
+
+  it('should handle loadConversations error when server becomes healthy', async () => {
+    vi.useRealTimers();
+    mockLoadConversations.mockRejectedValue(new Error('Load failed'));
+
+    vi.mocked(useChatState.useChatState).mockReturnValue(
+      createMockChatState({
+        setModels: mockSetModels,
+        setSelectedModel: mockSetSelectedModel,
+        activeConversationId: 'conv-1',
+        setMessages: mockSetMessages,
+      })
+    );
+
+    // First return unhealthy, then healthy
+    let callCount = 0;
+    mockCheckHealth.mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) {
+        return Promise.resolve({
+          status: 'unhealthy',
+          ollama_available: true,
+        });
+      }
+      return Promise.resolve({
+        status: 'healthy',
+        ollama_available: true,
+      });
+    });
+
+    mockRefetchPort.mockResolvedValue(undefined);
+
+    renderWithProviders(<ServerStatus />);
+
+    // Wait for health check to complete
+    await waitFor(
+      () => {
+        expect(mockLoadConversations).toHaveBeenCalled();
+      },
+      { timeout: 5000 }
+    );
+
+    // Error should be handled gracefully (no crash)
+    expect(mockLoadConversations).toHaveBeenCalled();
+  });
+
+  it('should reload conversation history when server becomes healthy', async () => {
+    vi.useRealTimers();
+    const mockMessages = [
+      { id: '1', role: 'user', content: 'Hello', timestamp: Date.now() },
+      { id: '2', role: 'assistant', content: 'Hi', timestamp: Date.now() },
+    ];
+    mockGetConversationMessages.mockResolvedValue(mockMessages);
+
+    vi.mocked(useChatState.useChatState).mockReturnValue(
+      createMockChatState({
+        setModels: mockSetModels,
+        setSelectedModel: mockSetSelectedModel,
+        activeConversationId: 'conv-1',
+        setMessages: mockSetMessages,
+      })
+    );
+
+    // First return unhealthy, then healthy
+    let callCount = 0;
+    mockCheckHealth.mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) {
+        return Promise.resolve({
+          status: 'unhealthy',
+          ollama_available: true,
+        });
+      }
+      return Promise.resolve({
+        status: 'healthy',
+        ollama_available: true,
+      });
+    });
+
+    mockRefetchPort.mockResolvedValue(undefined);
+
+    renderWithProviders(<ServerStatus />);
+
+    // Wait for conversation history to be reloaded
+    await waitFor(
+      () => {
+        expect(mockGetConversationMessages).toHaveBeenCalledWith('conv-1');
+        expect(mockSetMessages).toHaveBeenCalledWith(mockMessages);
+      },
+      { timeout: 5000 }
+    );
+  });
+
+  it('should handle refetchPort error when server becomes healthy', async () => {
+    vi.useRealTimers();
+    mockRefetchPort.mockRejectedValue(new Error('Refetch failed'));
+
+    vi.mocked(useChatState.useChatState).mockReturnValue(
+      createMockChatState({
+        setModels: mockSetModels,
+        setSelectedModel: mockSetSelectedModel,
+        activeConversationId: 'conv-1',
+        setMessages: mockSetMessages,
+      })
+    );
+
+    // First return unhealthy, then healthy
+    let callCount = 0;
+    mockCheckHealth.mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) {
+        return Promise.resolve({
+          status: 'unhealthy',
+          ollama_available: true,
+        });
+      }
+      return Promise.resolve({
+        status: 'healthy',
+        ollama_available: true,
+      });
+    });
+
+    renderWithProviders(<ServerStatus />);
+
+    // Wait for health check to complete
+    await waitFor(
+      () => {
+        expect(mockRefetchPort).toHaveBeenCalled();
+      },
+      { timeout: 5000 }
+    );
+
+    // Error should be handled gracefully
+    expect(mockRefetchPort).toHaveBeenCalled();
+  });
+
+  it('should handle reloadConversationHistory error', async () => {
+    vi.useRealTimers();
+    mockGetConversationMessages.mockRejectedValue(new Error('Failed to load'));
+
+    vi.mocked(useChatState.useChatState).mockReturnValue(
+      createMockChatState({
+        setModels: mockSetModels,
+        setSelectedModel: mockSetSelectedModel,
+        activeConversationId: 'conv-1',
+        setMessages: mockSetMessages,
+      })
+    );
+
+    // First return unhealthy, then healthy
+    let callCount = 0;
+    mockCheckHealth.mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) {
+        return Promise.resolve({
+          status: 'unhealthy',
+          ollama_available: true,
+        });
+      }
+      return Promise.resolve({
+        status: 'healthy',
+        ollama_available: true,
+      });
+    });
+
+    mockRefetchPort.mockResolvedValue(undefined);
+
+    renderWithProviders(<ServerStatus />);
+
+    // Wait for conversation history reload attempt
+    await waitFor(
+      () => {
+        expect(mockGetConversationMessages).toHaveBeenCalledWith('conv-1');
+      },
+      { timeout: 5000 }
+    );
+
+    // Error should be handled gracefully (no crash)
+    expect(mockGetConversationMessages).toHaveBeenCalled();
+  });
+
+  it('should handle fetchModels error', async () => {
+    vi.useRealTimers();
+
+    // Ensure provider is ollama and health check returns healthy
+    vi.mocked(useSettingsState.useSettingsState).mockReturnValue(
+      createMockSettingsState({
+        settings: {
+          ai: {
+            provider: 'ollama',
+          },
+        },
+        updateOllamaConfig: mockUpdateOllamaConfig,
+      })
+    );
+
+    mockCheckHealth.mockResolvedValue({
+      status: 'healthy',
+      ollama_available: true,
+    });
+
+    mockGetModels.mockRejectedValue(new Error('Failed to fetch models'));
+
+    renderWithProviders(<ServerStatus />);
+
+    // Wait for health check to complete
+    await waitFor(
+      () => {
+        expect(mockCheckHealth).toHaveBeenCalled();
+      },
+      { timeout: 3000 }
+    );
+
+    // Wait for fetchModels to be called and error handled
+    await waitFor(
+      () => {
+        expect(mockGetModels).toHaveBeenCalled();
+      },
+      { timeout: 3000 }
+    );
+
+    // Error should be handled gracefully (no crash)
+    expect(mockGetModels).toHaveBeenCalled();
   });
 });

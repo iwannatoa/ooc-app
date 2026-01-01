@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { screen, render } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import React from 'react';
 import { SettingsInput, SelectOption } from '../SettingsInput';
 
 // Mock i18n
@@ -66,7 +65,9 @@ describe('SettingsInput', () => {
           validate={(v) => typeof v === 'string' && v.trim().length > 0}
         />
       );
-      expect(screen.getByText('settingsPanel.fieldRequired')).toBeInTheDocument();
+      expect(
+        screen.getByText('settingsPanel.fieldRequired')
+      ).toBeInTheDocument();
       const input = screen.getByRole('textbox');
       expect(input.className).toContain('inputWarning');
     });
@@ -76,7 +77,7 @@ describe('SettingsInput', () => {
         <SettingsInput
           type='text'
           labelKey='test.label'
-          value={false as any}
+          value={false}
           onChange={mockOnChange}
         />
       );
@@ -94,7 +95,9 @@ describe('SettingsInput', () => {
           placeholder='Enter value'
         />
       );
-      const input = screen.getByPlaceholderText('Enter value') as HTMLInputElement;
+      const input = screen.getByPlaceholderText(
+        'Enter value'
+      ) as HTMLInputElement;
       expect(input).toBeInTheDocument();
     });
 
@@ -108,7 +111,9 @@ describe('SettingsInput', () => {
           placeholderKey='test.placeholder'
         />
       );
-      const input = screen.getByPlaceholderText('test.placeholder') as HTMLInputElement;
+      const input = screen.getByPlaceholderText(
+        'test.placeholder'
+      ) as HTMLInputElement;
       expect(input).toBeInTheDocument();
     });
 
@@ -123,7 +128,9 @@ describe('SettingsInput', () => {
           placeholderParams={{ name: 'test' }}
         />
       );
-      const input = screen.getByPlaceholderText(/test\.placeholder/) as HTMLInputElement;
+      const input = screen.getByPlaceholderText(
+        /test\.placeholder/
+      ) as HTMLInputElement;
       expect(input.placeholder).toContain('test.placeholder');
       expect(input.placeholder).toContain('test');
     });
@@ -155,7 +162,9 @@ describe('SettingsInput', () => {
           validate={(v) => typeof v === 'number' && v > 0}
         />
       );
-      expect(screen.getByText('settingsPanel.fieldRequired')).toBeInTheDocument();
+      expect(
+        screen.getByText('settingsPanel.fieldRequired')
+      ).toBeInTheDocument();
     });
 
     it('should apply min, max, and step attributes', () => {
@@ -300,7 +309,9 @@ describe('SettingsInput', () => {
           validate={(v) => typeof v === 'string' && v.length > 0}
         />
       );
-      expect(screen.getByText('settingsPanel.fieldRequired')).toBeInTheDocument();
+      expect(
+        screen.getByText('settingsPanel.fieldRequired')
+      ).toBeInTheDocument();
       const select = screen.getByRole('combobox');
       expect(select.className).toContain('inputWarning');
     });
@@ -352,7 +363,9 @@ describe('SettingsInput', () => {
           validate={(v) => typeof v === 'string' && v.trim().length > 0}
         />
       );
-      expect(screen.getByText('settingsPanel.fieldRequired')).toBeInTheDocument();
+      expect(
+        screen.getByText('settingsPanel.fieldRequired')
+      ).toBeInTheDocument();
     });
 
     it('should not show warning for non-required fields', () => {

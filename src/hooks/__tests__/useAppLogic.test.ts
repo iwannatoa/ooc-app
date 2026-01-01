@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
 import { useAppLogic } from '../useAppLogic';
 import * as useChatState from '../useChatState';
 import * as useSettingsState from '../useSettingsState';
@@ -10,7 +10,22 @@ import * as useStoryProgress from '../useStoryProgress';
 import * as useConversationManagement from '../useConversationManagement';
 import * as useStoryActions from '../useStoryActions';
 import { confirmDialog } from '@/services/confirmDialogService';
-import { ChatMessage, ConversationWithSettings, ConversationSettings } from '@/types';
+import {
+  ChatMessage,
+  ConversationWithSettings,
+  ConversationSettings,
+} from '@/types';
+
+import {
+  createMockChatState,
+  createMockSettingsStateWithProvider,
+  createMockToast,
+  createMockI18n,
+  createMockConversationClient,
+  createMockStoryProgress,
+  createMockConversationManagement,
+  createMockStoryActions,
+} from '@/mock';
 
 vi.mock('../useChatState');
 vi.mock('../useSettingsState');
@@ -50,9 +65,11 @@ describe('useAppLogic', () => {
     {
       id: 'conv_1',
       title: 'Test Conversation',
-      created_at: Date.now(),
-      updated_at: Date.now(),
+      messages: [],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
       settings: {
+        conversation_id: 'conv_1',
         title: 'Test Story',
         outline: 'Test outline',
         characters: [],
@@ -63,50 +80,64 @@ describe('useAppLogic', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    (useChatState.useChatState as any).mockReturnValue({
-      messages: mockMessages,
-      setMessages: mockSetMessages,
-    });
+    vi.mocked(useChatState.useChatState).mockReturnValue(
+      createMockChatState({
+        messages: mockMessages,
+        setMessages: mockSetMessages,
+      })
+    );
 
-    (useSettingsState.useSettingsState as any).mockReturnValue({
-      settings: {
-        ai: { provider: 'ollama' },
-      },
-    });
+    vi.mocked(useSettingsState.useSettingsState).mockReturnValue(
+      createMockSettingsStateWithProvider('ollama')
+    );
 
-    (useToast.useToast as any).mockReturnValue({
-      showError: mockShowError,
-      showSuccess: mockShowSuccess,
-    });
+    vi.mocked(useToast.useToast).mockReturnValue(
+      createMockToast({
+        showError: mockShowError,
+        showSuccess: mockShowSuccess,
+      })
+    );
 
-    (useI18n.useI18n as any).mockReturnValue({
-      t: mockT,
-    });
+    vi.mocked(useI18n.useI18n).mockReturnValue(
+      createMockI18n({
+        t: mockT,
+      })
+    );
 
-    (useConversationClient.useConversationClient as any).mockReturnValue({
-      deleteLastMessage: mockDeleteLastMessage,
-    });
+    vi.mocked(useConversationClient.useConversationClient).mockReturnValue(
+      createMockConversationClient({
+        deleteLastMessage: mockDeleteLastMessage,
+      })
+    );
 
-    (useStoryProgress.useStoryProgress as any).mockReturnValue({
-      progress: null,
-    });
+    vi.mocked(useStoryProgress.useStoryProgress).mockReturnValue(
+      createMockStoryProgress({
+        progress: null,
+      })
+    );
 
-    (useConversationManagement.useConversationManagement as any).mockReturnValue({
-      conversations: mockConversations,
-      activeConversationId: 'conv_1',
-      pendingConversationId: null,
-      handleSaveSettings: mockHandleSaveSettings,
-      handleGenerateSummary: mockHandleGenerateSummary,
-      handleSaveSummary: mockHandleSaveSummary,
-      handleSelectConversation: mockHandleSelectConversation,
-    });
+    vi.mocked(
+      useConversationManagement.useConversationManagement
+    ).mockReturnValue(
+      createMockConversationManagement({
+        conversations: mockConversations,
+        activeConversationId: 'conv_1',
+        pendingConversationId: null,
+        handleSaveSettings: mockHandleSaveSettings,
+        handleGenerateSummary: mockHandleGenerateSummary,
+        handleSaveSummary: mockHandleSaveSummary,
+        handleSelectConversation: mockHandleSelectConversation,
+      })
+    );
 
-    (useStoryActions.useStoryActions as any).mockReturnValue({
-      handleGenerateStory: mockHandleGenerateStory,
-      handleConfirmSection: mockHandleConfirmSection,
-      handleRewriteSection: mockHandleRewriteSection,
-      handleModifySection: mockHandleModifySection,
-    });
+    vi.mocked(useStoryActions.useStoryActions).mockReturnValue(
+      createMockStoryActions({
+        handleGenerateStory: mockHandleGenerateStory,
+        handleConfirmSection: mockHandleConfirmSection,
+        handleRewriteSection: mockHandleRewriteSection,
+        handleModifySection: mockHandleModifySection,
+      })
+    );
   });
 
   describe('getCurrentSettings', () => {
@@ -115,28 +146,40 @@ describe('useAppLogic', () => {
         {
           id: 'conv_1',
           title: 'Conv 1',
-          created_at: Date.now(),
-          updated_at: Date.now(),
-          settings: { title: 'Settings 1' } as ConversationSettings,
+          messages: [],
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          settings: {
+            conversation_id: 'conv_1',
+            title: 'Settings 1',
+          } as ConversationSettings,
         },
         {
           id: 'conv_2',
           title: 'Conv 2',
-          created_at: Date.now(),
-          updated_at: Date.now(),
-          settings: { title: 'Settings 2' } as ConversationSettings,
+          messages: [],
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          settings: {
+            conversation_id: 'conv_2',
+            title: 'Settings 2',
+          } as ConversationSettings,
         },
       ];
 
-      (useConversationManagement.useConversationManagement as any).mockReturnValue({
-        conversations,
-        activeConversationId: 'conv_1',
-        pendingConversationId: 'conv_2',
-        handleSaveSettings: mockHandleSaveSettings,
-        handleGenerateSummary: mockHandleGenerateSummary,
-        handleSaveSummary: mockHandleSaveSummary,
-        handleSelectConversation: mockHandleSelectConversation,
-      });
+      vi.mocked(
+        useConversationManagement.useConversationManagement
+      ).mockReturnValue(
+        createMockConversationManagement({
+          conversations,
+          activeConversationId: 'conv_1',
+          pendingConversationId: 'conv_2',
+          handleSaveSettings: mockHandleSaveSettings,
+          handleGenerateSummary: mockHandleGenerateSummary,
+          handleSaveSummary: mockHandleSaveSummary,
+          handleSelectConversation: mockHandleSelectConversation,
+        })
+      );
 
       const { result } = renderHook(() => useAppLogic());
 
@@ -148,21 +191,29 @@ describe('useAppLogic', () => {
         {
           id: 'conv_1',
           title: 'Conv 1',
-          created_at: Date.now(),
-          updated_at: Date.now(),
-          settings: { title: 'Settings 1' } as ConversationSettings,
+          messages: [],
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          settings: {
+            conversation_id: 'conv_1',
+            title: 'Settings 1',
+          } as ConversationSettings,
         },
       ];
 
-      (useConversationManagement.useConversationManagement as any).mockReturnValue({
-        conversations,
-        activeConversationId: 'conv_1',
-        pendingConversationId: null,
-        handleSaveSettings: mockHandleSaveSettings,
-        handleGenerateSummary: mockHandleGenerateSummary,
-        handleSaveSummary: mockHandleSaveSummary,
-        handleSelectConversation: mockHandleSelectConversation,
-      });
+      vi.mocked(
+        useConversationManagement.useConversationManagement
+      ).mockReturnValue(
+        createMockConversationManagement({
+          conversations,
+          activeConversationId: 'conv_1',
+          pendingConversationId: null,
+          handleSaveSettings: mockHandleSaveSettings,
+          handleGenerateSummary: mockHandleGenerateSummary,
+          handleSaveSummary: mockHandleSaveSummary,
+          handleSelectConversation: mockHandleSelectConversation,
+        })
+      );
 
       const { result } = renderHook(() => useAppLogic());
 
@@ -170,15 +221,19 @@ describe('useAppLogic', () => {
     });
 
     it('should return undefined when conversation not found', () => {
-      (useConversationManagement.useConversationManagement as any).mockReturnValue({
-        conversations: [],
-        activeConversationId: 'conv_1',
-        pendingConversationId: null,
-        handleSaveSettings: mockHandleSaveSettings,
-        handleGenerateSummary: mockHandleGenerateSummary,
-        handleSaveSummary: mockHandleSaveSummary,
-        handleSelectConversation: mockHandleSelectConversation,
-      });
+      vi.mocked(
+        useConversationManagement.useConversationManagement
+      ).mockReturnValue(
+        createMockConversationManagement({
+          conversations: [],
+          activeConversationId: 'conv_1',
+          pendingConversationId: null,
+          handleSaveSettings: mockHandleSaveSettings,
+          handleGenerateSummary: mockHandleGenerateSummary,
+          handleSaveSummary: mockHandleSaveSummary,
+          handleSelectConversation: mockHandleSelectConversation,
+        })
+      );
 
       const { result } = renderHook(() => useAppLogic());
 
@@ -188,15 +243,19 @@ describe('useAppLogic', () => {
 
   describe('canGenerateStory', () => {
     it('should return true when activeConversationId exists', () => {
-      (useConversationManagement.useConversationManagement as any).mockReturnValue({
-        conversations: mockConversations,
-        activeConversationId: 'conv_1',
-        pendingConversationId: null,
-        handleSaveSettings: mockHandleSaveSettings,
-        handleGenerateSummary: mockHandleGenerateSummary,
-        handleSaveSummary: mockHandleSaveSummary,
-        handleSelectConversation: mockHandleSelectConversation,
-      });
+      vi.mocked(
+        useConversationManagement.useConversationManagement
+      ).mockReturnValue(
+        createMockConversationManagement({
+          conversations: mockConversations,
+          activeConversationId: 'conv_1',
+          pendingConversationId: null,
+          handleSaveSettings: mockHandleSaveSettings,
+          handleGenerateSummary: mockHandleGenerateSummary,
+          handleSaveSummary: mockHandleSaveSummary,
+          handleSelectConversation: mockHandleSelectConversation,
+        })
+      );
 
       const { result } = renderHook(() => useAppLogic());
 
@@ -204,15 +263,19 @@ describe('useAppLogic', () => {
     });
 
     it('should return false when activeConversationId is null', () => {
-      (useConversationManagement.useConversationManagement as any).mockReturnValue({
-        conversations: mockConversations,
-        activeConversationId: null,
-        pendingConversationId: null,
-        handleSaveSettings: mockHandleSaveSettings,
-        handleGenerateSummary: mockHandleGenerateSummary,
-        handleSaveSummary: mockHandleSaveSummary,
-        handleSelectConversation: mockHandleSelectConversation,
-      });
+      vi.mocked(
+        useConversationManagement.useConversationManagement
+      ).mockReturnValue(
+        createMockConversationManagement({
+          conversations: mockConversations,
+          activeConversationId: null,
+          pendingConversationId: null,
+          handleSaveSettings: mockHandleSaveSettings,
+          handleGenerateSummary: mockHandleGenerateSummary,
+          handleSaveSummary: mockHandleSaveSummary,
+          handleSelectConversation: mockHandleSelectConversation,
+        })
+      );
 
       const { result } = renderHook(() => useAppLogic());
 
@@ -226,9 +289,11 @@ describe('useAppLogic', () => {
         {
           id: 'conv_1',
           title: 'Conv 1',
-          created_at: Date.now(),
-          updated_at: Date.now(),
+          messages: [],
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
           settings: {
+            conversation_id: 'conv_1',
             title: 'Test',
             outline: 'Test outline',
             characters: [],
@@ -236,20 +301,26 @@ describe('useAppLogic', () => {
         },
       ];
 
-      (useConversationManagement.useConversationManagement as any).mockReturnValue({
-        conversations,
-        activeConversationId: 'conv_1',
-        pendingConversationId: null,
-        handleSaveSettings: mockHandleSaveSettings,
-        handleGenerateSummary: mockHandleGenerateSummary,
-        handleSaveSummary: mockHandleSaveSummary,
-        handleSelectConversation: mockHandleSelectConversation,
-      });
+      vi.mocked(
+        useConversationManagement.useConversationManagement
+      ).mockReturnValue(
+        createMockConversationManagement({
+          conversations,
+          activeConversationId: 'conv_1',
+          pendingConversationId: null,
+          handleSaveSettings: mockHandleSaveSettings,
+          handleGenerateSummary: mockHandleGenerateSummary,
+          handleSaveSummary: mockHandleSaveSummary,
+          handleSelectConversation: mockHandleSelectConversation,
+        })
+      );
 
-      (useChatState.useChatState as any).mockReturnValue({
-        messages: mockMessages,
-        setMessages: mockSetMessages,
-      });
+      vi.mocked(useChatState.useChatState).mockReturnValue(
+        createMockChatState({
+          messages: mockMessages,
+          setMessages: mockSetMessages,
+        })
+      );
 
       const { result } = renderHook(() => useAppLogic());
 
@@ -257,15 +328,19 @@ describe('useAppLogic', () => {
     });
 
     it('should return false when activeConversationId is null', () => {
-      (useConversationManagement.useConversationManagement as any).mockReturnValue({
-        conversations: mockConversations,
-        activeConversationId: null,
-        pendingConversationId: null,
-        handleSaveSettings: mockHandleSaveSettings,
-        handleGenerateSummary: mockHandleGenerateSummary,
-        handleSaveSummary: mockHandleSaveSummary,
-        handleSelectConversation: mockHandleSelectConversation,
-      });
+      vi.mocked(
+        useConversationManagement.useConversationManagement
+      ).mockReturnValue(
+        createMockConversationManagement({
+          conversations: mockConversations,
+          activeConversationId: null,
+          pendingConversationId: null,
+          handleSaveSettings: mockHandleSaveSettings,
+          handleGenerateSummary: mockHandleGenerateSummary,
+          handleSaveSummary: mockHandleSaveSummary,
+          handleSelectConversation: mockHandleSelectConversation,
+        })
+      );
 
       const { result } = renderHook(() => useAppLogic());
 
@@ -277,24 +352,30 @@ describe('useAppLogic', () => {
         {
           id: 'conv_1',
           title: 'Conv 1',
-          created_at: Date.now(),
-          updated_at: Date.now(),
+          messages: [],
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
           settings: {
+            conversation_id: 'conv_1',
             title: 'Test',
             characters: [],
           } as ConversationSettings,
         },
       ];
 
-      (useConversationManagement.useConversationManagement as any).mockReturnValue({
-        conversations,
-        activeConversationId: 'conv_1',
-        pendingConversationId: null,
-        handleSaveSettings: mockHandleSaveSettings,
-        handleGenerateSummary: mockHandleGenerateSummary,
-        handleSaveSummary: mockHandleSaveSummary,
-        handleSelectConversation: mockHandleSelectConversation,
-      });
+      vi.mocked(
+        useConversationManagement.useConversationManagement
+      ).mockReturnValue(
+        createMockConversationManagement({
+          conversations,
+          activeConversationId: 'conv_1',
+          pendingConversationId: null,
+          handleSaveSettings: mockHandleSaveSettings,
+          handleGenerateSummary: mockHandleGenerateSummary,
+          handleSaveSummary: mockHandleSaveSummary,
+          handleSelectConversation: mockHandleSelectConversation,
+        })
+      );
 
       const { result } = renderHook(() => useAppLogic());
 
@@ -302,10 +383,12 @@ describe('useAppLogic', () => {
     });
 
     it('should return false when messages are empty', () => {
-      (useChatState.useChatState as any).mockReturnValue({
-        messages: [],
-        setMessages: mockSetMessages,
-      });
+      vi.mocked(useChatState.useChatState).mockReturnValue(
+        createMockChatState({
+          messages: [],
+          setMessages: mockSetMessages,
+        })
+      );
 
       const { result } = renderHook(() => useAppLogic());
 
@@ -315,15 +398,6 @@ describe('useAppLogic', () => {
 
   describe('setMessages wrapper', () => {
     it('should handle array updater', () => {
-      const newMessages: ChatMessage[] = [
-        {
-          id: 'msg_2',
-          role: 'assistant',
-          content: 'New message',
-          timestamp: Date.now(),
-        },
-      ];
-
       const { result } = renderHook(() => useAppLogic());
 
       act(() => {
@@ -346,10 +420,12 @@ describe('useAppLogic', () => {
 
   describe('isFirstChapter', () => {
     it('should return true when messages are empty', () => {
-      (useChatState.useChatState as any).mockReturnValue({
-        messages: [],
-        setMessages: mockSetMessages,
-      });
+      vi.mocked(useChatState.useChatState).mockReturnValue(
+        createMockChatState({
+          messages: [],
+          setMessages: mockSetMessages,
+        })
+      );
 
       const { result } = renderHook(() => useAppLogic());
 
@@ -366,10 +442,12 @@ describe('useAppLogic', () => {
         },
       ];
 
-      (useChatState.useChatState as any).mockReturnValue({
-        messages: userMessages,
-        setMessages: mockSetMessages,
-      });
+      vi.mocked(useChatState.useChatState).mockReturnValue(
+        createMockChatState({
+          messages: userMessages,
+          setMessages: mockSetMessages,
+        })
+      );
 
       const { result } = renderHook(() => useAppLogic());
 
@@ -386,14 +464,23 @@ describe('useAppLogic', () => {
         },
       ];
 
-      (useChatState.useChatState as any).mockReturnValue({
-        messages: userMessages,
-        setMessages: mockSetMessages,
-      });
+      vi.mocked(useChatState.useChatState).mockReturnValue(
+        createMockChatState({
+          messages: userMessages,
+          setMessages: mockSetMessages,
+        })
+      );
 
-      (useStoryProgress.useStoryProgress as any).mockReturnValue({
-        progress: { current_section: 0 },
-      });
+      vi.mocked(useStoryProgress.useStoryProgress).mockReturnValue(
+        createMockStoryProgress({
+          progress: {
+            conversation_id: 'conv_1',
+            current_section: 0,
+            status: 'generating' as const,
+            outline_confirmed: false,
+          },
+        })
+      );
 
       const { result } = renderHook(() => useAppLogic());
 
@@ -416,10 +503,12 @@ describe('useAppLogic', () => {
         },
       ];
 
-      (useChatState.useChatState as any).mockReturnValue({
-        messages: messagesWithAssistant,
-        setMessages: mockSetMessages,
-      });
+      vi.mocked(useChatState.useChatState).mockReturnValue(
+        createMockChatState({
+          messages: messagesWithAssistant,
+          setMessages: mockSetMessages,
+        })
+      );
 
       const { result } = renderHook(() => useAppLogic());
 
@@ -436,14 +525,23 @@ describe('useAppLogic', () => {
         },
       ];
 
-      (useChatState.useChatState as any).mockReturnValue({
-        messages: messagesWithAssistant,
-        setMessages: mockSetMessages,
-      });
+      vi.mocked(useChatState.useChatState).mockReturnValue(
+        createMockChatState({
+          messages: messagesWithAssistant,
+          setMessages: mockSetMessages,
+        })
+      );
 
-      (useStoryProgress.useStoryProgress as any).mockReturnValue({
-        progress: { current_section: 1 },
-      });
+      vi.mocked(useStoryProgress.useStoryProgress).mockReturnValue(
+        createMockStoryProgress({
+          progress: {
+            conversation_id: 'conv_1',
+            current_section: 1,
+            status: 'generating' as const,
+            outline_confirmed: false,
+          },
+        })
+      );
 
       const { result } = renderHook(() => useAppLogic());
 
@@ -453,15 +551,19 @@ describe('useAppLogic', () => {
 
   describe('handleDeleteLastMessage', () => {
     it('should not delete when activeConversationId is null', async () => {
-      (useConversationManagement.useConversationManagement as any).mockReturnValue({
-        conversations: mockConversations,
-        activeConversationId: null,
-        pendingConversationId: null,
-        handleSaveSettings: mockHandleSaveSettings,
-        handleGenerateSummary: mockHandleGenerateSummary,
-        handleSaveSummary: mockHandleSaveSummary,
-        handleSelectConversation: mockHandleSelectConversation,
-      });
+      vi.mocked(
+        useConversationManagement.useConversationManagement
+      ).mockReturnValue(
+        createMockConversationManagement({
+          conversations: mockConversations,
+          activeConversationId: null,
+          pendingConversationId: null,
+          handleSaveSettings: mockHandleSaveSettings,
+          handleGenerateSummary: mockHandleGenerateSummary,
+          handleSaveSummary: mockHandleSaveSummary,
+          handleSelectConversation: mockHandleSelectConversation,
+        })
+      );
 
       const { result } = renderHook(() => useAppLogic());
 
@@ -474,7 +576,7 @@ describe('useAppLogic', () => {
     });
 
     it('should show confirmation dialog and delete on confirm', async () => {
-      (confirmDialog as any).mockResolvedValue(true);
+      vi.mocked(confirmDialog).mockResolvedValue(true);
       mockDeleteLastMessage.mockResolvedValue(true);
 
       const { result } = renderHook(() => useAppLogic());
@@ -490,12 +592,14 @@ describe('useAppLogic', () => {
         confirmButtonStyle: 'danger',
       });
       expect(mockDeleteLastMessage).toHaveBeenCalledWith('conv_1');
-      expect(mockShowSuccess).toHaveBeenCalledWith('storyActions.deleteLastMessageSuccess');
+      expect(mockShowSuccess).toHaveBeenCalledWith(
+        'storyActions.deleteLastMessageSuccess'
+      );
       expect(mockHandleSelectConversation).toHaveBeenCalledWith('conv_1');
     });
 
     it('should not delete when user cancels', async () => {
-      (confirmDialog as any).mockResolvedValue(false);
+      vi.mocked(confirmDialog).mockResolvedValue(false);
 
       const { result } = renderHook(() => useAppLogic());
 
@@ -508,7 +612,7 @@ describe('useAppLogic', () => {
     });
 
     it('should show error when delete fails', async () => {
-      (confirmDialog as any).mockResolvedValue(true);
+      vi.mocked(confirmDialog).mockResolvedValue(true);
       mockDeleteLastMessage.mockResolvedValue(false);
 
       const { result } = renderHook(() => useAppLogic());
@@ -521,7 +625,7 @@ describe('useAppLogic', () => {
     });
 
     it('should handle delete error exception', async () => {
-      (confirmDialog as any).mockResolvedValue(true);
+      vi.mocked(confirmDialog).mockResolvedValue(true);
       mockDeleteLastMessage.mockRejectedValue(new Error('Delete failed'));
 
       const { result } = renderHook(() => useAppLogic());
@@ -536,10 +640,12 @@ describe('useAppLogic', () => {
 
   describe('canDeleteLast', () => {
     it('should return true when messages exist', () => {
-      (useChatState.useChatState as any).mockReturnValue({
-        messages: mockMessages,
-        setMessages: mockSetMessages,
-      });
+      vi.mocked(useChatState.useChatState).mockReturnValue(
+        createMockChatState({
+          messages: mockMessages,
+          setMessages: mockSetMessages,
+        })
+      );
 
       const { result } = renderHook(() => useAppLogic());
 
@@ -547,10 +653,12 @@ describe('useAppLogic', () => {
     });
 
     it('should return false when messages are empty', () => {
-      (useChatState.useChatState as any).mockReturnValue({
-        messages: [],
-        setMessages: mockSetMessages,
-      });
+      vi.mocked(useChatState.useChatState).mockReturnValue(
+        createMockChatState({
+          messages: [],
+          setMessages: mockSetMessages,
+        })
+      );
 
       const { result } = renderHook(() => useAppLogic());
 
@@ -563,8 +671,12 @@ describe('useAppLogic', () => {
       const { result } = renderHook(() => useAppLogic());
 
       expect(result.current.handleGenerateStory).toBe(mockHandleGenerateStory);
-      expect(result.current.handleConfirmSection).toBe(mockHandleConfirmSection);
-      expect(result.current.handleRewriteSection).toBe(mockHandleRewriteSection);
+      expect(result.current.handleConfirmSection).toBe(
+        mockHandleConfirmSection
+      );
+      expect(result.current.handleRewriteSection).toBe(
+        mockHandleRewriteSection
+      );
       expect(result.current.handleModifySection).toBe(mockHandleModifySection);
     });
   });
@@ -574,7 +686,9 @@ describe('useAppLogic', () => {
       const { result } = renderHook(() => useAppLogic());
 
       expect(result.current.handleSaveSettings).toBe(mockHandleSaveSettings);
-      expect(result.current.handleGenerateSummary).toBe(mockHandleGenerateSummary);
+      expect(result.current.handleGenerateSummary).toBe(
+        mockHandleGenerateSummary
+      );
       expect(result.current.handleSaveSummary).toBe(mockHandleSaveSummary);
     });
   });

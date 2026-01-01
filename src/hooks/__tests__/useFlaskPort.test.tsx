@@ -5,18 +5,116 @@ import { configureStore } from '@reduxjs/toolkit';
 import { Provider } from 'react-redux';
 import { useFlaskPort, resetFlaskPortManager } from '../useFlaskPort';
 import serverReducer from '@/store/slices/serverSlice';
+import chatReducer from '@/store/slices/chatSlice';
+import settingsReducer from '@/store/slices/settingsSlice';
+import uiReducer from '@/store/slices/uiSlice';
+import dialogReducer from '@/store/slices/dialogSlice';
+import conversationSettingsFormReducer from '@/store/slices/conversationSettingsFormSlice';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+import type { RootState } from '@/store';
 
 vi.mock('@tauri-apps/api/core');
 vi.mock('@tauri-apps/api/event');
 
-const createTestStore = (initialState: any = {}) => {
+const createTestStore = (initialState: Partial<RootState> = {}) => {
   return configureStore({
     reducer: {
       server: serverReducer,
-    } as any,
-    preloadedState: initialState,
+      chat: chatReducer,
+      settings: settingsReducer,
+      ui: uiReducer,
+      dialog: dialogReducer,
+      conversationSettingsForm: conversationSettingsFormReducer,
+    },
+    preloadedState: {
+      server: initialState.server || {
+        pythonServerStatus: 'stopped',
+        ollamaStatus: 'checking',
+        isServerLoading: false,
+        serverError: null,
+        flaskPort: null,
+        apiUrl: '',
+      },
+      chat: initialState.chat || {
+        messages: [],
+        models: [],
+        selectedModel: '',
+        isSending: false,
+        currentMessage: '',
+        conversationHistory: [],
+        activeConversationId: null,
+      },
+      settings: initialState.settings || {
+        general: {
+          language: 'en',
+          autoStart: false,
+          minimizeToTray: false,
+          startWithSystem: false,
+        },
+        appearance: {
+          theme: 'auto',
+          fontSize: 'medium',
+          fontFamily: 'default',
+        },
+        ai: {
+          provider: 'ollama',
+          ollama: {
+            provider: 'ollama',
+            baseUrl: 'http://localhost:11434',
+            model: 'llama2',
+            timeout: 30000,
+            maxTokens: 2048,
+            temperature: 0.7,
+          },
+          deepseek: {
+            provider: 'deepseek',
+            baseUrl: 'https://api.deepseek.com',
+            model: 'deepseek-chat',
+            apiKey: '',
+            timeout: 30000,
+            maxTokens: 2048,
+            temperature: 0.7,
+          },
+        },
+        advanced: {
+          enableStreaming: true,
+          apiTimeout: 30000,
+          maxRetries: 3,
+          logLevel: 'info',
+          enableDiagnostics: false,
+        },
+      },
+      ui: initialState.ui || {
+        conversationListCollapsed: false,
+        settingsOpen: false,
+        currentSettingsTab: 'general',
+      },
+      dialog: initialState.dialog || {
+        dialogs: [],
+      },
+      conversationSettingsForm: initialState.conversationSettingsForm || {
+        formData: {
+          title: '',
+          background: '',
+          supplement: '',
+          characters: [''],
+          characterPersonality: {},
+          characterIsMain: {},
+          characterGenerationHints: '',
+          outline: '',
+          generatedOutline: null,
+          outlineConfirmed: false,
+          allowAutoGenerateCharacters: true,
+          allowAutoGenerateMainCharacters: true,
+        },
+        conversationId: null,
+        isNewConversation: false,
+        isGeneratingCharacter: false,
+        isGeneratingOutline: false,
+      },
+      ...initialState,
+    } as RootState,
   });
 };
 
@@ -30,8 +128,8 @@ describe('useFlaskPort', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     resetFlaskPortManager(); // Reset module state between tests
-    (invoke as any).mockResolvedValue({ success: true, data: 5000 });
-    (listen as any).mockResolvedValue(() => {});
+    vi.mocked(invoke).mockResolvedValue({ success: true, data: 5000 });
+    vi.mocked(listen).mockResolvedValue(() => {});
   });
 
   it('should get Flask port', async () => {
@@ -50,7 +148,14 @@ describe('useFlaskPort', () => {
 
   it('should return API URL', async () => {
     const store = createTestStore({
-      server: { flaskPort: 5000, apiUrl: 'http://localhost:5000' },
+      server: {
+        pythonServerStatus: 'started',
+        ollamaStatus: 'connected',
+        isServerLoading: false,
+        serverError: null,
+        flaskPort: 5000,
+        apiUrl: 'http://localhost:5000',
+      },
     });
     const { result } = renderHook(() => useFlaskPort(), {
       wrapper: createWrapper(store),
@@ -93,7 +198,7 @@ describe('useFlaskPort', () => {
   });
 
   it('should handle fetch port error', async () => {
-    (invoke as any).mockRejectedValueOnce(new Error('Failed to fetch port'));
+    vi.mocked(invoke).mockRejectedValueOnce(new Error('Failed to fetch port'));
     const consoleErrorSpy = vi
       .spyOn(console, 'error')
       .mockImplementation(() => {});
@@ -112,7 +217,7 @@ describe('useFlaskPort', () => {
   });
 
   it('should handle fetch port with unsuccessful response', async () => {
-    (invoke as any).mockResolvedValueOnce({
+    vi.mocked(invoke).mockResolvedValueOnce({
       success: false,
       error: 'Port not available',
     });
@@ -130,7 +235,7 @@ describe('useFlaskPort', () => {
   });
 
   it('should handle fetch port with no data', async () => {
-    (invoke as any).mockResolvedValueOnce({ success: true, data: undefined });
+    vi.mocked(invoke).mockResolvedValueOnce({ success: true, data: undefined });
 
     const store = createTestStore();
     const { result } = renderHook(() => useFlaskPort(), {
@@ -144,26 +249,22 @@ describe('useFlaskPort', () => {
     expect(result.current.port).toBeNull();
   });
 
-  it('should wait for port with timeout', async () => {
-    vi.useFakeTimers();
+  it('should wait for port with timeout', { timeout: 12000 }, async () => {
+    vi.useRealTimers();
     const store = createTestStore();
+    // Mock invoke to fail so port never gets set
+    vi.mocked(invoke).mockResolvedValue({ success: false, data: undefined });
 
     const { result } = renderHook(() => useFlaskPort(), {
       wrapper: createWrapper(store),
     });
 
-    const waitPromise = act(async () => {
-      return result.current.waitForPort();
-    });
-
-    // Fast-forward time to trigger timeout
-    await act(async () => {
-      vi.advanceTimersByTime(10000);
-    });
+    const waitPromise = result.current.waitForPort();
 
     // Should reject after timeout
-    await expect(waitPromise).rejects.toThrow('Failed to get Flask port');
-    vi.useRealTimers();
+    await expect(waitPromise).rejects.toThrow(
+      'Failed to get Flask port after 10 seconds'
+    );
   });
 
   it(
@@ -196,7 +297,7 @@ describe('useFlaskPort', () => {
     vi.useRealTimers();
     // Reset the module-level globalInitialized flag by using a fresh import
     // Since we can't easily reset it, we'll just verify the behavior
-    (listen as any).mockRejectedValueOnce(new Error('Listener setup failed'));
+    vi.mocked(listen).mockRejectedValueOnce(new Error('Listener setup failed'));
 
     const store = createTestStore();
     const { result } = renderHook(() => useFlaskPort(), {
@@ -236,7 +337,7 @@ describe('useFlaskPort', () => {
   it('should poll for port and resolve when port becomes available during polling', async () => {
     vi.useRealTimers();
     const store = createTestStore();
-    (invoke as any).mockResolvedValue({ success: false, data: undefined });
+    vi.mocked(invoke).mockResolvedValue({ success: false, data: undefined });
 
     const { result } = renderHook(() => useFlaskPort(), {
       wrapper: createWrapper(store),
@@ -265,7 +366,7 @@ describe('useFlaskPort', () => {
     async () => {
       vi.useRealTimers();
       const store = createTestStore();
-      (invoke as any).mockResolvedValue({ success: false, data: undefined });
+      vi.mocked(invoke).mockResolvedValue({ success: false, data: undefined });
 
       const { result } = renderHook(() => useFlaskPort(), {
         wrapper: createWrapper(store),
@@ -287,7 +388,7 @@ describe('useFlaskPort', () => {
       vi.useRealTimers();
       const store = createTestStore();
       let fetchCount = 0;
-      (invoke as any).mockImplementation(() => {
+      vi.mocked(invoke).mockImplementation(() => {
         fetchCount++;
         if (fetchCount === 1) {
           return Promise.resolve({ success: false, data: undefined });
@@ -311,14 +412,25 @@ describe('useFlaskPort', () => {
   it('should handle event listener callback setting port', async () => {
     vi.useRealTimers();
     const store = createTestStore();
-    let eventCallback: ((event: { payload: number }) => void) | null = null;
+    let eventCallback:
+      | ((event: { event: string; id: number; payload: number }) => void)
+      | null = null;
 
-    (listen as any).mockImplementation((eventName: string, callback: any) => {
-      if (eventName === 'flask-port-ready') {
-        eventCallback = callback;
+    vi.mocked(listen).mockImplementation(
+      <T,>(
+        eventName: string,
+        handler: (event: { event: string; id: number; payload: T }) => void
+      ): Promise<() => void> => {
+        if (eventName === 'flask-port-ready') {
+          eventCallback = handler as (event: {
+            event: string;
+            id: number;
+            payload: number;
+          }) => void;
+        }
+        return Promise.resolve(() => {});
       }
-      return Promise.resolve(() => {});
-    });
+    );
 
     const { result } = renderHook(() => useFlaskPort(), {
       wrapper: createWrapper(store),
@@ -332,7 +444,7 @@ describe('useFlaskPort', () => {
     // Simulate event firing
     await act(async () => {
       if (eventCallback) {
-        eventCallback({ payload: 5000 });
+        eventCallback({ event: 'flask-port-ready', id: 1, payload: 5000 });
       }
     });
 
@@ -344,7 +456,7 @@ describe('useFlaskPort', () => {
     const store = createTestStore();
 
     // Mock listen to reject on first call
-    (listen as any).mockRejectedValueOnce(new Error('Listener setup failed'));
+    vi.mocked(listen).mockRejectedValueOnce(new Error('Listener setup failed'));
 
     const { unmount } = renderHook(() => useFlaskPort(), {
       wrapper: createWrapper(store),
@@ -376,7 +488,7 @@ describe('useFlaskPort', () => {
   it('should call fetchPort after timeout when flaskPort is null', async () => {
     vi.useFakeTimers();
     const store = createTestStore();
-    (invoke as any).mockResolvedValue({ success: true, data: 5000 });
+    vi.mocked(invoke).mockResolvedValue({ success: true, data: 5000 });
 
     const { result } = renderHook(() => useFlaskPort(), {
       wrapper: createWrapper(store),
@@ -406,7 +518,14 @@ describe('useFlaskPort', () => {
   it('should not call fetchPort in useEffect when flaskPort is already set', async () => {
     vi.useFakeTimers();
     const store = createTestStore({
-      server: { flaskPort: 5000, apiUrl: 'http://localhost:5000' },
+      server: {
+        pythonServerStatus: 'started',
+        ollamaStatus: 'connected',
+        isServerLoading: false,
+        serverError: null,
+        flaskPort: 5000,
+        apiUrl: 'http://localhost:5000',
+      },
     });
 
     const { result } = renderHook(() => useFlaskPort(), {

@@ -3,6 +3,7 @@ import { renderHook, waitFor, act } from '@testing-library/react';
 import { useAiClient } from '../useAiClient';
 import * as useApiClients from '../useApiClients';
 import { AppSettings } from '@/types';
+import { createMockApiClients } from '@/mock';
 
 vi.mock('../useApiClients');
 
@@ -61,9 +62,11 @@ describe('useAiClient', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    (useApiClients.useApiClients as any).mockReturnValue({
-      aiApi: mockAiApi,
-    });
+    vi.mocked(useApiClients.useApiClients).mockReturnValue(
+      createMockApiClients({
+        aiApi: mockAiApi,
+      })
+    );
   });
 
   it('should initialize with loading false', () => {
@@ -116,9 +119,11 @@ describe('useAiClient', () => {
       sendMessageStream: mockSendMessageStream,
     };
 
-    (useApiClients.useApiClients as any).mockReturnValue({
-      aiApi: aiApiWithoutUpdate,
-    });
+    vi.mocked(useApiClients.useApiClients).mockReturnValue(
+      createMockApiClients({
+        aiApi: aiApiWithoutUpdate,
+      })
+    );
 
     renderHook(() => useAiClient(mockSettings));
 

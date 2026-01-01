@@ -57,9 +57,20 @@ export const useConversationSettingsGeneration = () => {
           formData.characterPersonality
         );
 
+        type CharacterResult =
+          | { characters: Array<{ name: string; personality?: string }> }
+          | { character: { name: string; personality?: string } }
+          | {
+              characters?: Array<{ name: string; personality?: string }>;
+              character?: { name: string; personality?: string };
+            };
+
+        const resultTyped = result as CharacterResult;
         const generatedCharacters =
-          (result as any).characters ||
-          ((result as any).character ? [(result as any).character] : []);
+          ('characters' in resultTyped && resultTyped.characters) ||
+          ('character' in resultTyped && resultTyped.character
+            ? [resultTyped.character]
+            : []);
 
         if (generatedCharacters.length === 0) {
           throw new Error('No characters generated');

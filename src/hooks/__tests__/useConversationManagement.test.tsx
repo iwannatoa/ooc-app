@@ -51,6 +51,16 @@ import {
 } from '../useDialog';
 import { confirmDialog } from '@/services/confirmDialogService';
 import { useI18n } from '@/i18n/i18n';
+import {
+  createMockConversationClient,
+  createMockChatState,
+  createMockSettingsStateWithProvider,
+  createMockAiClient,
+  createMockUIState,
+  createMockConversationSettingsDialog,
+  createMockSummaryPromptDialog,
+  createMockI18n,
+} from '@/mock';
 
 const createWrapper = (store: ReturnType<typeof createTestStore>) => {
   return ({ children }: { children: React.ReactNode }) => (
@@ -78,58 +88,65 @@ describe('useConversationManagement', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    (useConversationClient as any).mockReturnValue({
-      getConversationsList: mockGetConversationsList,
-      getConversationMessages: mockGetConversationMessages,
-      createOrUpdateSettings: mockCreateOrUpdateSettings,
-      deleteConversation: mockDeleteConversation,
-      generateSummary: vi.fn(),
-      saveSummary: vi.fn(),
-    });
+    vi.mocked(useConversationClient).mockReturnValue(
+      createMockConversationClient({
+        getConversationsList: mockGetConversationsList,
+        getConversationMessages: mockGetConversationMessages,
+        createOrUpdateSettings: mockCreateOrUpdateSettings,
+        deleteConversation: mockDeleteConversation,
+        generateSummary: vi.fn(),
+        saveSummary: vi.fn(),
+      })
+    );
 
-    (useChatState as any).mockReturnValue({
-      activeConversationId: null,
-      messages: [],
-      setActiveConversation: mockSetActiveConversation,
-      setMessages: mockSetMessages,
-      removeConversation: mockRemoveConversation,
-    });
+    vi.mocked(useChatState).mockReturnValue(
+      createMockChatState({
+        activeConversationId: null,
+        messages: [],
+        setActiveConversation: mockSetActiveConversation,
+        setMessages: mockSetMessages,
+        removeConversation: mockRemoveConversation,
+      })
+    );
 
-    (useSettingsState as any).mockReturnValue({
-      settings: {
-        ai: {
-          provider: 'deepseek',
-          deepseek: {
-            model: 'deepseek-chat',
-          },
-        },
-      },
-    });
+    vi.mocked(useSettingsState).mockReturnValue(
+      createMockSettingsStateWithProvider('deepseek')
+    );
 
-    (useAiClient as any).mockReturnValue({
-      sendMessageStream: mockSendMessageStream,
-    });
+    vi.mocked(useAiClient).mockReturnValue(
+      createMockAiClient({
+        sendMessageStream: mockSendMessageStream,
+      })
+    );
 
-    (useUIState as any).mockReturnValue({
-      isNewConversation: false,
-      pendingConversationId: null,
-      setIsNewConversation: mockSetIsNewConversation,
-      setPendingConversationId: mockSetPendingConversationId,
-    });
+    vi.mocked(useUIState).mockReturnValue(
+      createMockUIState({
+        isNewConversation: false,
+        pendingConversationId: null,
+        setIsNewConversation: mockSetIsNewConversation,
+        setPendingConversationId: mockSetPendingConversationId,
+      })
+    );
 
-    (useConversationSettingsDialog as any).mockReturnValue({
-      open: mockSettingsDialogOpen,
-      close: mockSettingsDialogClose,
-    });
+    vi.mocked(useConversationSettingsDialog).mockReturnValue(
+      createMockConversationSettingsDialog({
+        open: mockSettingsDialogOpen,
+        close: mockSettingsDialogClose,
+      })
+    );
 
-    (useSummaryPromptDialog as any).mockReturnValue({
-      open: mockSummaryDialogOpen,
-      close: mockSummaryDialogClose,
-    });
+    vi.mocked(useSummaryPromptDialog).mockReturnValue(
+      createMockSummaryPromptDialog({
+        open: mockSummaryDialogOpen,
+        close: mockSummaryDialogClose,
+      })
+    );
 
-    (useI18n as any).mockReturnValue({
-      t: mockT,
-    });
+    vi.mocked(useI18n).mockReturnValue(
+      createMockI18n({
+        t: mockT,
+      })
+    );
   });
 
   it('should return initial state', async () => {
@@ -267,12 +284,14 @@ describe('useConversationManagement', () => {
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([]);
 
-    (useUIState as any).mockReturnValue({
-      isNewConversation: true,
-      pendingConversationId: 'conv_new',
-      setIsNewConversation: mockSetIsNewConversation,
-      setPendingConversationId: mockSetPendingConversationId,
-    });
+    vi.mocked(useUIState).mockReturnValue(
+      createMockUIState({
+        isNewConversation: true,
+        pendingConversationId: 'conv_new',
+        setIsNewConversation: mockSetIsNewConversation,
+        setPendingConversationId: mockSetPendingConversationId,
+      })
+    );
 
     const store = createTestStore();
     const { result } = renderHook(() => useConversationManagement(), {
@@ -308,12 +327,14 @@ describe('useConversationManagement', () => {
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([]);
 
-    (useUIState as any).mockReturnValue({
-      isNewConversation: false,
-      pendingConversationId: null,
-      setIsNewConversation: mockSetIsNewConversation,
-      setPendingConversationId: mockSetPendingConversationId,
-    });
+    vi.mocked(useUIState).mockReturnValue(
+      createMockUIState({
+        isNewConversation: false,
+        pendingConversationId: null,
+        setIsNewConversation: mockSetIsNewConversation,
+        setPendingConversationId: mockSetPendingConversationId,
+      })
+    );
 
     const store = createTestStore();
     const { result } = renderHook(() => useConversationManagement(), {
@@ -360,27 +381,31 @@ describe('useConversationManagement', () => {
   });
 
   it('should delete conversation after confirmation', async () => {
-    (confirmDialog as any).mockResolvedValueOnce(true);
+    vi.mocked(confirmDialog).mockResolvedValueOnce(true);
     mockDeleteConversation.mockResolvedValueOnce(true);
     // Mock both the initial load and the reload in handleDeleteConversation
     mockGetConversationsList
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([]);
 
-    (useChatState as any).mockReturnValue({
-      activeConversationId: 'conv_001',
-      messages: [],
-      setActiveConversation: mockSetActiveConversation,
-      setMessages: mockSetMessages,
-      removeConversation: mockRemoveConversation,
-    });
+    vi.mocked(useChatState).mockReturnValue(
+      createMockChatState({
+        activeConversationId: 'conv_001',
+        messages: [],
+        setActiveConversation: mockSetActiveConversation,
+        setMessages: mockSetMessages,
+        removeConversation: mockRemoveConversation,
+      })
+    );
 
-    (useUIState as any).mockReturnValue({
-      isNewConversation: false,
-      pendingConversationId: null,
-      setIsNewConversation: mockSetIsNewConversation,
-      setPendingConversationId: mockSetPendingConversationId,
-    });
+    vi.mocked(useUIState).mockReturnValue(
+      createMockUIState({
+        isNewConversation: false,
+        pendingConversationId: null,
+        setIsNewConversation: mockSetIsNewConversation,
+        setPendingConversationId: mockSetPendingConversationId,
+      })
+    );
 
     const store = createTestStore();
     const { result } = renderHook(() => useConversationManagement(), {
@@ -404,7 +429,7 @@ describe('useConversationManagement', () => {
   });
 
   it('should not delete conversation if cancelled', async () => {
-    (confirmDialog as any).mockResolvedValueOnce(false);
+    vi.mocked(confirmDialog).mockResolvedValueOnce(false);
     mockGetConversationsList.mockResolvedValueOnce([]);
 
     const store = createTestStore();
@@ -425,7 +450,7 @@ describe('useConversationManagement', () => {
   });
 
   it('should handle delete conversation error', async () => {
-    (confirmDialog as any).mockResolvedValueOnce(true);
+    vi.mocked(confirmDialog).mockResolvedValueOnce(true);
     mockDeleteConversation.mockRejectedValueOnce(new Error('Delete failed'));
     mockGetConversationsList.mockResolvedValueOnce([]);
 
@@ -458,13 +483,15 @@ describe('useConversationManagement', () => {
     mockGetConversationMessages.mockResolvedValueOnce([]);
     mockGetConversationsList.mockResolvedValueOnce([]);
 
-    (useChatState as any).mockReturnValue({
-      activeConversationId: 'conv_001',
-      messages: [],
-      setActiveConversation: mockSetActiveConversation,
-      setMessages: mockSetMessages,
-      removeConversation: mockRemoveConversation,
-    });
+    vi.mocked(useChatState).mockReturnValue(
+      createMockChatState({
+        activeConversationId: 'conv_001',
+        messages: [],
+        setActiveConversation: mockSetActiveConversation,
+        setMessages: mockSetMessages,
+        removeConversation: mockRemoveConversation,
+      })
+    );
 
     const store = createTestStore();
     const { result } = renderHook(() => useConversationManagement(), {
@@ -522,7 +549,7 @@ describe('useConversationManagement', () => {
       null;
 
     mockSendMessageStream.mockImplementation(
-      (message: string, convId: string, onChunk: any) => {
+      (_message: string, _convId: string, onChunk: any) => {
         onChunkCallback = onChunk;
         return Promise.resolve(mockAiMessage);
       }
@@ -533,16 +560,19 @@ describe('useConversationManagement', () => {
 
     const currentMessages: ChatMessage[] = [];
 
-    (useChatState as any).mockReturnValue({
-      activeConversationId: 'conv_001',
-      messages: currentMessages,
-      setActiveConversation: mockSetActiveConversation,
-      setMessages: (newMessages: ChatMessage[]) => {
-        currentMessages.length = 0;
-        currentMessages.push(...newMessages);
-      },
-      removeConversation: mockRemoveConversation,
-    });
+    vi.mocked(useChatState).mockReturnValue(
+      createMockChatState({
+        activeConversationId: 'conv_001',
+        messages: currentMessages,
+        setActiveConversation: mockSetActiveConversation,
+        setMessages: (newMessages: ChatMessage[]) => {
+          currentMessages.length = 0;
+          currentMessages.push(...newMessages);
+          return { payload: newMessages, type: 'chat/setMessages' };
+        },
+        removeConversation: mockRemoveConversation,
+      })
+    );
 
     const store = createTestStore();
     const { result } = renderHook(() => useConversationManagement(), {
@@ -561,10 +591,10 @@ describe('useConversationManagement', () => {
     // Simulate streaming chunks
     if (onChunkCallback) {
       act(() => {
-        onChunkCallback('Hello', 'Hello');
+        onChunkCallback!('Hello', 'Hello');
       });
       act(() => {
-        onChunkCallback(' World', 'Hello World');
+        onChunkCallback!(' World', 'Hello World');
       });
     }
 
@@ -584,13 +614,15 @@ describe('useConversationManagement', () => {
     mockGetConversationMessages.mockResolvedValueOnce([]);
     mockGetConversationsList.mockResolvedValueOnce([]);
 
-    (useChatState as any).mockReturnValue({
-      activeConversationId: 'conv_001',
-      messages: [],
-      setActiveConversation: mockSetActiveConversation,
-      setMessages: mockSetMessages,
-      removeConversation: mockRemoveConversation,
-    });
+    vi.mocked(useChatState).mockReturnValue(
+      createMockChatState({
+        activeConversationId: 'conv_001',
+        messages: [],
+        setActiveConversation: mockSetActiveConversation,
+        setMessages: mockSetMessages,
+        removeConversation: mockRemoveConversation,
+      })
+    );
 
     const store = createTestStore();
     const { result } = renderHook(() => useConversationManagement(), {
@@ -613,13 +645,15 @@ describe('useConversationManagement', () => {
     mockSendMessageStream.mockRejectedValueOnce(new Error('Send failed'));
     mockGetConversationsList.mockResolvedValueOnce([]);
 
-    (useChatState as any).mockReturnValue({
-      activeConversationId: 'conv_001',
-      messages: [],
-      setActiveConversation: mockSetActiveConversation,
-      setMessages: mockSetMessages,
-      removeConversation: mockRemoveConversation,
-    });
+    vi.mocked(useChatState).mockReturnValue(
+      createMockChatState({
+        activeConversationId: 'conv_001',
+        messages: [],
+        setActiveConversation: mockSetActiveConversation,
+        setMessages: mockSetMessages,
+        removeConversation: mockRemoveConversation,
+      })
+    );
 
     const store = createTestStore();
     const { result } = renderHook(() => useConversationManagement(), {
@@ -641,22 +675,26 @@ describe('useConversationManagement', () => {
   it('should generate summary', async () => {
     const mockSummary = 'Generated summary text';
 
-    (useConversationClient as any).mockReturnValue({
-      getConversationsList: mockGetConversationsList,
-      getConversationMessages: mockGetConversationMessages,
-      createOrUpdateSettings: mockCreateOrUpdateSettings,
-      deleteConversation: mockDeleteConversation,
-      generateSummary: vi.fn().mockResolvedValueOnce(mockSummary),
-      saveSummary: vi.fn(),
-    });
+    vi.mocked(useConversationClient).mockReturnValue(
+      createMockConversationClient({
+        getConversationsList: mockGetConversationsList,
+        getConversationMessages: mockGetConversationMessages,
+        createOrUpdateSettings: mockCreateOrUpdateSettings,
+        deleteConversation: mockDeleteConversation,
+        generateSummary: vi.fn().mockResolvedValueOnce(mockSummary),
+        saveSummary: vi.fn(),
+      })
+    );
 
-    (useChatState as any).mockReturnValue({
-      activeConversationId: 'conv_001',
-      messages: [],
-      setActiveConversation: mockSetActiveConversation,
-      setMessages: mockSetMessages,
-      removeConversation: mockRemoveConversation,
-    });
+    vi.mocked(useChatState).mockReturnValue(
+      createMockChatState({
+        activeConversationId: 'conv_001',
+        messages: [],
+        setActiveConversation: mockSetActiveConversation,
+        setMessages: mockSetMessages,
+        removeConversation: mockRemoveConversation,
+      })
+    );
 
     mockGetConversationsList.mockResolvedValueOnce([]);
 
@@ -705,22 +743,26 @@ describe('useConversationManagement', () => {
       summary: 'Saved summary',
     });
 
-    (useConversationClient as any).mockReturnValue({
-      getConversationsList: mockGetConversationsList,
-      getConversationMessages: mockGetConversationMessages,
-      createOrUpdateSettings: mockCreateOrUpdateSettings,
-      deleteConversation: mockDeleteConversation,
-      generateSummary: vi.fn(),
-      saveSummary: mockSaveSummary,
-    });
+    vi.mocked(useConversationClient).mockReturnValue(
+      createMockConversationClient({
+        getConversationsList: mockGetConversationsList,
+        getConversationMessages: mockGetConversationMessages,
+        createOrUpdateSettings: mockCreateOrUpdateSettings,
+        deleteConversation: mockDeleteConversation,
+        generateSummary: vi.fn(),
+        saveSummary: mockSaveSummary,
+      })
+    );
 
-    (useChatState as any).mockReturnValue({
-      activeConversationId: 'conv_001',
-      messages: [],
-      setActiveConversation: mockSetActiveConversation,
-      setMessages: mockSetMessages,
-      removeConversation: mockRemoveConversation,
-    });
+    vi.mocked(useChatState).mockReturnValue(
+      createMockChatState({
+        activeConversationId: 'conv_001',
+        messages: [],
+        setActiveConversation: mockSetActiveConversation,
+        setMessages: mockSetMessages,
+        removeConversation: mockRemoveConversation,
+      })
+    );
 
     mockGetConversationsList.mockResolvedValueOnce([]);
 

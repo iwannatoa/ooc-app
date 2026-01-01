@@ -1,5 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { BaseApiClient, createApiError } from '../base';
+import { createApiError } from '../base';
+import {
+  createTestableBaseApiClient,
+  TestableBaseApiClient,
+  createMockResponse,
+  createMockReadableStream,
+} from '@/mock/testHelpers';
 
 // Mock the mock router before importing base
 vi.mock('@/mock/router', () => {
@@ -15,14 +21,14 @@ vi.mock('@/mock/router', () => {
 import { mockRouter } from '@/mock/router';
 
 describe('BaseApiClient', () => {
-  let client: BaseApiClient;
+  let client: TestableBaseApiClient;
   const mockGetApiUrl = vi.fn().mockResolvedValue('http://localhost:5000');
 
   beforeEach(() => {
     vi.clearAllMocks();
     global.fetch = vi.fn();
-    client = new BaseApiClient(mockGetApiUrl);
-    (mockRouter.match as any).mockResolvedValue(null);
+    client = createTestableBaseApiClient(mockGetApiUrl);
+    vi.mocked(mockRouter.match).mockResolvedValue(null);
   });
 
   describe('createApiError', () => {
@@ -38,28 +44,34 @@ describe('BaseApiClient', () => {
 
   describe('request', () => {
     it('should successfully send GET request', async () => {
-      (global.fetch as any).mockResolvedValue({
-        ok: true,
-        json: async () => ({ success: true, data: 'test' }),
-      });
+      vi.mocked(global.fetch).mockResolvedValue(
+        createMockResponse({
+          ok: true,
+          json: async () => ({ success: true, data: 'test' }),
+        })
+      );
 
-      const result = await (client as any).get('/api/test');
+      const result = await client.testGet<{ success: boolean; data: string }>(
+        '/api/test'
+      );
       expect(result.success).toBe(true);
       expect(result.data).toBe('test');
     });
 
     it('should handle error response', async () => {
-      (global.fetch as any).mockResolvedValue({
-        ok: false,
-        status: 404,
-        json: async () => ({ success: false, error: 'Not found' }),
-      });
+      vi.mocked(global.fetch).mockResolvedValue(
+        createMockResponse({
+          ok: false,
+          status: 404,
+          json: async () => ({ success: false, error: 'Not found' }),
+        })
+      );
 
-      await expect((client as any).get('/api/test')).rejects.toThrow();
+      await expect(client.testGet('/api/test')).rejects.toThrow();
     });
 
     it('should handle timeout', async () => {
-      (global.fetch as any).mockImplementation(() => {
+      vi.mocked(global.fetch).mockImplementation(() => {
         return new Promise((_, reject) => {
           setTimeout(() => {
             const error = new Error('AbortError');
@@ -70,17 +82,19 @@ describe('BaseApiClient', () => {
       });
 
       await expect(
-        (client as any).get('/api/test', { timeout: 50 })
+        client.testGet('/api/test', { timeout: 50 })
       ).rejects.toThrow();
     });
 
     it('should use mock router', async () => {
-      (mockRouter.match as any).mockResolvedValue({
+      vi.mocked(mockRouter.match).mockResolvedValue({
         success: true,
         data: 'mock',
       });
 
-      const result = await (client as any).get('/api/test');
+      const result = await client.testGet<{ success: boolean; data: string }>(
+        '/api/test'
+      );
       expect(result.success).toBe(true);
       expect(result.data).toBe('mock');
       expect(global.fetch).not.toHaveBeenCalled();
@@ -89,12 +103,14 @@ describe('BaseApiClient', () => {
 
   describe('post', () => {
     it('should send POST request', async () => {
-      (global.fetch as any).mockResolvedValue({
-        ok: true,
-        json: async () => ({ success: true }),
-      });
+      vi.mocked(global.fetch).mockResolvedValue(
+        createMockResponse({
+          ok: true,
+          json: async () => ({ success: true }),
+        })
+      );
 
-      await (client as any).post('/api/test', { data: 'test' });
+      await client.testPost('/api/test', { data: 'test' });
       expect(global.fetch).toHaveBeenCalledWith(
         'http://localhost:5000/api/test',
         expect.objectContaining({
@@ -107,12 +123,14 @@ describe('BaseApiClient', () => {
 
   describe('delete', () => {
     it('should send DELETE request', async () => {
-      (global.fetch as any).mockResolvedValue({
-        ok: true,
-        json: async () => ({ success: true }),
-      });
+      vi.mocked(global.fetch).mockResolvedValue(
+        createMockResponse({
+          ok: true,
+          json: async () => ({ success: true }),
+        })
+      );
 
-      await (client as any).delete('/api/test', { id: '1' });
+      await client.testDelete('/api/test', { id: '1' });
       expect(global.fetch).toHaveBeenCalledWith(
         'http://localhost:5000/api/test',
         expect.objectContaining({
@@ -124,78 +142,86 @@ describe('BaseApiClient', () => {
 
   describe('error handling', () => {
     it('should handle non-OK response with JSON error', async () => {
-      (global.fetch as any).mockResolvedValue({
-        ok: false,
-        status: 500,
-        statusText: 'Internal Server Error',
-        json: async () => ({
-          success: false,
-          error: 'Server error',
-          code: 5001,
-        }),
-      });
+      vi.mocked(global.fetch).mockResolvedValue(
+        createMockResponse({
+          ok: false,
+          status: 500,
+          statusText: 'Internal Server Error',
+          json: async () => ({
+            success: false,
+            error: 'Server error',
+            code: 5001,
+          }),
+        })
+      );
 
-      await expect((client as any).get('/api/test')).rejects.toThrow();
+      await expect(client.testGet('/api/test')).rejects.toThrow();
     });
 
     it('should handle non-OK response with invalid JSON', async () => {
-      (global.fetch as any).mockResolvedValue({
-        ok: false,
-        status: 500,
-        statusText: 'Internal Server Error',
-        json: async () => {
-          throw new Error('Invalid JSON');
-        },
-      });
+      vi.mocked(global.fetch).mockResolvedValue(
+        createMockResponse({
+          ok: false,
+          status: 500,
+          statusText: 'Internal Server Error',
+          json: async () => {
+            throw new Error('Invalid JSON');
+          },
+        })
+      );
 
-      await expect((client as any).get('/api/test')).rejects.toThrow();
+      await expect(client.testGet('/api/test')).rejects.toThrow();
     });
 
     it('should handle response with success: false', async () => {
-      (global.fetch as any).mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: async () => ({
-          success: false,
-          error: 'Request failed',
-          code: 1001,
-        }),
-      });
+      vi.mocked(global.fetch).mockResolvedValue(
+        createMockResponse({
+          ok: true,
+          status: 200,
+          json: async () => ({
+            success: false,
+            error: 'Request failed',
+            code: 1001,
+          }),
+        })
+      );
 
-      await expect((client as any).get('/api/test')).rejects.toThrow();
+      await expect(client.testGet('/api/test')).rejects.toThrow();
     });
 
     it('should handle AbortError', async () => {
-      (global.fetch as any).mockImplementation(() => {
+      vi.mocked(global.fetch).mockImplementation(() => {
         const error = new Error('Request aborted');
         error.name = 'AbortError';
         return Promise.reject(error);
       });
 
-      await expect((client as any).get('/api/test')).rejects.toThrow();
+      await expect(client.testGet('/api/test')).rejects.toThrow();
     });
 
     it('should handle generic Error', async () => {
-      (global.fetch as any).mockRejectedValue(new Error('Network error'));
+      vi.mocked(global.fetch).mockRejectedValue(new Error('Network error'));
 
-      await expect((client as any).get('/api/test')).rejects.toThrow();
+      await expect(client.testGet('/api/test')).rejects.toThrow();
     });
 
     it('should handle unknown error', async () => {
-      (global.fetch as any).mockRejectedValue('Unknown error');
+      vi.mocked(global.fetch).mockRejectedValue('Unknown error');
 
-      await expect((client as any).get('/api/test')).rejects.toThrow();
+      await expect(client.testGet('/api/test')).rejects.toThrow();
     });
 
     it('should use skipErrorHandling flag', async () => {
-      (global.fetch as any).mockResolvedValue({
-        ok: false,
-        status: 404,
-        json: async () => ({ success: false, error: 'Not found' }),
-      });
+      vi.mocked(global.fetch).mockResolvedValue(
+        createMockResponse({
+          ok: false,
+          status: 404,
+          json: async () => ({ success: false, error: 'Not found' }),
+        })
+      );
 
       await expect(
-        (client as any).get('/api/test', { skipErrorHandling: true })
+        client.testGet('/api/test', { skipErrorHandling: true })
       ).rejects.toThrow();
     });
   });
@@ -203,16 +229,12 @@ describe('BaseApiClient', () => {
   describe('stream', () => {
     it('should handle streaming with mock response', async () => {
       const mockOnChunk = vi.fn();
-      (mockRouter.match as any).mockResolvedValue({
+      vi.mocked(mockRouter.match).mockResolvedValue({
         success: true,
         outline: 'Test outline content',
       });
 
-      const result = await (client as any).stream(
-        '/api/stream',
-        {},
-        mockOnChunk
-      );
+      const result = await client.testStream('/api/stream', {}, mockOnChunk);
 
       expect(result).toBe('Test outline content');
       expect(mockOnChunk).toHaveBeenCalled();
@@ -225,14 +247,15 @@ describe('BaseApiClient', () => {
         releaseLock: vi.fn(),
       };
 
-      (global.fetch as any).mockResolvedValue({
-        ok: true,
-        body: {
-          getReader: () => mockReader,
-        },
-      });
+      vi.mocked(global.fetch).mockResolvedValue(
+        createMockResponse({
+          ok: true,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          body: createMockReadableStream(() => mockReader) as any,
+        })
+      );
 
-      const result = await (client as any).stream(
+      const result = await client.testStream(
         '/api/stream',
         { data: 'test' },
         mockOnChunk
@@ -266,18 +289,15 @@ describe('BaseApiClient', () => {
         releaseLock: vi.fn(),
       };
 
-      (global.fetch as any).mockResolvedValue({
-        ok: true,
-        body: {
-          getReader: () => mockReader,
-        },
-      });
-
-      const result = await (client as any).stream(
-        '/api/stream',
-        {},
-        mockOnChunk
+      vi.mocked(global.fetch).mockResolvedValue(
+        createMockResponse({
+          ok: true,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          body: createMockReadableStream(() => mockReader) as any,
+        })
       );
+
+      await client.testStream('/api/stream', {}, mockOnChunk);
 
       expect(mockReader.releaseLock).toHaveBeenCalled();
     });
@@ -295,40 +315,45 @@ describe('BaseApiClient', () => {
         releaseLock: vi.fn(),
       };
 
-      (global.fetch as any).mockResolvedValue({
-        ok: true,
-        body: {
-          getReader: () => mockReader,
-        },
-      });
+      vi.mocked(global.fetch).mockResolvedValue(
+        createMockResponse({
+          ok: true,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          body: createMockReadableStream(() => mockReader) as any,
+        })
+      );
 
       await expect(
-        (client as any).stream('/api/stream', {}, mockOnChunk)
+        client.testStream('/api/stream', {}, mockOnChunk)
       ).rejects.toThrow();
     });
 
     it('should handle streaming with non-OK response', async () => {
       const mockOnChunk = vi.fn();
-      (global.fetch as any).mockResolvedValue({
-        ok: false,
-        status: 500,
-        json: async () => ({ error: 'Stream failed' }),
-      });
+      vi.mocked(global.fetch).mockResolvedValue(
+        createMockResponse({
+          ok: false,
+          status: 500,
+          json: async () => ({ error: 'Stream failed' }),
+        })
+      );
 
       await expect(
-        (client as any).stream('/api/stream', {}, mockOnChunk)
+        client.testStream('/api/stream', {}, mockOnChunk)
       ).rejects.toThrow();
     });
 
     it('should handle streaming with no reader', async () => {
       const mockOnChunk = vi.fn();
-      (global.fetch as any).mockResolvedValue({
-        ok: true,
-        body: null,
-      });
+      vi.mocked(global.fetch).mockResolvedValue(
+        createMockResponse({
+          ok: true,
+          body: null,
+        })
+      );
 
       await expect(
-        (client as any).stream('/api/stream', {}, mockOnChunk)
+        client.testStream('/api/stream', {}, mockOnChunk)
       ).rejects.toThrow();
     });
 
@@ -338,7 +363,8 @@ describe('BaseApiClient', () => {
       const textChunk = encoder.encode('data: plain text\n');
 
       const mockReader = {
-        read: vi.fn()
+        read: vi
+          .fn()
           .mockResolvedValueOnce({
             done: false,
             value: textChunk,
@@ -347,18 +373,15 @@ describe('BaseApiClient', () => {
         releaseLock: vi.fn(),
       };
 
-      (global.fetch as any).mockResolvedValue({
-        ok: true,
-        body: {
-          getReader: () => mockReader,
-        },
-      });
-
-      const result = await (client as any).stream(
-        '/api/stream',
-        {},
-        mockOnChunk
+      vi.mocked(global.fetch).mockResolvedValue(
+        createMockResponse({
+          ok: true,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          body: createMockReadableStream(() => mockReader) as any,
+        })
       );
+
+      await client.testStream('/api/stream', {}, mockOnChunk);
 
       expect(mockOnChunk).toHaveBeenCalled();
       expect(mockReader.releaseLock).toHaveBeenCalled();
@@ -370,7 +393,8 @@ describe('BaseApiClient', () => {
       const emptyChunk = encoder.encode('data: \n');
 
       const mockReader = {
-        read: vi.fn()
+        read: vi
+          .fn()
           .mockResolvedValueOnce({
             done: false,
             value: emptyChunk,
@@ -379,21 +403,22 @@ describe('BaseApiClient', () => {
         releaseLock: vi.fn(),
       };
 
-      (global.fetch as any).mockResolvedValue({
-        ok: true,
-        body: {
-          getReader: () => mockReader,
-        },
-      });
+      vi.mocked(global.fetch).mockResolvedValue(
+        createMockResponse({
+          ok: true,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          body: createMockReadableStream(() => mockReader) as any,
+        })
+      );
 
-      await (client as any).stream('/api/stream', {}, mockOnChunk);
+      await client.testStream('/api/stream', {}, mockOnChunk);
       expect(mockReader.releaseLock).toHaveBeenCalled();
     });
   });
 
   describe('request config', () => {
     it('should use custom timeout', async () => {
-      (global.fetch as any).mockImplementation(() => {
+      vi.mocked(global.fetch).mockImplementation(() => {
         return new Promise((_, reject) => {
           setTimeout(() => {
             const error = new Error('AbortError');
@@ -404,17 +429,19 @@ describe('BaseApiClient', () => {
       });
 
       await expect(
-        (client as any).get('/api/test', { timeout: 50 })
+        client.testGet('/api/test', { timeout: 50 })
       ).rejects.toThrow();
     });
 
     it('should handle POST with empty body', async () => {
-      (global.fetch as any).mockResolvedValue({
-        ok: true,
-        json: async () => ({ success: true }),
-      });
+      vi.mocked(global.fetch).mockResolvedValue(
+        createMockResponse({
+          ok: true,
+          json: async () => ({ success: true }),
+        })
+      );
 
-      await (client as any).post('/api/test');
+      await client.testPost('/api/test');
       expect(global.fetch).toHaveBeenCalledWith(
         'http://localhost:5000/api/test',
         expect.objectContaining({
@@ -424,12 +451,14 @@ describe('BaseApiClient', () => {
     });
 
     it('should handle DELETE with empty body', async () => {
-      (global.fetch as any).mockResolvedValue({
-        ok: true,
-        json: async () => ({ success: true }),
-      });
+      vi.mocked(global.fetch).mockResolvedValue(
+        createMockResponse({
+          ok: true,
+          json: async () => ({ success: true }),
+        })
+      );
 
-      await (client as any).delete('/api/test');
+      await client.testDelete('/api/test');
       expect(global.fetch).toHaveBeenCalledWith(
         'http://localhost:5000/api/test',
         expect.objectContaining({

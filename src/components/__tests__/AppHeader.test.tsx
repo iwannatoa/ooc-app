@@ -1,5 +1,6 @@
 import * as useMockMode from '@/hooks/useMockMode';
 import * as useI18n from '@/i18n/i18n';
+import { createMockI18n, createMockMockMode } from '@/mock';
 import { fireEvent, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppHeader } from '../AppHeader';
@@ -26,17 +27,21 @@ describe('AppHeader', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    (useI18n.useI18n as any).mockReturnValue({
-      locale: 'zh',
-      setLocale: mockSetLocale,
-      t: (key: string) => key,
-    });
+    vi.mocked(useI18n.useI18n).mockReturnValue(
+      createMockI18n({
+        locale: 'zh',
+        setLocale: mockSetLocale,
+        t: (key: string) => key,
+      })
+    );
 
-    (useMockMode.useMockMode as any).mockReturnValue({
-      mockModeEnabled: false,
-      toggleMockMode: mockToggleMockMode,
-      isDev: true,
-    });
+    vi.mocked(useMockMode.useMockMode).mockReturnValue(
+      createMockMockMode({
+        mockModeEnabled: false,
+        toggleMockMode: mockToggleMockMode,
+        isDev: true,
+      })
+    );
   });
 
   it('should render header with title', () => {
@@ -74,11 +79,13 @@ describe('AppHeader', () => {
   });
 
   it('should not show mock mode button in production mode', () => {
-    (useMockMode.useMockMode as any).mockReturnValue({
-      mockModeEnabled: false,
-      toggleMockMode: mockToggleMockMode,
-      isDev: false,
-    });
+    vi.mocked(useMockMode.useMockMode).mockReturnValue(
+      createMockMockMode({
+        mockModeEnabled: false,
+        toggleMockMode: mockToggleMockMode,
+        isDev: false,
+      })
+    );
 
     renderWithProviders(<AppHeader />);
 
@@ -98,5 +105,21 @@ describe('AppHeader', () => {
     renderWithProviders(<AppHeader />);
 
     expect(screen.getByTestId('server-status')).toBeInTheDocument();
+  });
+
+  it('should show mock mode on tooltip when mock mode is enabled', () => {
+    vi.mocked(useMockMode.useMockMode).mockReturnValue(
+      createMockMockMode({
+        mockModeEnabled: true,
+        toggleMockMode: mockToggleMockMode,
+        isDev: true,
+      })
+    );
+
+    renderWithProviders(<AppHeader />);
+
+    const mockButton = screen.getByTitle('app.mockModeTooltipOn');
+    expect(mockButton).toBeInTheDocument();
+    expect(screen.getByText('app.mockModeOn')).toBeInTheDocument();
   });
 });

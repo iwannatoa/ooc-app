@@ -31,6 +31,13 @@ import { useSettingsState } from '../useSettingsState';
 import { useToast } from '../useToast';
 import { useConversationSettingsForm } from '../useConversationSettingsForm';
 import { useI18n } from '@/i18n/i18n';
+import {
+  createMockConversationClient,
+  createMockSettingsStateWithProvider,
+  createMockToast,
+  createMockConversationSettingsForm,
+  createMockI18n,
+} from '@/mock';
 
 const createWrapper = (store: ReturnType<typeof createTestStore>) => {
   return ({ children }: { children: React.ReactNode }) => (
@@ -87,48 +94,57 @@ describe('useConversationSettingsGeneration', () => {
       }
     );
 
-    (useConversationClient as any).mockReturnValue({
-      generateCharacter: mockGenerateCharacter,
-      generateOutline: mockGenerateOutlineWithChunk,
-      generateOutlineStream: mockGenerateOutlineStream,
-    });
+    vi.mocked(useConversationClient).mockReturnValue(
+      createMockConversationClient({
+        generateCharacter: mockGenerateCharacter,
+        generateOutline: mockGenerateOutlineWithChunk,
+      })
+    );
 
-    (useSettingsState as any).mockReturnValue({
-      settings: {
-        ai: {
-          provider: 'deepseek',
-          deepseek: {
-            model: 'deepseek-chat',
+    vi.mocked(useSettingsState).mockReturnValue(
+      createMockSettingsStateWithProvider('deepseek')
+    );
+
+    vi.mocked(useToast).mockReturnValue(
+      createMockToast({
+        showError: mockShowError,
+        showWarning: mockShowWarning,
+      })
+    );
+
+    vi.mocked(useConversationSettingsForm).mockReturnValue(
+      createMockConversationSettingsForm({
+        formData: {
+          title: '',
+          background: 'Test background',
+          supplement: '',
+          characters: ['Alice', 'Bob'],
+          characterPersonality: {
+            Alice: 'Brave',
+            Bob: 'Kind',
           },
+          characterIsMain: {},
+          characterGenerationHints: '',
+          outline: '',
+          generatedOutline: null,
+          outlineConfirmed: false,
+          allowAutoGenerateCharacters: false,
+          allowAutoGenerateMainCharacters: false,
         },
-      },
-    });
+        conversationId: 'conv_001',
+        isGeneratingCharacter: false,
+        isGeneratingOutline: false,
+        setGeneratingCharacter: mockSetGeneratingCharacter,
+        setGeneratingOutline: mockSetGeneratingOutline,
+        updateFields: mockUpdateFields,
+      })
+    );
 
-    (useToast as any).mockReturnValue({
-      showError: mockShowError,
-      showWarning: mockShowWarning,
-    });
-
-    (useConversationSettingsForm as any).mockReturnValue({
-      formData: {
-        background: 'Test background',
-        characters: ['Alice', 'Bob'],
-        characterPersonality: {
-          Alice: 'Brave',
-          Bob: 'Kind',
-        },
-      },
-      conversationId: 'conv_001',
-      isGeneratingCharacter: false,
-      isGeneratingOutline: false,
-      setGeneratingCharacter: mockSetGeneratingCharacter,
-      setGeneratingOutline: mockSetGeneratingOutline,
-      updateFields: mockUpdateFields,
-    });
-
-    (useI18n as any).mockReturnValue({
-      t: mockT,
-    });
+    vi.mocked(useI18n).mockReturnValue(
+      createMockI18n({
+        t: mockT,
+      })
+    );
   });
 
   it('should return generation functions and states', () => {
@@ -158,7 +174,8 @@ describe('useConversationSettingsGeneration', () => {
       wrapper: createWrapper(store),
     });
 
-    let generatedCharacters: any = null;
+    let generatedCharacters: { name: string; personality?: string }[] | null =
+      null;
 
     await act(async () => {
       generatedCharacters = await result.current.generateCharacter(
@@ -198,7 +215,8 @@ describe('useConversationSettingsGeneration', () => {
       wrapper: createWrapper(store),
     });
 
-    let generatedCharacters: any = null;
+    let generatedCharacters: { name: string; personality?: string }[] | null =
+      null;
 
     await act(async () => {
       generatedCharacters = await result.current.generateCharacter(
@@ -210,26 +228,38 @@ describe('useConversationSettingsGeneration', () => {
   });
 
   it('should show warning when background is empty', async () => {
-    (useConversationSettingsForm as any).mockReturnValue({
-      formData: {
-        background: '',
-        characters: ['Alice'],
-        characterPersonality: {},
-      },
-      conversationId: 'conv_001',
-      isGeneratingCharacter: false,
-      isGeneratingOutline: false,
-      setGeneratingCharacter: mockSetGeneratingCharacter,
-      setGeneratingOutline: mockSetGeneratingOutline,
-      updateFields: mockUpdateFields,
-    });
+    vi.mocked(useConversationSettingsForm).mockReturnValue(
+      createMockConversationSettingsForm({
+        formData: {
+          title: '',
+          background: '',
+          supplement: '',
+          characters: ['Alice'],
+          characterPersonality: {},
+          characterIsMain: {},
+          characterGenerationHints: '',
+          outline: '',
+          generatedOutline: null,
+          outlineConfirmed: false,
+          allowAutoGenerateCharacters: false,
+          allowAutoGenerateMainCharacters: false,
+        },
+        conversationId: 'conv_001',
+        isGeneratingCharacter: false,
+        isGeneratingOutline: false,
+        setGeneratingCharacter: mockSetGeneratingCharacter,
+        setGeneratingOutline: mockSetGeneratingOutline,
+        updateFields: mockUpdateFields,
+      })
+    );
 
     const store = createTestStore();
     const { result } = renderHook(() => useConversationSettingsGeneration(), {
       wrapper: createWrapper(store),
     });
 
-    let generatedCharacters: any = null;
+    let generatedCharacters: { name: string; personality?: string }[] | null =
+      null;
 
     await act(async () => {
       generatedCharacters = await result.current.generateCharacter(
@@ -243,26 +273,38 @@ describe('useConversationSettingsGeneration', () => {
   });
 
   it('should show error when conversationId is missing', async () => {
-    (useConversationSettingsForm as any).mockReturnValue({
-      formData: {
-        background: 'Test background',
-        characters: ['Alice'],
-        characterPersonality: {},
-      },
-      conversationId: null,
-      isGeneratingCharacter: false,
-      isGeneratingOutline: false,
-      setGeneratingCharacter: mockSetGeneratingCharacter,
-      setGeneratingOutline: mockSetGeneratingOutline,
-      updateFields: mockUpdateFields,
-    });
+    vi.mocked(useConversationSettingsForm).mockReturnValue(
+      createMockConversationSettingsForm({
+        formData: {
+          title: '',
+          background: 'Test background',
+          supplement: '',
+          characters: ['Alice'],
+          characterPersonality: {},
+          characterIsMain: {},
+          characterGenerationHints: '',
+          outline: '',
+          generatedOutline: null,
+          outlineConfirmed: false,
+          allowAutoGenerateCharacters: false,
+          allowAutoGenerateMainCharacters: false,
+        },
+        conversationId: null,
+        isGeneratingCharacter: false,
+        isGeneratingOutline: false,
+        setGeneratingCharacter: mockSetGeneratingCharacter,
+        setGeneratingOutline: mockSetGeneratingOutline,
+        updateFields: mockUpdateFields,
+      })
+    );
 
     const store = createTestStore();
     const { result } = renderHook(() => useConversationSettingsGeneration(), {
       wrapper: createWrapper(store),
     });
 
-    let generatedCharacters: any = null;
+    let generatedCharacters: { name: string; personality?: string }[] | null =
+      null;
 
     await act(async () => {
       generatedCharacters = await result.current.generateCharacter(
@@ -283,7 +325,8 @@ describe('useConversationSettingsGeneration', () => {
       wrapper: createWrapper(store),
     });
 
-    let generatedCharacters: any = null;
+    let generatedCharacters: { name: string; personality?: string }[] | null =
+      null;
 
     await act(async () => {
       generatedCharacters = await result.current.generateCharacter(
@@ -304,7 +347,8 @@ describe('useConversationSettingsGeneration', () => {
       wrapper: createWrapper(store),
     });
 
-    let generatedCharacters: any = null;
+    let generatedCharacters: { name: string; personality?: string }[] | null =
+      null;
 
     await act(async () => {
       generatedCharacters = await result.current.generateCharacter(
@@ -380,19 +424,30 @@ describe('useConversationSettingsGeneration', () => {
   });
 
   it('should show warning when background is empty for outline', async () => {
-    (useConversationSettingsForm as any).mockReturnValue({
-      formData: {
-        background: '',
-        characters: ['Alice'],
-        characterPersonality: {},
-      },
-      conversationId: 'conv_001',
-      isGeneratingCharacter: false,
-      isGeneratingOutline: false,
-      setGeneratingCharacter: mockSetGeneratingCharacter,
-      setGeneratingOutline: mockSetGeneratingOutline,
-      updateFields: mockUpdateFields,
-    });
+    vi.mocked(useConversationSettingsForm).mockReturnValue(
+      createMockConversationSettingsForm({
+        formData: {
+          title: '',
+          background: '',
+          supplement: '',
+          characters: ['Alice'],
+          characterPersonality: {},
+          characterIsMain: {},
+          characterGenerationHints: '',
+          outline: '',
+          generatedOutline: null,
+          outlineConfirmed: false,
+          allowAutoGenerateCharacters: false,
+          allowAutoGenerateMainCharacters: false,
+        },
+        conversationId: 'conv_001',
+        isGeneratingCharacter: false,
+        isGeneratingOutline: false,
+        setGeneratingCharacter: mockSetGeneratingCharacter,
+        setGeneratingOutline: mockSetGeneratingOutline,
+        updateFields: mockUpdateFields,
+      })
+    );
 
     const store = createTestStore();
     const { result } = renderHook(() => useConversationSettingsGeneration(), {
@@ -411,19 +466,30 @@ describe('useConversationSettingsGeneration', () => {
   });
 
   it('should show warning when no valid characters for outline', async () => {
-    (useConversationSettingsForm as any).mockReturnValue({
-      formData: {
-        background: 'Test background',
-        characters: ['', '   '],
-        characterPersonality: {},
-      },
-      conversationId: 'conv_001',
-      isGeneratingCharacter: false,
-      isGeneratingOutline: false,
-      setGeneratingCharacter: mockSetGeneratingCharacter,
-      setGeneratingOutline: mockSetGeneratingOutline,
-      updateFields: mockUpdateFields,
-    });
+    vi.mocked(useConversationSettingsForm).mockReturnValue(
+      createMockConversationSettingsForm({
+        formData: {
+          title: '',
+          background: 'Test background',
+          supplement: '',
+          characters: ['', '   '],
+          characterPersonality: {},
+          characterIsMain: {},
+          characterGenerationHints: '',
+          outline: '',
+          generatedOutline: null,
+          outlineConfirmed: false,
+          allowAutoGenerateCharacters: false,
+          allowAutoGenerateMainCharacters: false,
+        },
+        conversationId: 'conv_001',
+        isGeneratingCharacter: false,
+        isGeneratingOutline: false,
+        setGeneratingCharacter: mockSetGeneratingCharacter,
+        setGeneratingOutline: mockSetGeneratingOutline,
+        updateFields: mockUpdateFields,
+      })
+    );
 
     const store = createTestStore();
     const { result } = renderHook(() => useConversationSettingsGeneration(), {
@@ -442,19 +508,30 @@ describe('useConversationSettingsGeneration', () => {
   });
 
   it('should show error when conversationId is missing for outline', async () => {
-    (useConversationSettingsForm as any).mockReturnValue({
-      formData: {
-        background: 'Test background',
-        characters: ['Alice'],
-        characterPersonality: {},
-      },
-      conversationId: null,
-      isGeneratingCharacter: false,
-      isGeneratingOutline: false,
-      setGeneratingCharacter: mockSetGeneratingCharacter,
-      setGeneratingOutline: mockSetGeneratingOutline,
-      updateFields: mockUpdateFields,
-    });
+    vi.mocked(useConversationSettingsForm).mockReturnValue(
+      createMockConversationSettingsForm({
+        formData: {
+          title: '',
+          background: 'Test background',
+          supplement: '',
+          characters: ['Alice'],
+          characterPersonality: {},
+          characterIsMain: {},
+          characterGenerationHints: '',
+          outline: '',
+          generatedOutline: null,
+          outlineConfirmed: false,
+          allowAutoGenerateCharacters: false,
+          allowAutoGenerateMainCharacters: false,
+        },
+        conversationId: null,
+        isGeneratingCharacter: false,
+        isGeneratingOutline: false,
+        setGeneratingCharacter: mockSetGeneratingCharacter,
+        setGeneratingOutline: mockSetGeneratingOutline,
+        updateFields: mockUpdateFields,
+      })
+    );
 
     const store = createTestStore();
     const { result } = renderHook(() => useConversationSettingsGeneration(), {
@@ -492,23 +569,34 @@ describe('useConversationSettingsGeneration', () => {
   });
 
   it('should filter valid characters and personality for outline', async () => {
-    (useConversationSettingsForm as any).mockReturnValue({
-      formData: {
-        background: 'Test background',
-        characters: ['Alice', '', 'Bob', '   '],
-        characterPersonality: {
-          Alice: 'Brave',
-          Bob: 'Kind',
-          Charlie: 'Should not appear',
+    vi.mocked(useConversationSettingsForm).mockReturnValue(
+      createMockConversationSettingsForm({
+        formData: {
+          title: '',
+          background: 'Test background',
+          supplement: '',
+          characters: ['Alice', '', 'Bob', '   '],
+          characterPersonality: {
+            Alice: 'Brave',
+            Bob: 'Kind',
+            Charlie: 'Should not appear',
+          },
+          characterIsMain: {},
+          characterGenerationHints: '',
+          outline: '',
+          generatedOutline: null,
+          outlineConfirmed: false,
+          allowAutoGenerateCharacters: false,
+          allowAutoGenerateMainCharacters: false,
         },
-      },
-      conversationId: 'conv_001',
-      isGeneratingCharacter: false,
-      isGeneratingOutline: false,
-      setGeneratingCharacter: mockSetGeneratingCharacter,
-      setGeneratingOutline: mockSetGeneratingOutline,
-      updateFields: mockUpdateFields,
-    });
+        conversationId: 'conv_001',
+        isGeneratingCharacter: false,
+        isGeneratingOutline: false,
+        setGeneratingCharacter: mockSetGeneratingCharacter,
+        setGeneratingOutline: mockSetGeneratingOutline,
+        updateFields: mockUpdateFields,
+      })
+    );
 
     const mockOutline = 'Generated outline';
     mockGenerateOutline.mockResolvedValueOnce(mockOutline);

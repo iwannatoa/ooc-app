@@ -14,9 +14,12 @@ export const useAiClient = (settings: AppSettings) => {
     if (
       aiApi &&
       'updateSettings' in aiApi &&
-      typeof aiApi.updateSettings === 'function'
+      typeof (aiApi as { updateSettings?: (settings: AppSettings) => void })
+        .updateSettings === 'function'
     ) {
-      (aiApi as any).updateSettings(settings);
+      (
+        aiApi as { updateSettings: (settings: AppSettings) => void }
+      ).updateSettings(settings);
     }
   }, [aiApi, settings]);
 
