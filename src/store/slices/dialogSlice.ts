@@ -205,7 +205,7 @@ const dialogSlice = createSlice({
           payload: {
             ...dialog.payload,
             ...payload,
-          } as any,
+          } as Dialog['payload'],
         };
       }
     },

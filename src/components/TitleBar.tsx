@@ -1,5 +1,5 @@
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { useI18n } from '@/i18n';
+import { useI18n } from '@/i18n/i18n';
 import styles from './TitleBar.module.scss';
 
 export const TitleBar = () => {

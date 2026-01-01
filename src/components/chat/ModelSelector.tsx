@@ -1,6 +1,6 @@
 import React from 'react';
 import { OllamaModel } from '@/types';
-import { useI18n } from '@/i18n';
+import { useI18n } from '@/i18n/i18n';
 import styles from './ModelSelector.module.scss';
 
 interface ModelSelectorProps {

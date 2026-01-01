@@ -3,7 +3,6 @@ Chat controller
 """
 from flask import Flask, request, jsonify
 from injector import inject
-import json
 import threading
 import time
 import os

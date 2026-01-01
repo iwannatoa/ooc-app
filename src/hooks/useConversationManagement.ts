@@ -15,7 +15,7 @@ import { useSettingsState } from './useSettingsState';
 import { useUIState } from './useUIState';
 import { useConversationSettingsDialog, useSummaryPromptDialog } from './useDialog';
 import { confirmDialog } from '@/services/confirmDialogService';
-import { useI18n } from '@/i18n';
+import { useI18n } from '@/i18n/i18n';
 
 export const useConversationManagement = () => {
   const [conversations, setConversations] = useState<
@@ -95,7 +95,7 @@ export const useConversationManagement = () => {
   const handleNewConversation = useCallback(() => {
     const newId = `conv_${Date.now()}_${Math.random()
       .toString(36)
-      .substr(2, 9)}`;
+      .substring(2, 9)}`;
     setPendingConversationId(newId);
     setIsNewConversation(true);
     // Open settings dialog for new conversation
@@ -324,14 +324,14 @@ export const useConversationManagement = () => {
   );
 
   // Get current settings for active conversation
-  const currentSettings = conversations.find(
+  const conversationSettings = conversations.find(
     (c) => c.id === (pendingConversationId || activeConversationId)
   )?.settings;
 
   return {
     conversations,
     activeConversationId,
-    currentSettings,
+    conversationSettings,
     isNewConversation,
     pendingConversationId,
     loading,

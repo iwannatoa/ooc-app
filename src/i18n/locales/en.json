@@ -167,7 +167,8 @@
     "logLevelWarn": "Warn",
     "logLevelInfo": "Info",
     "logLevelDebug": "Debug",
-    "enableDiagnostics": "Enable Diagnostics"
+    "enableDiagnostics": "Enable Diagnostics",
+    "fieldRequired": "This field is required"
   },
   "conversationSettingsForm": {
     "title": "Story Settings",

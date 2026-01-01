@@ -1,23 +1,10 @@
 import React from 'react';
-import { useI18n } from '@/i18n';
+import { useI18n } from '@/i18n/i18n';
 import { useConversationManagement } from '@/hooks/useConversationManagement';
 import { useUIState } from '@/hooks/useUIState';
 import styles from './ConversationList.module.scss';
 
-interface ConversationListProps {
-  // Optional props for backward compatibility, but component will use hooks directly
-  conversations?: never;
-  activeConversationId?: never;
-  onSelectConversation?: never;
-  onDeleteConversation?: never;
-  onNewConversation?: never;
-  onRefresh?: never;
-  onCollapseChange?: never;
-  isCollapsed?: never;
-  onToggleCollapse?: never;
-}
-
-const ConversationList: React.FC<ConversationListProps> = () => {
+const ConversationList: React.FC = () => {
   const { t } = useI18n();
   const {
     conversations,
@@ -27,11 +14,9 @@ const ConversationList: React.FC<ConversationListProps> = () => {
     handleNewConversation,
     loadConversations,
   } = useConversationManagement();
-  const {
-    conversationListCollapsed,
-    setConversationListCollapsed,
-  } = useUIState();
-  
+  const { conversationListCollapsed, setConversationListCollapsed } =
+    useUIState();
+
   const handleToggleCollapse = () => {
     setConversationListCollapsed(!conversationListCollapsed);
   };
@@ -47,7 +32,11 @@ const ConversationList: React.FC<ConversationListProps> = () => {
   };
 
   return (
-    <div className={`${styles.conversationList} ${conversationListCollapsed ? styles.collapsed : ''}`}>
+    <div
+      className={`${styles.conversationList} ${
+        conversationListCollapsed ? styles.collapsed : ''
+      }`}
+    >
       <div className={styles.header}>
         <h2>{t('conversation.title')}</h2>
         <div className={styles.headerActions}>
@@ -72,7 +61,11 @@ const ConversationList: React.FC<ConversationListProps> = () => {
           <button
             onClick={handleToggleCollapse}
             className={styles.collapseButton}
-            title={conversationListCollapsed ? t('common.expand') : t('common.collapse')}
+            title={
+              conversationListCollapsed
+                ? t('common.expand')
+                : t('common.collapse')
+            }
           >
             {conversationListCollapsed ? '▶' : '▼'}
           </button>
@@ -80,43 +73,50 @@ const ConversationList: React.FC<ConversationListProps> = () => {
       </div>
       {!conversationListCollapsed && (
         <div className={styles.list}>
-        {conversations.length === 0 ? (
-          <div className={styles.empty}>
-            <p>{t('conversation.noConversations')}</p>
-            <button onClick={handleNewConversation} className={styles.emptyButton}>
-              {t('conversation.newConversation')}
-            </button>
-          </div>
-        ) : (
-          conversations.map((conv) => (
-            <div
-              key={conv.id}
-              className={`${styles.item} ${
-                activeConversationId === conv.id ? styles.active : ''
-              }`}
-              onClick={() => handleSelectConversation(conv.id)}
-            >
-              <div className={styles.itemContent}>
-                <div className={styles.title}>
-                  {conv.settings?.title || conv.title || t('conversation.unnamedConversation')}
-                </div>
-                <div className={styles.meta}>
-                  {formatDate(conv.settings?.updated_at || conv.updatedAt.toString())}
-                </div>
-              </div>
+          {conversations.length === 0 ? (
+            <div className={styles.empty}>
+              <p>{t('conversation.noConversations')}</p>
               <button
-                className={styles.deleteButton}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDeleteConversation(conv.id);
-                }}
-                title={t('conversation.deleteConversation')}
+                onClick={handleNewConversation}
+                className={styles.emptyButton}
               >
-                ×
+                {t('conversation.newConversation')}
               </button>
             </div>
-          ))
-        )}
+          ) : (
+            conversations.map((conv) => (
+              <div
+                key={conv.id}
+                className={`${styles.item} ${
+                  activeConversationId === conv.id ? styles.active : ''
+                }`}
+                onClick={() => handleSelectConversation(conv.id)}
+              >
+                <div className={styles.itemContent}>
+                  <div className={styles.title}>
+                    {conv.settings?.title ||
+                      conv.title ||
+                      t('conversation.unnamedConversation')}
+                  </div>
+                  <div className={styles.meta}>
+                    {formatDate(
+                      conv.settings?.updated_at || conv.updatedAt.toString()
+                    )}
+                  </div>
+                </div>
+                <button
+                  className={styles.deleteButton}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteConversation(conv.id);
+                  }}
+                  title={t('conversation.deleteConversation')}
+                >
+                  ×
+                </button>
+              </div>
+            ))
+          )}
         </div>
       )}
     </div>

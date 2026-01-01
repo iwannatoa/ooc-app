@@ -10,7 +10,7 @@ import { useStoryActions } from './useStoryActions';
 import { useSettingsState } from './useSettingsState';
 import { useToast } from './useToast';
 import { useStoryProgress } from './useStoryProgress';
-import { useI18n } from '@/i18n';
+import { useI18n } from '@/i18n/i18n';
 import { confirmDialog } from '@/services/confirmDialogService';
 import {
   ConversationWithSettings,
@@ -89,7 +89,6 @@ export const useAppLogic = () => {
     conversations,
     activeConversationId,
     pendingConversationId,
-    summaryMessageCount,
     handleSaveSettings,
     handleGenerateSummary,
     handleSaveSummary,
@@ -196,10 +195,7 @@ export const useAppLogic = () => {
 
   return {
     // State
-    messages,
     currentSettings,
-    settings,
-    summaryMessageCount,
     canGenerate,
     canConfirm,
     canDeleteLast: messages.length > 0,
@@ -216,8 +212,5 @@ export const useAppLogic = () => {
     handleRewriteSection,
     handleModifySection,
     handleDeleteLastMessage,
-
-    // Others
-    t,
   };
 };

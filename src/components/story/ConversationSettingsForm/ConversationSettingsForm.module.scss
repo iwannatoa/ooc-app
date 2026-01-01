@@ -1,0 +1,391 @@
+@use 'sass:color';
+@use '@/styles/variables' as *;
+@use '@/styles/mixins' as *;
+
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal {
+  background: $bg-dark;
+  border-radius: $border-radius-lg;
+  width: 90%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+
+  // Custom scrollbar styling
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: $bg-darker;
+    border-radius: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: $border-color;
+    border-radius: 4px;
+
+    &:hover {
+      background: $border-color-hover;
+    }
+  }
+}
+
+.header {
+  @include flex-row;
+  justify-content: space-between;
+  align-items: center;
+  padding: $spacing-lg;
+  border-bottom: 1px solid $border-color;
+
+  h2 {
+    margin: 0;
+    font-size: $font-size-lg;
+    font-weight: 600;
+    color: $text-primary;
+  }
+}
+
+.closeButton {
+  background: none;
+  border: none;
+  font-size: $font-size-xl;
+  color: $text-secondary;
+  cursor: pointer;
+  padding: $spacing-xs;
+  line-height: 1;
+  transition: color 0.2s;
+
+  &:hover {
+    color: $text-primary;
+  }
+}
+
+.form {
+  padding: $spacing-lg;
+}
+
+.field {
+  margin-bottom: $spacing-lg;
+
+  label {
+    display: block;
+    margin-bottom: $spacing-sm;
+    font-weight: 500;
+    color: $text-primary;
+    @include flex-row;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  input[type='text'],
+  textarea {
+    width: 100%;
+    padding: $spacing-sm;
+    background: $bg-darker;
+    border: 1px solid $border-color;
+    border-radius: $border-radius;
+    color: $text-primary;
+    font-size: $font-size-sm;
+    font-family: inherit;
+
+    &:focus {
+      outline: none;
+      border-color: $primary-color;
+    }
+
+    &::placeholder {
+      color: $text-secondary;
+    }
+  }
+
+  textarea {
+    resize: vertical;
+    min-height: 80px;
+  }
+}
+
+.addButton {
+  padding: $spacing-xs $spacing-sm;
+  background: $primary-color;
+  color: white;
+  border: none;
+  border-radius: $border-radius;
+  cursor: pointer;
+  font-size: $font-size-xs;
+  transition: background 0.2s;
+
+  &:hover {
+    background: $primary-color-hover;
+  }
+}
+
+.characterRow {
+  @include flex-row;
+  gap: $spacing-sm;
+  margin-bottom: $spacing-sm;
+  align-items: center;
+}
+
+.characterInput {
+  flex: 1;
+}
+
+.personalityInput {
+  flex: 2;
+}
+
+.characterHintsInput {
+  width: 100%;
+  padding: $spacing-xs $spacing-sm;
+  background: $bg-darker;
+  border: 1px solid $border-color;
+  border-radius: $border-radius;
+  color: $text-primary;
+  font-size: $font-size-xs;
+  font-family: inherit;
+
+  &:focus {
+    outline: none;
+    border-color: $primary-color;
+  }
+
+  &::placeholder {
+    color: $text-secondary;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.removeButton {
+  padding: $spacing-xs $spacing-sm;
+  background: $error-color;
+  color: white;
+  border: none;
+  border-radius: $border-radius;
+  cursor: pointer;
+  font-size: $font-size-xs;
+  transition: background 0.2s;
+
+  &:hover {
+    background: $error-color-hover;
+  }
+}
+
+.generateButton {
+  padding: $spacing-xs $spacing-sm;
+  background: $primary-color;
+  color: white;
+  border: none;
+  border-radius: $border-radius;
+  cursor: pointer;
+  font-size: $font-size-xs;
+  transition: background 0.2s;
+  margin-left: $spacing-sm;
+
+  &:hover:not(:disabled) {
+    background: $primary-color-hover;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.generatedOutline {
+  margin-bottom: $spacing-md;
+  padding: $spacing-md;
+  background: $bg-darker;
+  border: 1px solid $primary-color;
+  border-radius: $border-radius;
+}
+
+.generatedHeader {
+  @include flex-row;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: $spacing-sm;
+  font-weight: 500;
+  color: $text-primary;
+}
+
+.generatedActions {
+  @include flex-row;
+  gap: $spacing-xs;
+}
+
+.confirmButton,
+.regenerateButton {
+  padding: $spacing-xs $spacing-sm;
+  border: none;
+  border-radius: $border-radius;
+  cursor: pointer;
+  font-size: $font-size-xs;
+  transition: all 0.2s;
+}
+
+.confirmButton {
+  background: $primary-color;
+  color: white;
+
+  &:hover {
+    background: $primary-color-hover;
+  }
+}
+
+.regenerateButton {
+  background: $bg-light;
+  color: $text-primary;
+  border: 1px solid $border-color;
+
+  &:hover:not(:disabled) {
+    background: $bg-hover;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.generatedContent {
+  white-space: pre-wrap;
+  color: $text-secondary;
+  line-height: 1.6;
+  max-height: 300px;
+  overflow-y: auto;
+  font-size: $font-size-sm;
+}
+
+.actions {
+  @include flex-row;
+  justify-content: flex-end;
+  gap: $spacing-sm;
+  margin-top: $spacing-xl;
+  padding-top: $spacing-lg;
+  border-top: 1px solid $border-color;
+}
+
+.cancelButton,
+.submitButton {
+  padding: $spacing-sm $spacing-lg;
+  border: none;
+  border-radius: $border-radius;
+  cursor: pointer;
+  font-size: $font-size-sm;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.cancelButton {
+  background: $bg-darker;
+  color: $text-primary;
+
+  &:hover {
+    background: $bg-hover;
+  }
+}
+
+.submitButton {
+  background: $primary-color;
+  color: white;
+
+  &:hover {
+    background: $primary-color-hover;
+  }
+}
+
+.loadingContainer {
+  display: flex;
+  align-items: center;
+  gap: $spacing-xs;
+}
+
+.spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// Character Management specific styles
+.fieldHeader {
+  @include flex-row;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: $spacing-sm;
+}
+
+.fieldLabel {
+  margin: 0;
+}
+
+.fieldActions {
+  @include flex-row;
+  gap: $spacing-sm;
+}
+
+.characterMainLabel {
+  @include flex-row;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  font-size: 12px;
+  cursor: pointer;
+  margin-left: $spacing-sm;
+}
+
+.characterHintsContainer {
+  margin-top: $spacing-sm;
+  @include flex-row;
+  gap: $spacing-sm;
+  align-items: center;
+}
+
+.characterHintsInputFlex {
+  flex: 1;
+}
+
+// Auto Generation Options specific styles
+.checkboxContainer {
+  @include flex-row;
+  align-items: center;
+  gap: $spacing-sm;
+}
+
+.checkboxTooltip {
+  font-size: 12px;
+  color: $text-secondary;
+  margin-top: 4px;
+  margin-left: 24px;
+}
+
+.checkboxLabel {
+  margin-top: $spacing-md;
+  display: block;
+}

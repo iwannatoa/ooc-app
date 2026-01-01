@@ -7,7 +7,6 @@
  */
 
 import { BaseApiClient } from './base';
-import type { GetApiUrlFn } from './base';
 import { AppSettings } from '@/types';
 
 export class SettingsApi extends BaseApiClient {

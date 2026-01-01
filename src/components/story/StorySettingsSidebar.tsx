@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ConversationSettings } from '@/types';
-import { useI18n } from '@/i18n';
+import { useI18n } from '@/i18n/i18n';
 import { useConversationSettingsDialog, useStorySettingsViewDialog } from '@/hooks/useDialog';
 import { useConversationManagement } from '@/hooks/useConversationManagement';
 import styles from './StorySettingsSidebar.module.scss';
@@ -20,7 +20,8 @@ const StorySettingsSidebar: React.FC<StorySettingsSidebarProps> = ({
   const [isExpanded, setIsExpanded] = useState(false);
   const settingsDialog = useConversationSettingsDialog();
   const viewDialog = useStorySettingsViewDialog();
-  const { activeConversationId, currentSettings } = useConversationManagement();
+  const { activeConversationId, conversationSettings: currentSettings } =
+    useConversationManagement();
 
   const handleEdit = () => {
     if (activeConversationId) {

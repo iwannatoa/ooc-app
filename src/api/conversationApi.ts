@@ -72,7 +72,7 @@ export class ConversationApi extends BaseApiClient {
         character_personality: response.settings.character_personality || {},
       };
     } catch (error) {
-      if ((error as any).status === 404) {
+      if (error && typeof error === 'object' && 'status' in error && (error as { status: unknown }).status === 404) {
         return null;
       }
       throw error;
@@ -199,7 +199,7 @@ export class ConversationApi extends BaseApiClient {
       );
       return response.summary;
     } catch (error) {
-      if ((error as any).status === 404) {
+      if (error && typeof error === 'object' && 'status' in error && (error as { status: unknown }).status === 404) {
         return null;
       }
       throw error;

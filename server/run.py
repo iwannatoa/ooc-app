@@ -60,6 +60,7 @@ if not os.getenv('DB_PATH'):
 import socket
 from werkzeug.serving import make_server
 from app import app, config, logger
+import app as app_module  # Import app module to set _server_instance
 
 if __name__ == '__main__':
     requested_port = int(os.getenv('FLASK_PORT', '0'))
@@ -72,6 +73,9 @@ if __name__ == '__main__':
     server = make_server(config.HOST, requested_port, app)
     actual_port = server.server_port
     
+    # Store server instance in app module for shutdown API
+    app_module._server_instance = server
+    
     print(f"FLASK_PORT:{actual_port}", flush=True)
     
     logger.info("Starting Flask server...")
@@ -81,5 +85,12 @@ if __name__ == '__main__':
     if os.getenv('DB_PATH'):
         logger.info(f"Database path: {os.getenv('DB_PATH')}")
     
-    server.serve_forever()
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        logger.info("=" * 60)
+        logger.info("Flask server received interrupt signal, shutting down...")
+        logger.info("=" * 60)
+        server.shutdown()
+        logger.info("Server shutdown completed")
 

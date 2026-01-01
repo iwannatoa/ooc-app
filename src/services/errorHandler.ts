@@ -132,17 +132,12 @@ class ErrorHandlerService {
     }
 
     // Otherwise use category-based message
-    return categoryMessage || t('error.unknown', { defaultValue: 'An error occurred' });
+    return categoryMessage || t('error.unknown');
   }
 }
 
 // Singleton instance
 const errorHandlerService = new ErrorHandlerService();
-
-/**
- * Get error handler service instance
- */
-export const getErrorHandlerService = () => errorHandlerService;
 
 /**
  * Get error handler service instance

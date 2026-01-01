@@ -5,7 +5,7 @@
 import React, { useCallback } from 'react';
 import { save } from '@tauri-apps/plugin-dialog';
 import { writeTextFile } from '@tauri-apps/plugin-fs';
-import { useI18n } from '@/i18n';
+import { useI18n } from '@/i18n/i18n';
 import { useConversationManagement } from '@/hooks/useConversationManagement';
 import { useChatState } from '@/hooks/useChatState';
 import { useChatActions } from '@/hooks/useChatActions';
@@ -16,24 +16,10 @@ import { useToast } from '@/hooks/useToast';
 import ModelSelector from './ModelSelector';
 import styles from '../../styles.module.scss';
 
-interface ChatControlsProps {
-  // Optional props for backward compatibility, but component will use hooks directly
-  conversationListCollapsed?: never;
-  settingsSidebarCollapsed?: never;
-  activeConversationId?: never;
-  currentSettings?: never;
-  appSettings?: never;
-  models?: never;
-  currentModel?: never;
-  onModelChange?: never;
-  onExpandConversationList?: never;
-  onNewConversation?: never;
-  onExpandSettingsSidebar?: never;
-}
 
-export const ChatControls: React.FC<ChatControlsProps> = () => {
+export const ChatControls: React.FC = () => {
   const { t } = useI18n();
-  const { activeConversationId, currentSettings, handleNewConversation } =
+  const { activeConversationId, conversationSettings, handleNewConversation } =
     useConversationManagement();
   const { models, messages } = useChatState();
   const { handleModelChange, getCurrentModel } = useChatActions();
@@ -57,7 +43,7 @@ export const ChatControls: React.FC<ChatControlsProps> = () => {
     try {
       // Get story title
       const storyTitle =
-        currentSettings?.title || t('conversation.unnamedConversation');
+        conversationSettings?.title || t('conversation.unnamedConversation');
 
       // Get current chapter number
       const chapterNumber =
@@ -108,7 +94,7 @@ export const ChatControls: React.FC<ChatControlsProps> = () => {
   }, [
     activeConversationId,
     messages,
-    currentSettings,
+    conversationSettings,
     progress,
     t,
     showError,
@@ -143,10 +129,11 @@ export const ChatControls: React.FC<ChatControlsProps> = () => {
       )}
 
       {/* Story title and chapter info */}
-      {activeConversationId && currentSettings && (
+      {activeConversationId && conversationSettings && (
         <div className={styles.storyInfo}>
           <span className={styles.storyTitle}>
-            {currentSettings.title || t('conversation.unnamedConversation')}
+            {conversationSettings.title ||
+              t('conversation.unnamedConversation')}
           </span>
           {progress && progress.current_section !== undefined && (
             <span className={styles.storyChapter}>
@@ -158,7 +145,7 @@ export const ChatControls: React.FC<ChatControlsProps> = () => {
       )}
 
       {/* Export button - positioned on the right */}
-      {activeConversationId && currentSettings && messages.length > 0 && (
+      {activeConversationId && conversationSettings && messages.length > 0 && (
         <button
           onClick={handleExportStory}
           className={styles.exportButton}
@@ -181,15 +168,17 @@ export const ChatControls: React.FC<ChatControlsProps> = () => {
       )}
 
       {/* Expand settings sidebar button */}
-      {activeConversationId && currentSettings && settingsSidebarCollapsed && (
-        <button
-          onClick={() => setSettingsSidebarCollapsed(false)}
-          className={styles.expandButton}
-          title={t('common.expand') + ' ' + t('storySettings.title')}
-        >
-          ▶ {t('storySettings.titleShort')}
-        </button>
-      )}
+      {activeConversationId &&
+        conversationSettings &&
+        settingsSidebarCollapsed && (
+          <button
+            onClick={() => setSettingsSidebarCollapsed(false)}
+            className={styles.expandButton}
+            title={t('common.expand') + ' ' + t('storySettings.title')}
+          >
+            ▶ {t('storySettings.titleShort')}
+          </button>
+        )}
     </div>
   );
 };

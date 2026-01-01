@@ -10,6 +10,7 @@ import { ConversationApi, TranslationFn } from './conversationApi';
 import { AiApi } from './aiApi';
 import { StoryApi } from './storyApi';
 import { SettingsApi } from './settingsApi';
+import { ServerApi } from './serverApi';
 import { AppSettings } from '@/types';
 
 // Export base classes and types
@@ -21,6 +22,7 @@ export { AiApi } from './aiApi';
 export { StoryApi } from './storyApi';
 export type { StoryActionResponse } from './storyApi';
 export { SettingsApi } from './settingsApi';
+export { ServerApi } from './serverApi';
 
 /**
  * API Client Factory
@@ -70,6 +72,13 @@ export class ApiClientFactory {
   }
 
   /**
+   * Create server API client
+   */
+  createServerApi(): ServerApi {
+    return new ServerApi(this.getApiUrl);
+  }
+
+  /**
    * Update settings (affects AI and Story APIs)
    */
   updateSettings(settings: AppSettings) {
@@ -77,15 +86,4 @@ export class ApiClientFactory {
   }
 }
 
-/**
- * Create API client factory
- * This is a convenience function for creating the factory
- */
-export function createApiClientFactory(
-  getApiUrl: GetApiUrlFn,
-  t: TranslationFn,
-  settings: AppSettings
-): ApiClientFactory {
-  return new ApiClientFactory(getApiUrl, t, settings);
-}
 

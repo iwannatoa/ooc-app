@@ -11,7 +11,7 @@
 import { BaseApiClient } from './base';
 import type { GetApiUrlFn } from './base';
 import { AppSettings } from '@/types';
-import { stripThinkContent } from '@/utils/stripThinkContent';
+import { stripThinkContent } from '@/utils/parseThinkContent';
 
 export interface StoryActionResponse {
   success: boolean;

@@ -201,7 +201,7 @@ class StoryGenerationService:
             )
             
             self.chat_service.save_user_message(conversation_id, user_message)
-            assistant_msg = self.chat_service.save_assistant_message(
+            self.chat_service.save_assistant_message(
                 conversation_id=conversation_id,
                 content=clean_content,  # Save cleaned content without character tags
                 model=result.get('model'),
@@ -331,7 +331,7 @@ class StoryGenerationService:
                 )
                 
                 self.chat_service.save_user_message(conversation_id, user_message)
-                assistant_msg = self.chat_service.save_assistant_message(
+                self.chat_service.save_assistant_message(
                     conversation_id=conversation_id,
                     content=clean_content,  # Save cleaned content without character tags
                     model=api_config['model'],
@@ -451,7 +451,7 @@ class StoryGenerationService:
             )
             
             self.chat_service.save_user_message(conversation_id, user_message)
-            assistant_msg = self.chat_service.save_assistant_message(
+            self.chat_service.save_assistant_message(
                 conversation_id=conversation_id,
                 content=clean_content,  # Save cleaned content without character tags
                 model=result.get('model'),
@@ -591,7 +591,7 @@ class StoryGenerationService:
             )
             
             self.chat_service.save_user_message(conversation_id, feedback)
-            assistant_msg = self.chat_service.save_assistant_message(
+            self.chat_service.save_assistant_message(
                 conversation_id=conversation_id,
                 content=clean_content,  # Save cleaned content without character tags
                 model=result.get('model'),

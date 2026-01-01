@@ -5,6 +5,7 @@ import { AppSettings } from '@/types';
 import { DEFAULT_SETTINGS } from '@/types/constants';
 import { useApiClients } from './useApiClients';
 import { isMockMode } from '@/mock';
+import { loadAppearanceFromStorage } from '@/utils/theme';
 
 /**
  * Hook to load app settings from backend on app startup
@@ -52,11 +53,24 @@ export const useAppSettings = () => {
         };
         // Remove compactMode if it exists in the loaded settings
         if ('compactMode' in mergedSettings.appearance) {
-          delete (mergedSettings.appearance as any).compactMode;
+          delete mergedSettings.appearance.compactMode;
         }
         dispatch(setSettings(mergedSettings));
       } catch (error) {
         console.error('Failed to load settings from backend:', error);
+        
+        // Fallback to localStorage if backend load fails
+        const storedAppearance = loadAppearanceFromStorage();
+        if (storedAppearance) {
+          const fallbackSettings: AppSettings = {
+            ...DEFAULT_SETTINGS,
+            appearance: {
+              ...DEFAULT_SETTINGS.appearance,
+              ...storedAppearance,
+            },
+          };
+          dispatch(setSettings(fallbackSettings));
+        }
       }
     };
 

@@ -61,7 +61,7 @@ export const useDialog = () => {
         openDialog({
           id: dialogId,
           type,
-          payload: payload as any,
+          payload,
         } as Omit<Dialog, 'isOpen'>)
       );
       return dialogId;

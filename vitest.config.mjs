@@ -16,13 +16,16 @@ export default defineConfig({
         resources: 'usable',
       },
     },
+    reporters: ['verbose'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
       exclude: [
+        'scripts/**',
         'node_modules/',
         'src/test/',
         'src-tauri/**',
+        '**/__tests__/',
         '**/*.d.ts',
         '**/*.config.*',
         '**/mock/**',
@@ -31,6 +34,7 @@ export default defineConfig({
         'dist/**',
       ],
     },
+    silent: false,
   },
   resolve: {
     alias: {

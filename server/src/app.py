@@ -121,23 +121,47 @@ def health_check():
 def stop_server():
     import threading
     import time
-    def shutdown():
-        global _server_instance
-        time.sleep(1)
-        if _server_instance:
-            logger.info("Shutting down server via server.shutdown()")
-            _server_instance.shutdown()
-        else:
-            # Fallback: use os._exit if no other method available
-            import os
-            logger.info("Shutting down server via os._exit")
-            os._exit(0)
     
-    threading.Thread(target=shutdown, daemon=True).start()
-    return jsonify({
-        "success": True,
-        "message": "Server is shutting down"
-    })
+    logger.info("=" * 60)
+    logger.info("Flask server received shutdown request...")
+    logger.info("=" * 60)
+    
+    if _server_instance:
+        def shutdown():
+            # Give a small delay to ensure the response is sent first
+            time.sleep(0.1)
+            try:
+                logger.info("Shutting down server via server.shutdown()")
+                # shutdown() will stop accepting new requests and wait for current requests to complete
+                # Since we're in a separate thread, this won't block the current request
+                _server_instance.shutdown()
+                logger.info("Server shutdown completed")
+                logger.info("=" * 60)
+            except Exception as e:
+                logger.error(f"Error during shutdown: {e}")
+                logger.info("=" * 60)
+        
+        # Start shutdown in a separate thread (non-daemon so it completes)
+        shutdown_thread = threading.Thread(target=shutdown, daemon=False)
+        shutdown_thread.start()
+        
+        # Return response immediately - shutdown will happen in background
+        # The shutdown() call will wait for this request to complete before actually shutting down
+        return jsonify({
+            "success": True,
+            "message": "Server shutdown initiated"
+        })
+    else:
+        # Fallback: use os._exit if no other method available
+        import os
+        logger.info("Shutting down server via os._exit (no server instance found)")
+        logger.info("=" * 60)
+        # Give a moment for the response to be sent
+        threading.Thread(target=lambda: (time.sleep(0.1), os._exit(0)), daemon=True).start()
+        return jsonify({
+            "success": True,
+            "message": "Server is shutting down"
+        })
 
 
 @app.errorhandler(404)

@@ -67,11 +67,12 @@ Includes the following Mock models:
 ## Usage Example
 
 ```typescript
-import { isMockMode, mockConversationClient } from '@/mock';
+import { isMockMode } from '@/mock';
 
 if (isMockMode()) {
-  // Use Mock data
-  const conversations = await mockConversationClient.getConversationsList();
+  // Mock mode is automatically handled by mockRouter
+  // API calls will be intercepted and return mock responses
+  const response = await fetch('/api/conversations/list');
 } else {
   // Use real API
   const response = await fetch('/api/conversations/list');

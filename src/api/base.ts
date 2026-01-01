@@ -8,9 +8,8 @@
  * - Mock mode support
  */
 
-import { ApiResponse } from '@/types';
 import { API_CONSTANTS } from '@/constants';
-import { isMockMode } from '@/mock';
+import { mockRouter } from '@/mock/router';
 
 export interface RequestConfig extends RequestInit {
   timeout?: number;
@@ -53,7 +52,10 @@ export class BaseApiClient {
   protected getApiUrl: GetApiUrlFn;
   protected defaultTimeout: number;
 
-  constructor(getApiUrl: GetApiUrlFn, defaultTimeout = API_CONSTANTS.DEFAULT_TIMEOUT) {
+  constructor(
+    getApiUrl: GetApiUrlFn,
+    defaultTimeout = API_CONSTANTS.DEFAULT_TIMEOUT
+  ) {
     this.getApiUrl = getApiUrl;
     this.defaultTimeout = defaultTimeout;
   }
@@ -65,12 +67,24 @@ export class BaseApiClient {
     endpoint: string,
     config: RequestConfig = {}
   ): Promise<T> {
-    // Check mock mode first
-    if (isMockMode()) {
-      throw new Error('Mock mode should be handled by mock clients');
+    // Check mock router first
+    const mockResponse = await mockRouter.match(
+      config.method || 'GET',
+      endpoint,
+      {
+        body: config.body ? JSON.parse(config.body as string) : undefined,
+      }
+    );
+
+    if (mockResponse !== null) {
+      return mockResponse as T;
     }
 
-    const { timeout = this.defaultTimeout, skipErrorHandling, ...fetchConfig } = config;
+    const {
+      timeout = this.defaultTimeout,
+      skipErrorHandling,
+      ...fetchConfig
+    } = config;
 
     // Get base URL
     const baseUrl = await this.getApiUrl();
@@ -207,11 +221,24 @@ export class BaseApiClient {
     onChunk: (chunk: string, accumulated: string) => void,
     config: RequestConfig = {}
   ): Promise<string> {
-    if (isMockMode()) {
-      throw new Error('Mock mode should be handled by mock clients');
-    }
+    // Check mock router first for streaming endpoints
+    const mockResponse = await mockRouter.match('POST', endpoint, { body });
 
-    const { timeout = API_CONSTANTS.STREAMING_TIMEOUT } = config;
+    if (mockResponse !== null && mockResponse.success) {
+      // Simulate streaming by sending chunks
+      const content = mockResponse.response || mockResponse.outline || '';
+      const words = content.split('');
+      let accumulated = '';
+
+      for (let i = 0; i < words.length; i += 5) {
+        const chunk = words.slice(i, i + 5).join('');
+        accumulated += chunk;
+        onChunk(chunk, accumulated);
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+
+      return accumulated;
+    }
 
     // Get base URL
     const baseUrl = await this.getApiUrl();

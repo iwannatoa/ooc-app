@@ -4,9 +4,6 @@ import { useApiClients } from './useApiClients';
 
 /**
  * Hook for AI client operations
- *
- * @deprecated This hook is maintained for backward compatibility.
- * Consider using useApiClients hook directly for new code.
  */
 export const useAiClient = (settings: AppSettings) => {
   const [loading, setLoading] = useState(false);
@@ -17,9 +14,12 @@ export const useAiClient = (settings: AppSettings) => {
     if (
       aiApi &&
       'updateSettings' in aiApi &&
-      typeof aiApi.updateSettings === 'function'
+      typeof (aiApi as { updateSettings?: (settings: AppSettings) => void })
+        .updateSettings === 'function'
     ) {
-      (aiApi as any).updateSettings(settings);
+      (
+        aiApi as { updateSettings: (settings: AppSettings) => void }
+      ).updateSettings(settings);
     }
   }, [aiApi, settings]);
 
