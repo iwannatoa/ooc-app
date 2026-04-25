@@ -12,11 +12,7 @@ import {
   mockDelay,
   generateMockId,
 } from './data';
-import {
-  ConversationWithSettings,
-  ChatMessage,
-  CharacterRecord,
-} from '@/types';
+import type { ChatMessage } from '@/types';
 
 // Mock outline generation content
 const mockOutlines = [
@@ -57,7 +53,7 @@ const mockOutlines = [
 
 // Mock data state (simulating backend state)
 let mockConversationsData = [...mockConversations];
-let mockMessagesData: Record<string, ChatMessage[]> = { ...mockMessages };
+const mockMessagesData: Record<string, ChatMessage[]> = { ...mockMessages };
 
 /**
  * Register all conversation API routes
@@ -202,7 +198,7 @@ export function registerConversationRoutes(): void {
   mockRouter.register(
     'POST',
     '/api/conversation/generate-outline-stream',
-    async ({ body }) => {
+    async () => {
       // Note: Streaming is handled differently, this is a placeholder
       // Actual streaming should be handled in the stream method
       await mockDelay(1500);
@@ -216,7 +212,7 @@ export function registerConversationRoutes(): void {
   );
 
   // GET /api/conversation/summary
-  mockRouter.register('GET', '/api/conversation/summary', async ({ query }) => {
+  mockRouter.register('GET', '/api/conversation/summary', async () => {
     await mockDelay(200);
     return {
       success: false,
@@ -257,7 +253,7 @@ export function registerConversationRoutes(): void {
   mockRouter.register(
     'GET',
     '/api/conversation/progress',
-    async ({ query }) => {
+    async () => {
       await mockDelay(200);
       return {
         success: true,
@@ -270,7 +266,7 @@ export function registerConversationRoutes(): void {
   mockRouter.register(
     'POST',
     '/api/conversation/progress/confirm-outline',
-    async ({ body }) => {
+    async () => {
       await mockDelay(300);
       return {
         success: true,
@@ -335,7 +331,7 @@ export function registerConversationRoutes(): void {
   mockRouter.register(
     'POST',
     '/api/conversation/characters/generate',
-    async ({ body }) => {
+    async () => {
       await mockDelay(2000);
       return {
         success: true,
@@ -392,7 +388,7 @@ export function registerAiRoutes(): void {
   });
 
   // POST /api/chat-stream
-  mockRouter.register('POST', '/api/chat-stream', async ({ body }) => {
+  mockRouter.register('POST', '/api/chat-stream', async () => {
     // Streaming is handled in stream method
     await mockDelay(1000);
     const mockResponses = [
@@ -433,7 +429,7 @@ export function registerStoryRoutes(): void {
   mockRouter.register(
     'POST',
     '/api/story/generate-stream',
-    async ({ body }) => {
+    async () => {
       // Streaming is handled in stream method
       await mockDelay(800);
       return {
@@ -472,6 +468,27 @@ export function registerStoryRoutes(): void {
     return {
       success: true,
       response: `[修改] 根据您的修改要求"${body.feedback}"，这是修改后的故事内容。`,
+    };
+  });
+
+  mockRouter.register('POST', '/api/story/user-note', async ({ body }) => {
+    await mockDelay(100);
+    return {
+      success: true,
+      message: {
+        id: Date.now(),
+        role: 'user',
+        content: body.text || '',
+        created_at: new Date().toISOString(),
+      },
+    };
+  });
+
+  mockRouter.register('GET', '/api/story-templates', async () => {
+    await mockDelay(50);
+    return {
+      success: true,
+      templates: [{ id: 'builtin_fantasy', title: 'Fantasy starter (EN)' }],
     };
   });
 }

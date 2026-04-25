@@ -3,7 +3,7 @@
  * This rule specifically targets the pattern: (value as unknown as Type)
  */
 
-module.exports = {
+const rule = {
   meta: {
     type: 'problem',
     docs: {
@@ -36,5 +36,11 @@ module.exports = {
         }
       },
     };
+  },
+};
+
+module.exports = {
+  rules: {
+    'no-unknown-as': rule,
   },
 };

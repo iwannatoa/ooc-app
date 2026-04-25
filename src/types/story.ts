@@ -21,6 +21,17 @@ export interface StoryProgress {
 }
 
 /**
+ * Redux/UI: which long-running story or chat operation is active (for labels and loading).
+ */
+export type ChatStoryOperation =
+  | 'idle'
+  | 'generate'
+  | 'confirm'
+  | 'rewrite'
+  | 'modify'
+  | 'chat_stream';
+
+/**
  * Story action types
  */
 export type StoryActionType =

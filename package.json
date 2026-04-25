@@ -16,8 +16,9 @@
     "type-check": "tsc --noEmit",
     "lint": "npm run lint:ts && npm run lint:eslint && npm run lint:python && npm run lint:i18n",
     "lint:ts": "tsc --noEmit",
-    "lint:eslint": "eslint . --ext .ts,.tsx",
+    "lint:eslint": "eslint \"src/**/*.{ts,tsx}\" \"e2e/**/*.ts\" \"playwright.config.ts\" \"playwright.tauri.config.ts\"",
     "lint:python": "cd server && python -m flake8 src --config=.flake8",
+    "lint:i18n": "node scripts/check-i18n-keys.mjs",
     "check": "npm run lint && npm run test:python",
     "env:dev": "cp .env.development .env",
     "env:prod": "cp .env.production .env",
@@ -29,7 +30,10 @@
     "test:ui": "vitest --ui",
     "test:coverage:watch": "vitest --coverage",
     "test:python": "cd server && pytest",
-    "test:python:coverage": "cd server && pytest --cov=src --cov-report=html"
+    "test:python:coverage": "cd server && pytest --cov=src --cov-report=html",
+    "test:e2e": "playwright test",
+    "test:e2e:tauri": "playwright test --config=playwright.tauri.config.ts",
+    "test:e2e:install": "playwright install"
   },
   "keywords": [
     "Tauri",
@@ -38,6 +42,16 @@
   ],
   "author": "Patrick Zhang",
   "license": "MIT",
+  "overrides": {
+    "esbuild": "^0.25.11",
+    "rollup": "^4.59.0",
+    "vitest": {
+      "vite": "^6.4.2"
+    },
+    "vite-node": {
+      "vite": "^6.4.2"
+    }
+  },
   "dependencies": {
     "@reduxjs/toolkit": "^2.10.1",
     "@tauri-apps/api": "^2.9.0",
@@ -49,6 +63,9 @@
     "react-redux": "^9.2.0"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.11.2",
+    "@playwright/test": "^1.49.1",
+    "@srsholmes/tauri-playwright": "^0.2.2",
     "@tauri-apps/cli": "^2.9.3",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.0",
@@ -61,10 +78,11 @@
     "@typescript-eslint/eslint-plugin": "^8.51.0",
     "@typescript-eslint/parser": "^8.51.0",
     "@vitejs/plugin-react": "^5.1.0",
-    "@vitest/coverage-v8": "^2.1.8",
-    "@vitest/ui": "^2.1.8",
+    "@vitest/coverage-v8": "^2.1.9",
+    "@vitest/ui": "^2.1.9",
     "autoprefixer": "^10.4.21",
     "eslint": "^9.39.2",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
     "globals": "^16.5.0",
     "jsdom": "^25.0.1",
     "postcss": "^8.5.6",
@@ -73,6 +91,6 @@
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.51.0",
     "vite": "^7.3.0",
-    "vitest": "^2.1.8"
+    "vitest": "^2.1.9"
   }
 }

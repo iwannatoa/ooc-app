@@ -97,8 +97,8 @@ const ServerStatus: React.FC = () => {
             .then(() => {
               // Wait a bit to ensure React state is updated
               setTimeout(() => {
-                // Reload conversations list
-                loadConversations().catch((error) => {
+                // Reload conversations list (tests may mock without returning a Promise)
+                void Promise.resolve(loadConversations()).catch((error) => {
                   console.error('Failed to reload conversations list:', error);
                 });
                 // Reload current conversation history
@@ -125,7 +125,7 @@ const ServerStatus: React.FC = () => {
           lastReloadedConversationId.current = null;
         }
       }
-    } catch (error) {
+    } catch {
       const wasHealthy = isServerHealthy.current;
       setPythonServerStatus('error');
       setOllamaStatus('disconnected');
@@ -177,7 +177,7 @@ const ServerStatus: React.FC = () => {
       setPythonServerStatus('restarting');
       await invoke<ApiResponse<string>>('stop_python_server');
       await invoke<ApiResponse<string>>('start_python_server');
-    } catch (error) {
+    } catch {
       setPythonServerStatus('error');
       setError(t('serverStatus.restartFailed'));
     }

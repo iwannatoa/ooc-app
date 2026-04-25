@@ -31,6 +31,23 @@
   -webkit-app-region: drag;
 }
 
+.releasesLink {
+  margin-left: $spacing-md;
+  padding: 2px $spacing-sm;
+  font-size: $font-size-xs;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: $border-radius;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+
+  &:hover {
+    color: var(--text-primary);
+    background: var(--bg-light);
+  }
+}
+
 .titleBarControls {
   display: flex;
   align-items: center;

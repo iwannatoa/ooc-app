@@ -1,5 +1,5 @@
 import React, { ReactElement } from 'react';
-// @ts-ignore - Testing library types may not be installed during type check
+// @ts-expect-error Testing library types may not be installed during type check
 import { render, RenderOptions } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
@@ -9,12 +9,14 @@ import settingsReducer from '../store/slices/settingsSlice';
 import uiReducer from '../store/slices/uiSlice';
 import dialogReducer from '../store/slices/dialogSlice';
 import conversationSettingsFormReducer from '../store/slices/conversationSettingsFormSlice';
+import conversationsReducer from '../store/slices/conversationsSlice';
 
 const createTestStore = (initialState: any = {}) => {
   return configureStore({
     reducer: {
       server: serverReducer,
       chat: chatReducer,
+      conversations: conversationsReducer,
       settings: settingsReducer,
       ui: uiReducer,
       dialog: dialogReducer,
@@ -44,7 +46,7 @@ export const renderWithProviders = (
   return { store, ...render(ui, { wrapper: Wrapper, ...renderOptions }) };
 };
 
-// @ts-ignore - Testing library may not be installed during type check
+// @ts-expect-error Testing library may not be installed during type check
 export * from '@testing-library/react';
 
 // Export createTestStore for use in hook tests

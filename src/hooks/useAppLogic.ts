@@ -61,7 +61,7 @@ export const useAppLogic = () => {
   // ===== State Management Hooks =====
   const { messages, setMessages: setMessagesRedux } = useChatState();
   const { settings } = useSettingsState();
-  const { showError, showSuccess } = useToast();
+  const { showError, showSuccess, showWarning } = useToast();
   const { t } = useI18n();
   const conversationClient = useConversationClient();
   const { progress } = useStoryProgress();
@@ -138,15 +138,27 @@ export const useAppLogic = () => {
     setMessages,
     settings,
     showError,
+    showWarning,
     onConversationSelect: handleSelectConversation,
   });
 
   const {
     handleGenerateStory,
-    handleConfirmSection,
+    handleConfirmSection: runConfirmSection,
     handleRewriteSection,
     handleModifySection,
   } = storyActions;
+
+  const handleConfirmSection = useCallback(async () => {
+    const confirmed = await confirmDialog({
+      message: t('storyActions.confirmNextChapterBody'),
+      confirmText: t('storyActions.confirmNextChapterConfirm'),
+      cancelText: t('common.cancel'),
+      confirmButtonStyle: 'default',
+    });
+    if (!confirmed) return;
+    await runConfirmSection();
+  }, [runConfirmSection, t]);
 
   // ===== Delete Last Message Logic =====
   const handleDeleteLastMessage = useCallback(async () => {

@@ -2,6 +2,9 @@
 Chat record service layer
 """
 from typing import List, Optional, Dict
+
+from sqlalchemy.orm import Session
+
 from repository.chat_repository import ChatRepository
 from utils.logger import get_logger
 
@@ -23,7 +26,8 @@ class ChatService:
     def save_user_message(
         self,
         conversation_id: str,
-        message: str
+        message: str,
+        session: Optional[Session] = None,
     ) -> Dict:
         """
         Save user message
@@ -38,7 +42,8 @@ class ChatService:
         record = self.repository.save_message(
             conversation_id=conversation_id,
             role='user',
-            content=message
+            content=message,
+            session=session,
         )
         return record.to_dict()
     
@@ -47,7 +52,8 @@ class ChatService:
         conversation_id: str,
         content: str,
         model: Optional[str] = None,
-        provider: Optional[str] = None
+        provider: Optional[str] = None,
+        session: Optional[Session] = None,
     ) -> Dict:
         """
         Save assistant message
@@ -66,7 +72,8 @@ class ChatService:
             role='assistant',
             content=content,
             model=model,
-            provider=provider
+            provider=provider,
+            session=session,
         )
         return record.to_dict()
     

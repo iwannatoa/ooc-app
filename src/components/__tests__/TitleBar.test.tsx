@@ -3,7 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { TitleBar } from '../TitleBar';
 import * as useI18n from '@/i18n/i18n';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { createMockI18n } from '@/mock';
+import { createMockI18n } from '@/mock/testing';
 
 vi.mock('@/i18n/i18n');
 vi.mock('@tauri-apps/api/window');

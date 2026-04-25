@@ -1,12 +1,13 @@
 import { useConversationClient } from '@/hooks/useConversationClient';
 import { useI18n } from '@/i18n/i18n';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useConversationSettingsForm } from '@/hooks/useConversationSettingsForm';
 import { useConversationSettingsGeneration } from '@/hooks/useConversationSettingsGeneration';
 import { useConversationSettingsConverter } from '@/hooks/useConversationSettingsConverter';
 import { StoryBasicInfo } from './StoryBasicInfo';
 import { CharacterManagement } from './CharacterManagement';
 import { OutlineGeneration } from './OutlineGeneration';
+import { StoryLengthMode } from './StoryLengthMode';
 import { AutoGenerationOptions } from './AutoGenerationOptions';
 import styles from './ConversationSettingsForm.module.scss';
 
@@ -37,12 +38,31 @@ const ConversationSettingsForm: React.FC<ConversationSettingsFormProps> = ({
   // Form state management (Redux)
   const { formData, conversationId, isNewConversation, updateFields } =
     useConversationSettingsForm();
-
   // AI generation logic (Redux)
   const { generateOutline } = useConversationSettingsGeneration();
 
   // Data conversion
   const { toApiFormat } = useConversationSettingsConverter();
+
+  useEffect(() => {
+    if (!conversationId) return;
+    let cancelled = false;
+    void conversationClient.getProgress(conversationId).then((p) => {
+      if (cancelled || !p) return;
+      const ts = p.total_sections;
+      if (typeof ts === 'number' && ts >= 1) {
+        updateFields({
+          serializationOpenEnded: false,
+          finiteTotalSections: ts,
+        });
+      } else {
+        updateFields({ serializationOpenEnded: true });
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [conversationId, conversationClient, updateFields]);
 
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
@@ -78,6 +98,17 @@ const ConversationSettingsForm: React.FC<ConversationSettingsFormProps> = ({
     try {
       if (onSave) {
         await onSave(apiData);
+      }
+
+      const totalSections = formData.serializationOpenEnded
+        ? null
+        : Math.min(999, Math.max(1, formData.finiteTotalSections));
+      try {
+        await conversationClient.updateProgress(conversationId, {
+          total_sections: totalSections,
+        });
+      } catch (err) {
+        console.error('Failed to update story progress (total_sections):', err);
       }
 
       // Confirm outline if it was generated
@@ -125,6 +156,8 @@ const ConversationSettingsForm: React.FC<ConversationSettingsFormProps> = ({
           <CharacterManagement />
 
           <OutlineGeneration />
+
+          <StoryLengthMode />
 
           <AutoGenerationOptions />
 

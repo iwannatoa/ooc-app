@@ -2,6 +2,8 @@
 Streaming AI service support
 """
 from typing import Generator, Optional
+from config import get_config
+from infrastructure.langchain_chat import stream_langchain_chat
 from utils.logger import get_logger
 from utils.exceptions import ProviderError, ValidationError
 from service.ollama_service import OllamaService
@@ -61,13 +63,47 @@ class AIServiceStreaming:
         """
         if not message and not messages:
             raise ValidationError("Message or messages cannot be empty", field='message')
-        
+
+        cfg = get_config()
+        if cfg.USE_LANGCHAIN:
+            try:
+                yield from stream_langchain_chat(
+                    provider,
+                    message,
+                    model,
+                    api_key=api_key,
+                    base_url=base_url,
+                    max_tokens=max_tokens,
+                    temperature=temperature,
+                    system_prompt=system_prompt,
+                    messages=messages,
+                    ollama_base_url=self.ollama_service.base_url
+                    if provider == "ollama"
+                    else None,
+                )
+                return
+            except (ValidationError, ProviderError):
+                raise
+            except Exception as e:
+                logger.error(f"LangChain stream error: {str(e)}", exc_info=True)
+                raise ProviderError(
+                    f"Unexpected error: {str(e)}",
+                    provider=provider,
+                    status_code=500,
+                ) from e
+
         if provider == 'ollama':
             yield from self._chat_stream_ollama(message, model, system_prompt, messages)
         elif provider == 'deepseek':
             yield from self._chat_stream_deepseek(
                 message, model, api_key, base_url, max_tokens, temperature,
                 system_prompt, messages
+            )
+        elif provider == 'openai_compatible':
+            raise ProviderError(
+                "OpenAI-compatible provider requires USE_LANGCHAIN=true",
+                provider=provider,
+                status_code=400,
             )
         else:
             raise ProviderError(

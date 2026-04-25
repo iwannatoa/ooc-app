@@ -40,6 +40,10 @@ vi.mock('@/i18n/i18n', () => ({
   useI18n: vi.fn(),
 }));
 
+vi.mock('../useToast', () => ({
+  useToast: vi.fn(),
+}));
+
 import { useAiClient } from '../useAiClient';
 import { useChatState } from '../useChatState';
 import { useConversationClient } from '../useConversationClient';
@@ -51,6 +55,7 @@ import {
 } from '../useDialog';
 import { confirmDialog } from '@/services/confirmDialogService';
 import { useI18n } from '@/i18n/i18n';
+import { useToast } from '../useToast';
 import {
   createMockConversationClient,
   createMockChatState,
@@ -60,7 +65,8 @@ import {
   createMockConversationSettingsDialog,
   createMockSummaryPromptDialog,
   createMockI18n,
-} from '@/mock';
+  createMockToast,
+} from '@/mock/testing';
 
 const createWrapper = (store: ReturnType<typeof createTestStore>) => {
   return ({ children }: { children: React.ReactNode }) => (
@@ -83,7 +89,15 @@ describe('useConversationManagement', () => {
   const mockSettingsDialogClose = vi.fn();
   const mockSummaryDialogOpen = vi.fn();
   const mockSummaryDialogClose = vi.fn();
-  const mockT = vi.fn((key: string) => key);
+  const mockT = vi.fn(
+    (key: string, params?: Record<string, string | number>) => {
+      if (params && params.detail !== undefined) {
+        return `${key}:${String(params.detail)}`;
+      }
+      return key;
+    }
+  );
+  const mockShowError = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -145,6 +159,13 @@ describe('useConversationManagement', () => {
     vi.mocked(useI18n).mockReturnValue(
       createMockI18n({
         t: mockT,
+      })
+    );
+
+    vi.mocked(useToast).mockReturnValue(
+      createMockToast({
+        showError: mockShowError,
+        showWarning: vi.fn(),
       })
     );
   });

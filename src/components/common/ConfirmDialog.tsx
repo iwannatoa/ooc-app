@@ -28,10 +28,21 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className={styles.overlay}>
-      <div className={styles.dialog} onClick={(e) => e.stopPropagation()}>
-        {title && <h3 className={styles.title}>{title}</h3>}
-        <div className={styles.content}>
+    <div className={styles.overlay} role="presentation">
+      <div
+        className={styles.dialog}
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby={title ? 'confirm-dialog-title' : undefined}
+        aria-describedby="confirm-dialog-desc"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {title ? (
+          <h3 id="confirm-dialog-title" className={styles.title}>
+            {title}
+          </h3>
+        ) : null}
+        <div id="confirm-dialog-desc" className={styles.content}>
           <p>{message}</p>
         </div>
         <div className={styles.actions}>

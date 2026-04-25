@@ -76,7 +76,7 @@ export interface ModelsResponse {
 /**
  * AI provider type
  */
-export type AIProvider = 'ollama' | 'deepseek';
+export type AIProvider = 'ollama' | 'deepseek' | 'openai_compatible';
 
 /**
  * Base configuration for AI providers
@@ -105,6 +105,12 @@ export interface DeepSeekConfig extends AIProviderConfig {
   apiKey: string;
 }
 
+/** OpenAI-compatible HTTP API (user base URL + optional API key). */
+export interface OpenAICompatibleConfig extends AIProviderConfig {
+  provider: 'openai_compatible';
+  apiKey: string;
+}
+
 /**
  * AI settings configuration
  */
@@ -112,5 +118,6 @@ export interface AISettings {
   provider: AIProvider;
   ollama: OllamaConfig;
   deepseek: DeepSeekConfig;
+  openai_compatible: OpenAICompatibleConfig;
 }
 

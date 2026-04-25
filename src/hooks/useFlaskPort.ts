@@ -6,6 +6,13 @@ import { useCallback, useEffect } from 'react';
 import { useStore } from 'react-redux';
 import { useAppDispatch, useAppSelector } from './redux';
 
+/**
+ * Flask port lifecycle: `fetchPort` invokes `get_flask_port` (Tauri) and dispatches
+ * `setFlaskPort`. `waitForPort` is used by API clients to block until a URL exists.
+ * The `flask-port-ready` event also updates the store. Prefer `refetch` after
+ * `start_python_server` rather than duplicating probe logic in UI.
+ */
+
 interface ApiResponse<T> {
   success: boolean;
   data?: T;
@@ -173,7 +180,7 @@ export const useFlaskPort = () => {
             }
           );
           flaskPortManager.setUnsubscribeListener(unsubscribe);
-        } catch (err) {
+        } catch {
           flaskPortManager.setEventListenerSetup(false);
         }
       })();

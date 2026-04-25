@@ -2,11 +2,13 @@
 import { useConversationManagement } from './hooks/useConversationManagement';
 import { useUIState } from '@/hooks/useUIState';
 import { useToast } from './hooks/useToast';
+import { useI18n } from '@/i18n/i18n';
 import { useAppearance } from './hooks/useAppearance';
 import { useAppSettings } from './hooks/useAppSettings';
 
 // ===== UI Components =====
 import { TitleBar } from './components/TitleBar';
+import FlaskConnectionBanner from './components/FlaskConnectionBanner';
 import { AppHeader } from './components/AppHeader';
 import ConversationList from './components/ConversationList';
 import { ChatControls, ChatInterface } from './components/chat';
@@ -46,7 +48,18 @@ function App() {
   useAppearance();
 
   // ===== Toast Notifications =====
-  const { toasts, removeToast } = useToast();
+  const { toasts, removeToast, showWarning } = useToast();
+  const { languageBackendNotice, clearLanguageBackendNotice } = useI18n();
+
+  useEffect(() => {
+    if (!languageBackendNotice) return;
+    showWarning(languageBackendNotice);
+    clearLanguageBackendNotice();
+  }, [
+    languageBackendNotice,
+    showWarning,
+    clearLanguageBackendNotice,
+  ]);
 
   // Show window after content is loaded
   useEffect(() => {
@@ -67,6 +80,7 @@ function App() {
     <div className={styles.app}>
       <TitleBar />
       <div className={styles.appContent}>
+        <FlaskConnectionBanner />
         <AppHeader />
 
         <div className={styles.mainContent}>

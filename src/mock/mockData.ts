@@ -6,7 +6,6 @@
  * Provides reusable mock data to reduce duplication
  */
 
-import { vi } from 'vitest';
 import type {
   AppSettings,
   ChatMessage,

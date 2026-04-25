@@ -3,7 +3,7 @@ import { renderHook, waitFor, act } from '@testing-library/react';
 import { useAiClient } from '../useAiClient';
 import * as useApiClients from '../useApiClients';
 import { AppSettings } from '@/types';
-import { createMockApiClients } from '@/mock';
+import { createMockApiClients } from '@/mock/testing';
 
 vi.mock('../useApiClients');
 

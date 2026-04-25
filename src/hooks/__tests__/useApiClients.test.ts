@@ -4,7 +4,8 @@ import { useApiClients } from '../useApiClients';
 import * as useFlaskPort from '../useFlaskPort';
 import * as useSettingsState from '../useSettingsState';
 import * as useI18n from '@/i18n/i18n';
-import { isMockMode, createMockFlaskPort } from '@/mock';
+import { isMockMode } from '@/mock';
+import { createMockFlaskPort } from '@/mock/testing';
 
 vi.mock('../useFlaskPort');
 vi.mock('../useSettingsState');

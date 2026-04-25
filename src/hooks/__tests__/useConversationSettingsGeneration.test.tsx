@@ -37,7 +37,7 @@ import {
   createMockToast,
   createMockConversationSettingsForm,
   createMockI18n,
-} from '@/mock';
+} from '@/mock/testing';
 
 const createWrapper = (store: ReturnType<typeof createTestStore>) => {
   return ({ children }: { children: React.ReactNode }) => (

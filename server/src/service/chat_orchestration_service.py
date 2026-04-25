@@ -2,11 +2,15 @@
 Chat orchestration service layer
 """
 from typing import Optional, Dict
+import uuid
+
+from infrastructure.database import unit_of_work
 from service.ai_service import AIService
 from service.chat_service import ChatService
 from service.ai_config_service import AIConfigService
 from utils.logger import get_logger
-import uuid
+from utils.i18n import get_i18n_text
+from utils.think_strip import strip_think_content
 
 logger = get_logger(__name__)
 
@@ -37,7 +41,8 @@ class ChatOrchestrationService:
         message: str,
         provider: str,
         conversation_id: Optional[str] = None,
-        model: Optional[str] = None
+        model: Optional[str] = None,
+        language: str = 'en',
     ) -> Dict:
         """
         Process complete chat flow
@@ -47,6 +52,7 @@ class ChatOrchestrationService:
             provider: AI provider
             conversation_id: Conversation ID, auto-generated if not provided
             model: Model name, use default model from global config if not provided
+            language: Locale for user-facing persistence error messages ('zh' or 'en').
         
         Returns:
             Processing result dictionary
@@ -71,28 +77,34 @@ class ChatOrchestrationService:
         
         if result.get('success'):
             try:
-                # Note: This is a temporary solution. In production, ConversationService
-                # should be injected via dependency injection
-                # For now, we'll strip think content using a simple regex
-                import re
                 response_content = result.get('response', '')
-                # Remove think content before saving
-                clean_content = re.sub(r'<think>.*?</think>', '', response_content, flags=re.DOTALL | re.IGNORECASE)
-                clean_content = re.sub(r'```think\s*\n.*?\n```', '', clean_content, flags=re.DOTALL | re.IGNORECASE)
-                clean_content = re.sub(r'```think\s*```', '', clean_content, flags=re.IGNORECASE)
-                clean_content = re.sub(r'\n\s*\n\s*\n+', '\n\n', clean_content)
-                clean_content = clean_content.strip()
-                
-                self.chat_service.save_user_message(conversation_id, message)
-                self.chat_service.save_assistant_message(
-                    conversation_id=conversation_id,
-                    content=clean_content,
-                    model=result.get('model'),
-                    provider=api_config['provider']
-                )
+                clean_content = strip_think_content(response_content)
+
+                with unit_of_work() as session:
+                    self.chat_service.save_user_message(
+                        conversation_id, message, session=session
+                    )
+                    self.chat_service.save_assistant_message(
+                        conversation_id=conversation_id,
+                        content=clean_content,
+                        model=result.get('model'),
+                        provider=api_config['provider'],
+                        session=session,
+                    )
                 result['conversation_id'] = conversation_id
+                result['persisted'] = True
             except Exception as e:
-                logger.warning(f"Failed to save messages: {str(e)}")
-        
+                logger.error(
+                    "Failed to persist chat messages after successful AI call",
+                    exc_info=True,
+                )
+                result['success'] = False
+                result['persisted'] = False
+                result['conversation_id'] = conversation_id
+                result['error'] = get_i18n_text(
+                    language,
+                    'error_messages.persist_chat_messages_failed',
+                )
+
         return result
 

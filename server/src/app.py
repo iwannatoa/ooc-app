@@ -48,7 +48,13 @@ if not os.getenv('DB_PATH'):
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_injector import FlaskInjector
-from config import get_config
+from config import ProductionConfig, get_config
+from infrastructure.database import create_schema, get_engine, init_engine
+from infrastructure.schema_migrations import apply_schema_migrations
+from repository.character_record_repository import apply_character_record_migrations
+from repository.conversation_repository import apply_conversation_settings_migrations
+from middleware.api_auth import register_api_auth
+from utils.db_path import get_database_path
 from utils.logger import setup_logger
 from di.module import AppModule
 from controller.chat_controller import ChatController
@@ -64,12 +70,37 @@ app = Flask(__name__)
 config = get_config()
 app.config.from_object(config)
 
-# Enable CORS
-if config.CORS_ENABLED:
-    CORS(app)
+if config is ProductionConfig and not getattr(config, 'FLASK_API_TOKEN', None):
+    logger.error('Production mode requires FLASK_API_TOKEN for API authentication')
+    raise SystemExit(1)
+
+# Single SQLite engine + schema (repositories share session factory via Injector)
+init_engine(get_database_path())
+create_schema()
+apply_schema_migrations(get_engine())
+apply_conversation_settings_migrations(get_engine())
+apply_character_record_migrations(get_engine())
+
+# CORS: scoped to /api/* with explicit origins (no wildcard)
+if config.CORS_ENABLED and config.CORS_ORIGINS:
+    CORS(
+        app,
+        resources={
+            r'/api/*': {
+                'origins': list(config.CORS_ORIGINS),
+                'methods': list(config.CORS_ALLOW_METHODS),
+                'allow_headers': list(config.CORS_ALLOW_HEADERS),
+                'supports_credentials': True,
+            }
+        },
+    )
+elif config.CORS_ENABLED:
+    logger.warning('CORS_ENABLED is True but CORS_ORIGINS is empty; CORS middleware not applied')
 
 # Set max content length
 app.config['MAX_CONTENT_LENGTH'] = config.MAX_CONTENT_LENGTH
+
+register_api_auth(app)
 
 injector = FlaskInjector(app=app, modules=[AppModule()])
 
@@ -102,11 +133,9 @@ def health_check():
         
         provider = request.args.get('provider', 'ollama')
         
-        # Get AIService from injector
-        with app.app_context():
-            ai_service = injector.injector.get(AIService)
-            result = ai_service.health_check(provider=provider)
-            return jsonify(result)
+        ai_service = injector.injector.get(AIService)
+        result = ai_service.health_check(provider=provider)
+        return jsonify(result)
     
     except Exception as e:
         logger.error(f"Health check error: {str(e)}")
@@ -152,16 +181,19 @@ def stop_server():
             "message": "Server shutdown initiated"
         })
     else:
-        # Fallback: use os._exit if no other method available
-        import os
-        logger.info("Shutting down server via os._exit (no server instance found)")
+        # Started without make_server (e.g. embedded WSGI): cannot trigger shutdown from here.
+        logger.warning(
+            "POST /api/stop received but _server_instance is unset; "
+            "host process must terminate this Python process."
+        )
         logger.info("=" * 60)
-        # Give a moment for the response to be sent
-        threading.Thread(target=lambda: (time.sleep(0.1), os._exit(0)), daemon=True).start()
         return jsonify({
-            "success": True,
-            "message": "Server is shutting down"
-        })
+            "success": False,
+            "error": (
+                "Graceful shutdown is unavailable (_server_instance not set). "
+                "The parent/host process should terminate this worker."
+            ),
+        }), 503
 
 
 @app.errorhandler(404)

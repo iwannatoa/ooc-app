@@ -1,24 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useI18n } from '@/i18n/i18n';
 import { useAppLogic } from '@/hooks/useAppLogic';
 import { useConversationSettingsDialog } from '@/hooks/useDialog';
 import { useConversationManagement } from '@/hooks/useConversationManagement';
 import { useChatState } from '@/hooks/useChatState';
+import { useStoryProgress } from '@/hooks/useStoryProgress';
+import { useToast } from '@/hooks/useToast';
+import { confirmDialog } from '@/services/confirmDialogService';
 import { FeedbackDialog } from './FeedbackDialog';
 import styles from './StoryActions.module.scss';
 
-/**
- * Story Actions Component
- *
- * Displays action buttons for story generation, confirmation, rewriting, and modification.
- * Uses hooks to get all necessary handlers and state, eliminating prop drilling.
- */
 const StoryActions: React.FC = () => {
   const { t } = useI18n();
-  const { isSending } = useChatState();
+  const { isSending, storyOperation, messages } = useChatState();
   const { activeConversationId, conversationSettings } =
     useConversationManagement();
   const settingsDialog = useConversationSettingsDialog();
+  const { progress } = useStoryProgress();
+  const { showSuccess, showWarning } = useToast();
 
   const {
     handleGenerateStory,
@@ -34,9 +33,48 @@ const StoryActions: React.FC = () => {
 
   const loading = isSending;
   const disabled = !activeConversationId;
+
   const [showRewriteDialog, setShowRewriteDialog] = useState(false);
   const [showModifyDialog, setShowModifyDialog] = useState(false);
   const [feedback, setFeedback] = useState('');
+
+  const loadingLabelFor = useCallback(
+    (op: typeof storyOperation, labelIdle: string) => {
+      if (!loading || storyOperation !== op) return labelIdle;
+      if (op === 'generate') return t('storyActions.loadingGenerate');
+      if (op === 'confirm') return t('storyActions.loadingConfirm');
+      if (op === 'rewrite') return t('storyActions.loadingRewrite');
+      if (op === 'modify') return t('storyActions.loadingModify');
+      if (op === 'chat_stream') return t('storyActions.loadingChatStream');
+      return t('storyActions.generating');
+    },
+    [loading, storyOperation, t]
+  );
+
+  const contextLine = useMemo(() => {
+    if (!activeConversationId) return null;
+    const parts: string[] = [];
+    if (progress && progress.current_section !== undefined) {
+      parts.push(
+        t('storyContext.section', {
+          number: String(progress.current_section + 1),
+        })
+      );
+    }
+    if (progress) {
+      parts.push(
+        progress.outline_confirmed
+          ? t('storyContext.outlineOk')
+          : t('storyContext.outlinePending')
+      );
+      const sk = `storyContext.status_${progress.status}` as const;
+      const statusText = t(sk);
+      if (statusText !== sk) {
+        parts.push(t('storyContext.progressStatus', { status: statusText }));
+      }
+    }
+    return parts.length ? parts.join(' · ') : null;
+  }, [activeConversationId, progress, t]);
 
   const handleAddSettings = () => {
     if (activeConversationId) {
@@ -46,20 +84,32 @@ const StoryActions: React.FC = () => {
     }
   };
 
-  const handleRewrite = () => {
-    if (feedback.trim()) {
-      handleRewriteSection(feedback);
-      setFeedback('');
-      setShowRewriteDialog(false);
-    }
+  const handleRewrite = async () => {
+    if (!feedback.trim()) return;
+    const ok = await confirmDialog({
+      message: t('storyActions.confirmDestructiveRewrite'),
+      confirmText: t('storyActions.confirmRewrite'),
+      cancelText: t('common.cancel'),
+      confirmButtonStyle: 'danger',
+    });
+    if (!ok) return;
+    await handleRewriteSection(feedback);
+    setFeedback('');
+    setShowRewriteDialog(false);
   };
 
-  const handleModify = () => {
-    if (feedback.trim()) {
-      handleModifySection(feedback);
-      setFeedback('');
-      setShowModifyDialog(false);
-    }
+  const handleModify = async () => {
+    if (!feedback.trim()) return;
+    const ok = await confirmDialog({
+      message: t('storyActions.confirmDestructiveModify'),
+      confirmText: t('storyActions.confirmModify'),
+      cancelText: t('common.cancel'),
+      confirmButtonStyle: 'danger',
+    });
+    if (!ok) return;
+    await handleModifySection(feedback);
+    setFeedback('');
+    setShowModifyDialog(false);
   };
 
   const handleCancelRewrite = () => {
@@ -72,12 +122,47 @@ const StoryActions: React.FC = () => {
     setFeedback('');
   };
 
+  const handleCopyLastAssistant = useCallback(async () => {
+    const last = [...messages].reverse().find((m) => m.role === 'assistant');
+    const text = last?.content?.trim();
+    if (!text) {
+      showWarning(t('storyActions.copyLastAssistantEmpty'));
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      showSuccess(t('storyActions.copyLastAssistantSuccess'));
+    } catch {
+      showWarning(t('storyActions.copyLastAssistantEmpty'));
+    }
+  }, [messages, showSuccess, showWarning, t]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (el?.closest('textarea, input, [contenteditable="true"]')) return;
+      if (!e.ctrlKey && !e.metaKey) return;
+      if (e.key !== 'Enter') return;
+      if (loading || disabled) return;
+      if (!canGenerate) return;
+      e.preventDefault();
+      void handleGenerateStory();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [loading, disabled, canGenerate, handleGenerateStory]);
+
   return (
     <div className={styles.storyActions}>
+      {contextLine && (
+        <div className={styles.contextBar} title={contextLine}>
+          {contextLine}
+        </div>
+      )}
       <div className={styles.actionButtons}>
         {canGenerate && (
           <button
-            onClick={handleGenerateStory}
+            onClick={() => void handleGenerateStory()}
             disabled={loading || disabled}
             className={styles.actionButton}
             title={
@@ -86,24 +171,23 @@ const StoryActions: React.FC = () => {
                 : t('storyActions.generateCurrentTooltip')
             }
           >
-            {loading
-              ? t('storyActions.generating')
-              : isFirstChapter
-              ? t('storyActions.generateFirstChapter')
-              : t('storyActions.generateCurrent')}
+            {loadingLabelFor(
+              'generate',
+              isFirstChapter
+                ? t('storyActions.generateFirstChapter')
+                : t('storyActions.generateCurrent')
+            )}
           </button>
         )}
 
         {canConfirm && (
           <button
-            onClick={handleConfirmSection}
+            onClick={() => void handleConfirmSection()}
             disabled={loading || disabled}
             className={styles.actionButton}
             title={t('storyActions.nextChapterTooltip')}
           >
-            {loading
-              ? t('storyActions.generating')
-              : t('storyActions.nextChapter')}
+            {loadingLabelFor('confirm', t('storyActions.nextChapter'))}
           </button>
         )}
 
@@ -113,7 +197,7 @@ const StoryActions: React.FC = () => {
           className={styles.actionButton}
           title={t('storyActions.rewriteTooltip')}
         >
-          {t('storyActions.rewrite')}
+          {loadingLabelFor('rewrite', t('storyActions.rewrite'))}
         </button>
 
         <button
@@ -122,7 +206,7 @@ const StoryActions: React.FC = () => {
           className={styles.actionButton}
           title={t('storyActions.modifyTooltip')}
         >
-          {t('storyActions.modify')}
+          {loadingLabelFor('modify', t('storyActions.modify'))}
         </button>
 
         <button
@@ -134,9 +218,19 @@ const StoryActions: React.FC = () => {
           {t('storyActions.addSettings')}
         </button>
 
+        <button
+          type="button"
+          onClick={() => void handleCopyLastAssistant()}
+          disabled={loading || disabled}
+          className={styles.secondaryButton}
+          title={t('storyActions.copyLastAssistant')}
+        >
+          {t('storyActions.copyLastAssistant')}
+        </button>
+
         {canDeleteLast && handleDeleteLastMessage && (
           <button
-            onClick={handleDeleteLastMessage}
+            onClick={() => void handleDeleteLastMessage()}
             disabled={loading || disabled}
             className={styles.actionButton}
             title={t('storyActions.deleteLastMessageTooltip')}
@@ -154,7 +248,7 @@ const StoryActions: React.FC = () => {
         confirmText={t('storyActions.confirmRewrite')}
         feedback={feedback}
         onFeedbackChange={setFeedback}
-        onConfirm={handleRewrite}
+        onConfirm={() => void handleRewrite()}
         onCancel={handleCancelRewrite}
       />
 
@@ -166,7 +260,7 @@ const StoryActions: React.FC = () => {
         confirmText={t('storyActions.confirmModify')}
         feedback={feedback}
         onFeedbackChange={setFeedback}
-        onConfirm={handleModify}
+        onConfirm={() => void handleModify()}
         onCancel={handleCancelModify}
       />
     </div>
@@ -174,4 +268,3 @@ const StoryActions: React.FC = () => {
 };
 
 export default StoryActions;
-

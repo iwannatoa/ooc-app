@@ -1,6 +1,6 @@
 import * as useMockMode from '@/hooks/useMockMode';
 import * as useI18n from '@/i18n/i18n';
-import { createMockI18n, createMockMockMode } from '@/mock';
+import { createMockI18n, createMockMockMode } from '@/mock/testing';
 import { fireEvent, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppHeader } from '../AppHeader';

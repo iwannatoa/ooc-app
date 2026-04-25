@@ -18,6 +18,30 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
+def _characters_block_header_kind(line: str) -> Optional[str]:
+    """
+    Classify a non-empty line inside <CHARACTERS> as subsection header (zh/en, Markdown-tolerant).
+
+    Returns:
+        ``new`` | ``status`` | ``main_header`` (reset subsection flags) | ``None``.
+    """
+    raw = line.strip()
+    if "角色变化" in raw or "character changes" in raw.lower():
+        return "main_header"
+    if "新增角色" in raw:
+        return "new"
+    if "角色状态变化" in raw:
+        return "status"
+    stripped = re.sub(r"^#+\s*", "", raw)
+    stripped = re.sub(r"^\*+|\*+$", "", stripped).strip()
+    stripped = stripped.rstrip(":：").strip().lower()
+    if stripped == "new characters" or stripped.startswith("new characters "):
+        return "new"
+    if stripped == "status changes" or stripped.startswith("status changes "):
+        return "status"
+    return None
+
+
 class CharacterService:
     """Character service"""
     
@@ -54,7 +78,9 @@ class CharacterService:
         self.ai_config_service = ai_config_service
         self.app_settings_service = app_settings_service
     
-    def parse_story_with_characters(self, content: str, language: Optional[str] = None) -> Tuple[str, Dict[str, Any]]:
+    def parse_story_with_characters(
+        self, content: str, language: Optional[str] = None
+    ) -> Tuple[str, Dict[str, Any], List[str]]:
         """
         Parse AI-generated story content to extract story text and character information
         
@@ -63,13 +89,14 @@ class CharacterService:
             language: Language code ('zh' or 'en'), if not provided, will get from app_settings_service
         
         Returns:
-            Tuple of (story_content, character_info)
+            Tuple of (story_content, character_info, parse_warnings)
             story_content: Cleaned story content without character tags
             character_info: Dictionary with:
                 - "new": List of new character names
                 - "new_with_settings": Dict mapping character name to setting description
                 - "status_changes": Dict mapping character name to status changes dict
                   (e.g., {"Character Name": {"is_main": True}} or {"Character Name": {"is_unavailable": True}})
+            parse_warnings: Stable machine-readable codes for UI/logging (e.g. unclosed tag)
         """
         # Get language if not provided
         if language is None and self.app_settings_service:
@@ -85,6 +112,15 @@ class CharacterService:
         became_main_keywords = status_keywords.get('became_main', [])
         became_unavailable_keywords = status_keywords.get('became_unavailable', [])
         restored_available_keywords = status_keywords.get('restored_available', [])
+        parse_warnings: List[str] = []
+
+        open_tags = len(re.findall(r'<CHARACTERS>', content, re.IGNORECASE))
+        close_tags = len(re.findall(r'</CHARACTERS>', content, re.IGNORECASE))
+        if open_tags > close_tags:
+            parse_warnings.append("characters_tag_unclosed")
+        if close_tags > open_tags:
+            parse_warnings.append("characters_close_without_open")
+
         story_content = content
         character_info = {
             "new": [],
@@ -98,6 +134,8 @@ class CharacterService:
         
         if characters_match:
             characters_section = characters_match.group(1).strip()
+            if not characters_section:
+                parse_warnings.append("empty_characters_section")
             
             # Remove the character section from story content
             story_content = re.sub(characters_pattern, '', content, flags=re.DOTALL | re.IGNORECASE).strip()
@@ -114,17 +152,17 @@ class CharacterService:
                 if not line:
                     continue
                 
-                # Check section headers
-                if '新增角色' in line or 'New Characters' in line:
+                # Check section headers (zh/en; Markdown headings and bold tolerated)
+                kind = _characters_block_header_kind(line)
+                if kind == "new":
                     in_new_characters_section = True
                     in_status_changes_section = False
                     continue
-                elif '角色状态变化' in line or 'Status Changes' in line:
+                if kind == "status":
                     in_new_characters_section = False
                     in_status_changes_section = True
                     continue
-                elif '角色变化' in line or 'Character Changes' in line:
-                    # This is the main header, reset sections
+                if kind == "main_header":
                     in_new_characters_section = False
                     in_status_changes_section = False
                     continue
@@ -147,7 +185,9 @@ class CharacterService:
                     # Try to parse character name and setting
                     if ' - 设定：' in line_content or ' - 设定:' in line_content or ' - Setting:' in line_content or ' - Setting：' in line_content:
                         # Has setting
-                        parts = re.split(r' - (?:设定|Setting)[：:]', line_content, 1)
+                        parts = re.split(
+                            r' - (?:设定|Setting)[：:]', line_content, maxsplit=1
+                        )
                         if len(parts) >= 1:
                             char_name = parts[0].strip()
                             char_name = re.sub(r'^\[|\]$', '', char_name).strip()
@@ -192,7 +232,7 @@ class CharacterService:
                             if any(keyword in status_desc_lower for keyword in restored_available_keywords):
                                 character_info["status_changes"][char_name]["is_unavailable"] = False
         
-        return story_content, character_info
+        return story_content, character_info, parse_warnings
     
     def record_characters_from_message(
         self,
@@ -412,7 +452,7 @@ class CharacterService:
         if message_role == 'assistant' and message_content:
             try:
                 # Parse the deleted message to find character status changes
-                story_content, character_info = self.parse_story_with_characters(message_content)
+                story_content, character_info, _ = self.parse_story_with_characters(message_content)
                 
                 # Revert status changes that occurred in this message
                 if character_info.get("status_changes"):

@@ -21,7 +21,7 @@ import {
   createMockConversationClient,
   createMockConversationManagement,
   createMockApiClients,
-} from '@/mock';
+} from '@/mock/testing';
 
 vi.mock('@/hooks/useServerState');
 vi.mock('@/hooks/useFlaskPort');

@@ -7,6 +7,15 @@
   background: $bg-darker;
 }
 
+.contextBar {
+  font-size: $font-size-xs;
+  color: $text-secondary;
+  margin-bottom: $spacing-sm;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .actionButtons {
   @include flex-row;
   gap: $spacing-sm;
@@ -26,6 +35,27 @@
 
   &:hover:not(:disabled) {
     background: $primary-color-hover;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.secondaryButton {
+  padding: $spacing-sm $spacing-md;
+  background: $bg-dark;
+  color: $text-primary;
+  border: 1px solid $border-color;
+  border-radius: $border-radius;
+  cursor: pointer;
+  font-size: $font-size-sm;
+  transition: background 0.2s;
+  white-space: nowrap;
+
+  &:hover:not(:disabled) {
+    background: $bg-darker;
   }
 
   &:disabled {

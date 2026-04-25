@@ -14,5 +14,6 @@ export { GeneralSettings, type GeneralSettingsRef } from './GeneralSettings';
 export { AppearanceSettings, type AppearanceSettingsRef } from './AppearanceSettings';
 export { AISettings, type AISettingsRef } from './AISettings';
 export { AdvancedSettings, type AdvancedSettingsRef } from './AdvancedSettings';
+export { DataSettings } from './DataSettings';
 export { default as SettingsPanel } from './SettingsPanel';
 

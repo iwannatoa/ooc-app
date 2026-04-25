@@ -9,6 +9,7 @@ const mockUseConversationManagement = vi.fn();
 const mockUseAppSettings = vi.fn();
 const mockUseAppearance = vi.fn();
 const mockUseToast = vi.fn();
+const mockUseI18n = vi.fn();
 
 vi.mock('../hooks/useUIState', () => ({
   useUIState: () => mockUseUIState(),
@@ -30,19 +31,8 @@ vi.mock('../hooks/useToast', () => ({
   useToast: () => mockUseToast(),
 }));
 
-vi.mock('../hooks/useAppSettings', () => ({
-  useAppSettings: () => {},
-}));
-
-vi.mock('../hooks/useAppearance', () => ({
-  useAppearance: () => {},
-}));
-
-vi.mock('../hooks/useToast', () => ({
-  useToast: () => ({
-    toasts: [],
-    removeToast: vi.fn(),
-  }),
+vi.mock('@/i18n/i18n', () => ({
+  useI18n: () => mockUseI18n(),
 }));
 
 // Mock Tauri window API
@@ -54,6 +44,12 @@ vi.mock('@tauri-apps/api/window', () => ({
 }));
 
 // Mock all components
+vi.mock('../components/FlaskConnectionBanner', () => ({
+  default: () => (
+    <div data-testid="flask-connection-banner">FlaskConnectionBanner</div>
+  ),
+}));
+
 vi.mock('../components/TitleBar', () => ({
   TitleBar: () => <div data-testid="title-bar">TitleBar</div>,
 }));
@@ -136,6 +132,15 @@ describe('App', () => {
     mockUseToast.mockReturnValue({
       toasts: [],
       removeToast: vi.fn(),
+      showWarning: vi.fn(),
+    });
+
+    mockUseI18n.mockReturnValue({
+      locale: 'en',
+      setLocale: vi.fn(),
+      t: vi.fn((key: string) => key),
+      languageBackendNotice: null,
+      clearLanguageBackendNotice: vi.fn(),
     });
   });
 
@@ -147,6 +152,7 @@ describe('App', () => {
     renderWithProviders(<App />);
 
     expect(screen.getByTestId('title-bar')).toBeInTheDocument();
+    expect(screen.getByTestId('flask-connection-banner')).toBeInTheDocument();
     expect(screen.getByTestId('app-header')).toBeInTheDocument();
     expect(screen.getByTestId('conversation-list')).toBeInTheDocument();
     expect(screen.getByTestId('chat-controls')).toBeInTheDocument();

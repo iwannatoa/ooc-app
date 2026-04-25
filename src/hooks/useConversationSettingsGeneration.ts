@@ -26,8 +26,6 @@ export const useConversationSettingsGeneration = () => {
     isGeneratingOutline,
     setGeneratingCharacter,
     setGeneratingOutline,
-    updateFields,
-    updateField,
   } = useConversationSettingsForm();
 
   const generateCharacter = useCallback(

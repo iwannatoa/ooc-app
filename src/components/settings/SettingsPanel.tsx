@@ -14,6 +14,7 @@ import {
   AISettingsRef,
   AdvancedSettings,
   AdvancedSettingsRef,
+  DataSettings,
 } from './index';
 import styles from './SettingsPanel.module.scss';
 
@@ -203,6 +204,13 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, open }) => {
               ref={advancedSettingsRef}
               settings={localSettings.advanced}
             />
+          </SettingsTabPane>
+
+          <SettingsTabPane
+            tab='data'
+            label={t('settingsPanel.tabs.data')}
+          >
+            <DataSettings />
           </SettingsTabPane>
         </SettingsTabs>
 

@@ -33,7 +33,7 @@ import {
   createMockCharacterResponse,
   createMockSuccessResponse,
   createMockErrorResponse,
-} from '@/mock';
+} from '@/mock/testing';
 
 describe('ConversationApi', () => {
   let api: ConversationApi;

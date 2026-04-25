@@ -3,6 +3,7 @@ import {
   useContext,
   useState,
   useEffect,
+  useRef,
   ReactNode,
 } from 'react';
 import { useFlaskPort } from '@/hooks/useFlaskPort';
@@ -39,6 +40,9 @@ interface I18nContextType {
   locale: Locale;
   setLocale: (locale: Locale) => void;
   t: (key: string, params?: Record<string, string | number>) => string;
+  /** Set when loading or saving language preference from the backend fails (consumer may toast once). */
+  languageBackendNotice: string | null;
+  clearLanguageBackendNotice: () => void;
 }
 
 const I18nContext = createContext<I18nContextType | undefined>(undefined);
@@ -72,6 +76,11 @@ function replaceParams(
 
 export const I18nProvider = ({ children }: { children: ReactNode }) => {
   const { apiUrl } = useFlaskPort();
+  const [languageBackendNotice, setLanguageBackendNotice] = useState<
+    string | null
+  >(null);
+  const localeRef = useRef<Locale>('zh');
+
   const [locale, setLocaleState] = useState<Locale>(() => {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem(LOCALE_STORAGE_KEY) as Locale;
@@ -89,6 +98,12 @@ export const I18nProvider = ({ children }: { children: ReactNode }) => {
     return availableLocales[0] || 'zh';
   });
 
+  localeRef.current = locale;
+
+  const clearLanguageBackendNotice = () => {
+    setLanguageBackendNotice(null);
+  };
+
   useEffect(() => {
     const loadLanguageFromBackend = async () => {
       if (!apiUrl) return;
@@ -101,9 +116,16 @@ export const I18nProvider = ({ children }: { children: ReactNode }) => {
           if (typeof window !== 'undefined') {
             localStorage.setItem(LOCALE_STORAGE_KEY, data.language);
           }
+          setLanguageBackendNotice(null);
         }
       } catch (error) {
         console.error('Failed to load language from backend:', error);
+        const loc = localeRef.current;
+        const msg = replaceParams(
+          getNestedValue(translations[loc], 'app.languagePreferenceLoadFailed'),
+          {}
+        );
+        setLanguageBackendNotice(msg);
       }
     };
 
@@ -127,6 +149,12 @@ export const I18nProvider = ({ children }: { children: ReactNode }) => {
         });
       } catch (error) {
         console.error('Failed to save language to backend:', error);
+        const loc = localeRef.current;
+        const msg = replaceParams(
+          getNestedValue(translations[loc], 'app.languagePreferenceSaveFailed'),
+          {}
+        );
+        setLanguageBackendNotice(msg);
       }
     }
   };
@@ -137,7 +165,15 @@ export const I18nProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <I18nContext.Provider value={{ locale, setLocale, t }}>
+    <I18nContext.Provider
+      value={{
+        locale,
+        setLocale,
+        t,
+        languageBackendNotice,
+        clearLanguageBackendNotice,
+      }}
+    >
       {children}
     </I18nContext.Provider>
   );

@@ -1,0 +1,64 @@
+@use '@/styles/variables' as *;
+@use '@/styles/mixins' as *;
+
+.wrap {
+  flex-shrink: 0;
+  margin: $spacing-md;
+  padding: $spacing-md $spacing-lg;
+  background: $bg-dark;
+  border: 1px solid $border-color;
+  border-radius: $border-radius;
+}
+
+.title {
+  margin: 0 0 $spacing-sm 0;
+  font-size: $font-size-sm;
+  font-weight: 600;
+  color: $text-primary;
+}
+
+.list {
+  margin: 0;
+  padding-left: $spacing-lg;
+  color: $text-secondary;
+  font-size: $font-size-xs;
+  line-height: 1.6;
+}
+
+.actions {
+  @include flex-row;
+  flex-wrap: wrap;
+  gap: $spacing-sm;
+  margin-top: $spacing-md;
+}
+
+.actionBtn {
+  padding: $spacing-xs $spacing-md;
+  background: $primary-color;
+  color: white;
+  border: none;
+  border-radius: $border-radius;
+  cursor: pointer;
+  font-size: $font-size-xs;
+
+  &:hover:not(:disabled) {
+    background: $primary-color-hover;
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+}
+
+.actionBtnGhost {
+  @extend .actionBtn;
+  background: transparent;
+  color: $text-secondary;
+  border: 1px solid $border-color;
+
+  &:hover:not(:disabled) {
+    background: $bg-darker;
+    color: $text-primary;
+  }
+}

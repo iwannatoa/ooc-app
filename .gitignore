@@ -47,6 +47,11 @@ __pycache__/
 *.so
 .Python
 
+# Playwright
+playwright-report/
+test-results/
+.blob-report/
+
 # Test coverage
 coverage/
 *.coverage

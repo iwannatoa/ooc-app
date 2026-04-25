@@ -2,9 +2,6 @@
  * Hook for managing story actions
  *
  * Encapsulates all story-related actions and state to reduce prop drilling.
- * This hook provides a clean interface for story action operations.
- *
- * Note: This is a wrapper hook that groups props for components.
  * The actual business logic is in useAppLogic.
  */
 
@@ -12,6 +9,9 @@ import { useCallback } from 'react';
 import { ChatMessage } from '@/types';
 import { AppSettings } from '@/types';
 import { useStoryClient } from './useStoryClient';
+import { useI18n } from '@/i18n/i18n';
+import { useChatState } from './useChatState';
+import { reportApiFailureToToast } from '@/utils/reportApiFailure';
 
 export interface UseStoryActionsParams {
   activeConversationId: string | null;
@@ -21,6 +21,7 @@ export interface UseStoryActionsParams {
   ) => void;
   settings: AppSettings;
   showError: (message: string) => void;
+  showWarning: (message: string) => void;
   onConversationSelect: (conversationId: string) => Promise<void>;
 }
 
@@ -31,14 +32,6 @@ export interface UseStoryActionsReturn {
   handleModifySection: (feedback: string) => Promise<void>;
 }
 
-/**
- * Hook for managing story actions
- *
- * Provides handlers for story generation, confirmation, rewriting, and modification.
- *
- * @param params - Story action parameters
- * @returns Story action handlers
- */
 export const useStoryActions = (
   params: UseStoryActionsParams
 ): UseStoryActionsReturn => {
@@ -47,42 +40,34 @@ export const useStoryActions = (
     setMessages,
     settings,
     showError,
+    showWarning,
     onConversationSelect,
   } = params;
   const storyClient = useStoryClient(settings);
+  const { t } = useI18n();
+  const { setSending, setStoryOperation, applyStreamingAssistantChunk } =
+    useChatState();
+
+  /** Toast when `<CHARACTERS>` parse was imperfect; copy follows current i18n locale (zh/en). */
+  const maybeWarnCharacterParse = useCallback(
+    (parseWarnings?: string[]) => {
+      if (parseWarnings?.length) {
+        showWarning(t('storyWarnings.characterParseNotice'));
+      }
+    },
+    [showWarning, t]
+  );
 
   const handleGenerateStory = useCallback(async () => {
     if (!activeConversationId) {
       return;
     }
 
+    setStoryOperation('generate');
+    setSending(true);
     try {
       const onChunk = (_chunk: string, accumulated: string) => {
-        // Update messages with streaming content
-        setMessages((prev) => {
-          const lastMessage = prev[prev.length - 1];
-          if (lastMessage && lastMessage.role === 'assistant') {
-            // Update existing assistant message
-            return [
-              ...prev.slice(0, -1),
-              {
-                ...lastMessage,
-                content: accumulated,
-              },
-            ];
-          } else {
-            // Create new assistant message
-            return [
-              ...prev,
-              {
-                id: `msg_${Date.now()}`,
-                role: 'assistant',
-                content: accumulated,
-                timestamp: Date.now(),
-              },
-            ];
-          }
-        });
+        applyStreamingAssistantChunk(accumulated);
       };
 
       const result = await storyClient.generateStory(
@@ -91,47 +76,39 @@ export const useStoryActions = (
       );
 
       if (result.success && result.response) {
-        // Final update with stripped content
-        const finalContent = result.response;
-        setMessages((prev) => {
-          const lastMessage = prev[prev.length - 1];
-          if (lastMessage && lastMessage.role === 'assistant') {
-            return [
-              ...prev.slice(0, -1),
-              {
-                ...lastMessage,
-                content: finalContent,
-              },
-            ];
-          } else {
-            return [
-              ...prev,
-              {
-                id: `msg_${Date.now()}`,
-                role: 'assistant',
-                content: finalContent,
-                timestamp: Date.now(),
-              },
-            ];
-          }
-        });
+        applyStreamingAssistantChunk(result.response);
         await onConversationSelect(activeConversationId);
+        maybeWarnCharacterParse(result.parse_warnings);
       } else {
-        showError(result.error || 'Failed to generate story');
+        showError(
+          t('storyErrors.generateFailedDetail', {
+            detail: result.error || t('storyErrors.unknownDetail'),
+          })
+        );
       }
     } catch (error) {
       console.error('Failed to generate story:', error);
-      showError(
-        'Failed to generate story: ' +
-          (error instanceof Error ? error.message : 'Unknown error')
-      );
+      reportApiFailureToToast(error, {
+        t,
+        showError,
+        showWarning,
+        detailKey: 'storyErrors.generateFailedDetail',
+        hintNamespace: 'storyErrors',
+      });
+    } finally {
+      setSending(false);
     }
   }, [
     activeConversationId,
-    setMessages,
     storyClient,
     showError,
+    showWarning,
+    maybeWarnCharacterParse,
     onConversationSelect,
+    t,
+    applyStreamingAssistantChunk,
+    setSending,
+    setStoryOperation,
   ]);
 
   const handleConfirmSection = useCallback(async () => {
@@ -139,6 +116,8 @@ export const useStoryActions = (
       return;
     }
 
+    setStoryOperation('confirm');
+    setSending(true);
     try {
       const result = await storyClient.confirmSection(activeConversationId);
 
@@ -153,22 +132,35 @@ export const useStoryActions = (
           },
         ]);
         await onConversationSelect(activeConversationId);
+        maybeWarnCharacterParse(result.parse_warnings);
       } else {
-        showError(result.error || 'Failed to confirm section');
+        showError(
+          t('storyErrors.confirmFailedDetail', {
+            detail: result.error || t('storyErrors.unknownDetail'),
+          })
+        );
       }
     } catch (error) {
       console.error('Failed to confirm section:', error);
-      showError(
-        'Failed to confirm section: ' +
-          (error instanceof Error ? error.message : 'Unknown error')
-      );
+      reportApiFailureToToast(error, {
+        t,
+        showError,
+        detailKey: 'storyErrors.confirmFailedDetail',
+        hintNamespace: 'storyErrors',
+      });
+    } finally {
+      setSending(false);
     }
   }, [
     activeConversationId,
     setMessages,
     storyClient,
     showError,
+    maybeWarnCharacterParse,
     onConversationSelect,
+    t,
+    setSending,
+    setStoryOperation,
   ]);
 
   const handleRewriteSection = useCallback(
@@ -177,8 +169,9 @@ export const useStoryActions = (
         return;
       }
 
+      setStoryOperation('rewrite');
+      setSending(true);
       try {
-        // Add a small delay to allow UI to update
         await new Promise((resolve) => setTimeout(resolve, 300));
 
         const result = await storyClient.rewriteSection(
@@ -197,15 +190,24 @@ export const useStoryActions = (
             },
           ]);
           await onConversationSelect(activeConversationId);
+          maybeWarnCharacterParse(result.parse_warnings);
         } else {
-          showError(result.error || 'Failed to rewrite section');
+          showError(
+            t('storyErrors.rewriteFailedDetail', {
+              detail: result.error || t('storyErrors.unknownDetail'),
+            })
+          );
         }
       } catch (error) {
         console.error('Failed to rewrite section:', error);
-        showError(
-          'Failed to rewrite section: ' +
-            (error instanceof Error ? error.message : 'Unknown error')
-        );
+        reportApiFailureToToast(error, {
+          t,
+          showError,
+          detailKey: 'storyErrors.rewriteFailedDetail',
+          hintNamespace: 'storyErrors',
+        });
+      } finally {
+        setSending(false);
       }
     },
     [
@@ -213,7 +215,11 @@ export const useStoryActions = (
       setMessages,
       storyClient,
       showError,
+      maybeWarnCharacterParse,
       onConversationSelect,
+      t,
+      setSending,
+      setStoryOperation,
     ]
   );
 
@@ -223,8 +229,9 @@ export const useStoryActions = (
         return;
       }
 
+      setStoryOperation('modify');
+      setSending(true);
       try {
-        // Add a small delay to allow UI to update
         await new Promise((resolve) => setTimeout(resolve, 300));
 
         const result = await storyClient.modifySection(
@@ -243,15 +250,24 @@ export const useStoryActions = (
             },
           ]);
           await onConversationSelect(activeConversationId);
+          maybeWarnCharacterParse(result.parse_warnings);
         } else {
-          showError(result.error || 'Failed to modify section');
+          showError(
+            t('storyErrors.modifyFailedDetail', {
+              detail: result.error || t('storyErrors.unknownDetail'),
+            })
+          );
         }
       } catch (error) {
         console.error('Failed to modify section:', error);
-        showError(
-          'Failed to modify section: ' +
-            (error instanceof Error ? error.message : 'Unknown error')
-        );
+        reportApiFailureToToast(error, {
+          t,
+          showError,
+          detailKey: 'storyErrors.modifyFailedDetail',
+          hintNamespace: 'storyErrors',
+        });
+      } finally {
+        setSending(false);
       }
     },
     [
@@ -259,7 +275,11 @@ export const useStoryActions = (
       setMessages,
       storyClient,
       showError,
+      maybeWarnCharacterParse,
       onConversationSelect,
+      t,
+      setSending,
+      setStoryOperation,
     ]
   );
 
@@ -270,4 +290,3 @@ export const useStoryActions = (
     handleModifySection,
   };
 };
-

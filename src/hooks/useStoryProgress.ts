@@ -6,6 +6,12 @@ import { StoryProgress } from '@/types';
 import { useConversationClient } from './useConversationClient';
 import { useChatState } from './useChatState';
 
+/**
+ * In-flight progress requests are deduped per conversationId for CACHE_TTL ms
+ * so rapid re-renders / StrictMode do not stampede the API. Callers should rely
+ * on `refresh` after mutations that change progress; cache entries age out and
+ * may be deleted after TTL*10 once resolved.
+ */
 const progressCache = new Map<
   string,
   { promise: Promise<StoryProgress | null>; timestamp: number }

@@ -37,6 +37,8 @@ describe('useConversationSettingsConverter', () => {
       outline: 'Test outline',
       generatedOutline: null,
       outlineConfirmed: false,
+      serializationOpenEnded: true,
+      finiteTotalSections: 10,
       allowAutoGenerateCharacters: true,
       allowAutoGenerateMainCharacters: false,
     };
@@ -86,6 +88,8 @@ describe('useConversationSettingsConverter', () => {
       outline: '',
       generatedOutline: null,
       outlineConfirmed: false,
+      serializationOpenEnded: true,
+      finiteTotalSections: 10,
       allowAutoGenerateCharacters: true,
       allowAutoGenerateMainCharacters: false,
     };
@@ -119,6 +123,8 @@ describe('useConversationSettingsConverter', () => {
       outline: '',
       generatedOutline: null,
       outlineConfirmed: false,
+      serializationOpenEnded: true,
+      finiteTotalSections: 10,
       allowAutoGenerateCharacters: true,
       allowAutoGenerateMainCharacters: false,
     };
@@ -150,6 +156,8 @@ describe('useConversationSettingsConverter', () => {
       outline: '',
       generatedOutline: null,
       outlineConfirmed: false,
+      serializationOpenEnded: true,
+      finiteTotalSections: 10,
       allowAutoGenerateCharacters: true,
       allowAutoGenerateMainCharacters: false,
     };
@@ -205,6 +213,8 @@ describe('useConversationSettingsConverter', () => {
       outline: 'Test outline',
       generatedOutline: null,
       outlineConfirmed: false,
+      serializationOpenEnded: true,
+      finiteTotalSections: 10,
       allowAutoGenerateCharacters: true,
       allowAutoGenerateMainCharacters: false,
     });
@@ -229,6 +239,8 @@ describe('useConversationSettingsConverter', () => {
       outline: '',
       generatedOutline: null,
       outlineConfirmed: false,
+      serializationOpenEnded: true,
+      finiteTotalSections: 10,
       allowAutoGenerateCharacters: true,
       allowAutoGenerateMainCharacters: true,
     });

@@ -3,13 +3,19 @@
     windows_subsystem = "windows"
 )]
 
+mod api;
 mod commands;
+mod diagnostics;
 mod logger;
+mod python_http;
+mod python_lifecycle;
+mod python_server;
 
 use commands::{
     check_python_server_status, get_database_path, get_flask_port, start_python_server,
     stop_python_server, stop_python_server_internal, PythonServer,
 };
+use diagnostics::{backup_chat_database, export_diagnostic_bundle, restore_chat_database};
 use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::{Manager, RunEvent};
 use tokio::sync::Mutex as TokioMutex;
@@ -17,10 +23,23 @@ use tokio::sync::Mutex as TokioMutex;
 static CLOSING: AtomicBool = AtomicBool::new(false);
 
 fn main() {
-    tauri::Builder::default()
+    #[cfg_attr(not(feature = "e2e-testing"), allow(unused_mut))]
+    let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_shell::init());
+
+    #[cfg(feature = "e2e-testing")]
+    {
+        use tauri_plugin_playwright::PluginConfig;
+        let pw_cfg = match std::env::var("TAURI_PLAYWRIGHT_SOCKET") {
+            Ok(p) if !p.trim().is_empty() => PluginConfig::new().socket_path(p.trim()),
+            _ => PluginConfig::default(),
+        };
+        builder = builder.plugin(tauri_plugin_playwright::init_with_config(pw_cfg));
+    }
+
+    builder
         .manage(TokioMutex::new(PythonServer::new()))
         .invoke_handler(tauri::generate_handler![
             start_python_server,
@@ -28,6 +47,9 @@ fn main() {
             check_python_server_status,
             get_database_path,
             get_flask_port,
+            export_diagnostic_bundle,
+            backup_chat_database,
+            restore_chat_database,
         ])
         .setup(|app| {
             let app_handle = app.app_handle().clone();
@@ -51,7 +73,7 @@ fn main() {
                 {
                     window.open_devtools();
                 }
-                
+
                 // Wait a bit for content to load, then show window
                 let window_clone = window.clone();
                 tauri::async_runtime::spawn(async move {
@@ -64,9 +86,9 @@ fn main() {
         })
         .on_window_event(|_window, event| {
             if let tauri::WindowEvent::CloseRequested { .. } = event {
-                // 不设置 CLOSING，让 RunEvent::ExitRequested 来处理关闭逻辑
-                // 不调用 prevent_close()，让窗口立即关闭
-                // Flask 会在 RunEvent::ExitRequested 中关闭
+                // Do not set CLOSING here; RunEvent::ExitRequested owns shutdown.
+                // Do not call prevent_close(); the window closes immediately.
+                // Flask is stopped from RunEvent::ExitRequested.
             }
         })
         .build(tauri::generate_context!())
@@ -74,21 +96,20 @@ fn main() {
         .run(|app_handle, event| {
             match event {
                 RunEvent::ExitRequested { api, .. } => {
-                    // 检查是否已经在处理退出流程，防止重复执行
+                    // Avoid duplicate shutdown work if exit is requested again.
                     if CLOSING.swap(true, Ordering::SeqCst) {
-                        // 如果已经在关闭中，直接返回，不重复执行
-                        // 不打印日志，避免干扰
+                        // Already closing; skip duplicate cleanup (no extra logs).
                         return;
                     }
 
                     println!("[APP_EXIT] Exit requested, starting Flask cleanup");
 
-                    // 防止应用立即退出，确保清理完成
+                    // Defer process exit until async Flask shutdown completes.
                     api.prevent_exit();
 
                     let app_handle_clone = app_handle.clone();
 
-                    // 异步关闭 Flask，然后允许退出
+                    // Stop Flask asynchronously, then allow the process to exit.
                     tauri::async_runtime::spawn(async move {
                         if let Some(server_state) =
                             app_handle_clone.try_state::<TokioMutex<PythonServer>>()
@@ -111,7 +132,7 @@ fn main() {
                             println!("[APP_EXIT] No server state found, skipping Flask shutdown");
                         }
 
-                        // 清理完成后，允许应用退出
+                        // Cleanup finished; exit the application.
                         println!("[APP_EXIT] Cleanup completed, allowing application to exit");
                         app_handle_clone.exit(0);
                     });

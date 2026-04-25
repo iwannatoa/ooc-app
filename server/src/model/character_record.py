@@ -3,9 +3,8 @@ Character record data model
 """
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, Index
-from sqlalchemy.ext.declarative import declarative_base
 
-Base = declarative_base()
+from model.base import Base
 
 
 class CharacterRecord(Base):

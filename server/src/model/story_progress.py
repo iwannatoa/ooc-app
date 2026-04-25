@@ -3,9 +3,7 @@ Story progress tracking data model
 """
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, Text, DateTime, Index
-from sqlalchemy.ext.declarative import declarative_base
-
-Base = declarative_base()
+from model.base import Base
 
 
 class StoryProgress(Base):

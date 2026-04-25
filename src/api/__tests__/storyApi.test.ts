@@ -49,6 +49,10 @@ describe('StoryApi', () => {
 
     const result = await api.rewriteSection('conv-1', 'Make it longer');
     expect(result.success).toBe(true);
+    expect(global.fetch).toHaveBeenCalled();
+    const init = (global.fetch as any).mock.calls[0][1];
+    const body = JSON.parse(init.body as string);
+    expect(body.feedback_operation).toBe('rewrite');
   });
 
   it('should modify section', async () => {

@@ -7,8 +7,42 @@ import * as useStoryClient from '../useStoryClient';
 // Mock dependencies
 vi.mock('../useStoryClient');
 
+const chatStateMocks = vi.hoisted(() => ({
+  setSending: vi.fn(),
+  setStoryOperation: vi.fn(),
+  applyStreamingAssistantChunk: vi.fn(),
+}));
+
+vi.mock('@/hooks/useChatState', () => ({
+  useChatState: () => ({
+    setSending: chatStateMocks.setSending,
+    setStoryOperation: chatStateMocks.setStoryOperation,
+    applyStreamingAssistantChunk: chatStateMocks.applyStreamingAssistantChunk,
+  }),
+}));
+
+vi.mock('@/i18n/i18n', () => ({
+  useI18n: () => ({
+    locale: 'en',
+    setLocale: vi.fn(),
+    languageBackendNotice: null,
+    clearLanguageBackendNotice: vi.fn(),
+    t: (key: string, params?: Record<string, string | number>) => {
+      if (key === 'storyErrors.unknownDetail') return 'Unknown error';
+      if (key === 'storyWarnings.characterParseNotice') {
+        return '[i18n] character parse notice';
+      }
+      if (params && params.detail !== undefined) {
+        return `${key}:${String(params.detail)}`;
+      }
+      return key;
+    },
+  }),
+}));
+
 describe('useStoryActions', () => {
   const mockShowError = vi.fn();
+  const mockShowWarning = vi.fn();
   const mockSetMessages = vi.fn();
   const mockOnConversationSelect = vi.fn().mockResolvedValue(undefined);
   const mockGenerateStory = vi.fn();
@@ -68,6 +102,9 @@ describe('useStoryActions', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    chatStateMocks.setSending.mockClear();
+    chatStateMocks.setStoryOperation.mockClear();
+    chatStateMocks.applyStreamingAssistantChunk.mockClear();
     vi.useFakeTimers();
 
     vi.mocked(useStoryClient.useStoryClient).mockReturnValue({
@@ -91,6 +128,7 @@ describe('useStoryActions', () => {
         setMessages: mockSetMessages,
         settings: mockSettings,
         showError: mockShowError,
+        showWarning: mockShowWarning,
         onConversationSelect: mockOnConversationSelect,
       })
     );
@@ -109,6 +147,7 @@ describe('useStoryActions', () => {
         setMessages: mockSetMessages,
         settings: mockSettings,
         showError: mockShowError,
+        showWarning: mockShowWarning,
         onConversationSelect: mockOnConversationSelect,
       })
     );
@@ -141,6 +180,7 @@ describe('useStoryActions', () => {
         setMessages: mockSetMessages,
         settings: mockSettings,
         showError: mockShowError,
+        showWarning: mockShowWarning,
         onConversationSelect: mockOnConversationSelect,
       })
     );
@@ -153,7 +193,63 @@ describe('useStoryActions', () => {
       'conv_001',
       expect.any(Function)
     );
-    expect(mockSetMessages).toHaveBeenCalled();
+    expect(chatStateMocks.applyStreamingAssistantChunk).toHaveBeenCalled();
+  });
+
+  it('should show parse warning when parse_warnings present (any locale)', async () => {
+    mockGenerateStory.mockResolvedValue({
+      success: true,
+      response: 'ok',
+      parse_warnings: ['characters_tag_unclosed'],
+    });
+
+    const { result } = renderHook(() =>
+      useStoryActions({
+        activeConversationId: 'conv_001',
+        messages: mockMessages,
+        setMessages: mockSetMessages,
+        settings: mockSettings,
+        showError: mockShowError,
+        showWarning: mockShowWarning,
+        onConversationSelect: mockOnConversationSelect,
+      })
+    );
+
+    await act(async () => {
+      await result.current.handleGenerateStory();
+    });
+
+    expect(mockShowWarning).toHaveBeenCalledWith(
+      '[i18n] character parse notice'
+    );
+  });
+
+  it('should show parse warning after confirm when parse_warnings present', async () => {
+    mockConfirmSection.mockResolvedValue({
+      success: true,
+      response: 'Confirmed',
+      parse_warnings: ['empty_characters_section'],
+    });
+
+    const { result } = renderHook(() =>
+      useStoryActions({
+        activeConversationId: 'conv_001',
+        messages: mockMessages,
+        setMessages: mockSetMessages,
+        settings: mockSettings,
+        showError: mockShowError,
+        showWarning: mockShowWarning,
+        onConversationSelect: mockOnConversationSelect,
+      })
+    );
+
+    await act(async () => {
+      await result.current.handleConfirmSection();
+    });
+
+    expect(mockShowWarning).toHaveBeenCalledWith(
+      '[i18n] character parse notice'
+    );
   });
 
   it('should handle generateStory error', async () => {
@@ -167,6 +263,7 @@ describe('useStoryActions', () => {
         setMessages: mockSetMessages,
         settings: mockSettings,
         showError: mockShowError,
+        showWarning: mockShowWarning,
         onConversationSelect: mockOnConversationSelect,
       })
     );
@@ -176,7 +273,7 @@ describe('useStoryActions', () => {
     });
 
     expect(mockShowError).toHaveBeenCalledWith(
-      expect.stringContaining('Failed to generate story')
+      'storyErrors.generateFailedDetail:Generation failed'
     );
   });
 
@@ -193,6 +290,7 @@ describe('useStoryActions', () => {
         setMessages: mockSetMessages,
         settings: mockSettings,
         showError: mockShowError,
+        showWarning: mockShowWarning,
         onConversationSelect: mockOnConversationSelect,
       })
     );
@@ -218,6 +316,7 @@ describe('useStoryActions', () => {
         setMessages: mockSetMessages,
         settings: mockSettings,
         showError: mockShowError,
+        showWarning: mockShowWarning,
         onConversationSelect: mockOnConversationSelect,
       })
     );
@@ -230,6 +329,36 @@ describe('useStoryActions', () => {
 
     expect(mockRewriteSection).toHaveBeenCalledWith('conv_001', 'feedback');
     expect(mockOnConversationSelect).toHaveBeenCalledWith('conv_001');
+  });
+
+  it('should show parse warning after rewrite when parse_warnings present', async () => {
+    mockRewriteSection.mockResolvedValue({
+      success: true,
+      response: 'Rewritten',
+      parse_warnings: ['characters_tag_unclosed'],
+    });
+
+    const { result } = renderHook(() =>
+      useStoryActions({
+        activeConversationId: 'conv_001',
+        messages: mockMessages,
+        setMessages: mockSetMessages,
+        settings: mockSettings,
+        showError: mockShowError,
+        showWarning: mockShowWarning,
+        onConversationSelect: mockOnConversationSelect,
+      })
+    );
+
+    await act(async () => {
+      const promise = result.current.handleRewriteSection('fb');
+      await vi.advanceTimersByTimeAsync(300);
+      await promise;
+    });
+
+    expect(mockShowWarning).toHaveBeenCalledWith(
+      '[i18n] character parse notice'
+    );
   });
 
   it('should handle modifySection success', async () => {
@@ -245,6 +374,7 @@ describe('useStoryActions', () => {
         setMessages: mockSetMessages,
         settings: mockSettings,
         showError: mockShowError,
+        showWarning: mockShowWarning,
         onConversationSelect: mockOnConversationSelect,
       })
     );
@@ -257,6 +387,36 @@ describe('useStoryActions', () => {
 
     expect(mockModifySection).toHaveBeenCalledWith('conv_001', 'feedback');
     expect(mockOnConversationSelect).toHaveBeenCalledWith('conv_001');
+  });
+
+  it('should show parse warning after modify when parse_warnings present', async () => {
+    mockModifySection.mockResolvedValue({
+      success: true,
+      response: 'Modified',
+      parse_warnings: ['empty_characters_section'],
+    });
+
+    const { result } = renderHook(() =>
+      useStoryActions({
+        activeConversationId: 'conv_001',
+        messages: mockMessages,
+        setMessages: mockSetMessages,
+        settings: mockSettings,
+        showError: mockShowError,
+        showWarning: mockShowWarning,
+        onConversationSelect: mockOnConversationSelect,
+      })
+    );
+
+    await act(async () => {
+      const promise = result.current.handleModifySection('fb');
+      await vi.advanceTimersByTimeAsync(300);
+      await promise;
+    });
+
+    expect(mockShowWarning).toHaveBeenCalledWith(
+      '[i18n] character parse notice'
+    );
   });
 
   it('should handle generateStory failure response', async () => {
@@ -272,6 +432,7 @@ describe('useStoryActions', () => {
         setMessages: mockSetMessages,
         settings: mockSettings,
         showError: mockShowError,
+        showWarning: mockShowWarning,
         onConversationSelect: mockOnConversationSelect,
       })
     );
@@ -280,7 +441,9 @@ describe('useStoryActions', () => {
       await result.current.handleGenerateStory();
     });
 
-    expect(mockShowError).toHaveBeenCalledWith('Generation failed');
+    expect(mockShowError).toHaveBeenCalledWith(
+      'storyErrors.generateFailedDetail:Generation failed'
+    );
   });
 
   it('should handle generateStory with no response', async () => {
@@ -296,6 +459,7 @@ describe('useStoryActions', () => {
         setMessages: mockSetMessages,
         settings: mockSettings,
         showError: mockShowError,
+        showWarning: mockShowWarning,
         onConversationSelect: mockOnConversationSelect,
       })
     );
@@ -304,7 +468,9 @@ describe('useStoryActions', () => {
       await result.current.handleGenerateStory();
     });
 
-    expect(mockShowError).toHaveBeenCalledWith('Failed to generate story');
+    expect(mockShowError).toHaveBeenCalledWith(
+      'storyErrors.generateFailedDetail:Unknown error'
+    );
   });
 
   it('should handle generateStory when last message is assistant', async () => {
@@ -350,6 +516,7 @@ describe('useStoryActions', () => {
         setMessages: mockSetMessagesWithState,
         settings: mockSettings,
         showError: mockShowError,
+        showWarning: mockShowWarning,
         onConversationSelect: mockOnConversationSelect,
       })
     );
@@ -359,7 +526,7 @@ describe('useStoryActions', () => {
     });
 
     expect(mockGenerateStory).toHaveBeenCalled();
-    expect(mockSetMessagesWithState).toHaveBeenCalled();
+    expect(chatStateMocks.applyStreamingAssistantChunk).toHaveBeenCalled();
   });
 
   it('should handle generateStory when no last message', async () => {
@@ -392,6 +559,7 @@ describe('useStoryActions', () => {
         setMessages: mockSetMessagesWithState,
         settings: mockSettings,
         showError: mockShowError,
+        showWarning: mockShowWarning,
         onConversationSelect: mockOnConversationSelect,
       })
     );
@@ -401,7 +569,7 @@ describe('useStoryActions', () => {
     });
 
     expect(mockGenerateStory).toHaveBeenCalled();
-    expect(mockSetMessagesWithState).toHaveBeenCalled();
+    expect(chatStateMocks.applyStreamingAssistantChunk).toHaveBeenCalled();
   });
 
   it('should handle generateStory with non-Error exception', async () => {
@@ -414,6 +582,7 @@ describe('useStoryActions', () => {
         setMessages: mockSetMessages,
         settings: mockSettings,
         showError: mockShowError,
+        showWarning: mockShowWarning,
         onConversationSelect: mockOnConversationSelect,
       })
     );
@@ -423,7 +592,7 @@ describe('useStoryActions', () => {
     });
 
     expect(mockShowError).toHaveBeenCalledWith(
-      'Failed to generate story: Unknown error'
+      'storyErrors.generateFailedDetail:Unknown error'
     );
   });
 
@@ -435,6 +604,7 @@ describe('useStoryActions', () => {
         setMessages: mockSetMessages,
         settings: mockSettings,
         showError: mockShowError,
+        showWarning: mockShowWarning,
         onConversationSelect: mockOnConversationSelect,
       })
     );
@@ -459,6 +629,7 @@ describe('useStoryActions', () => {
         setMessages: mockSetMessages,
         settings: mockSettings,
         showError: mockShowError,
+        showWarning: mockShowWarning,
         onConversationSelect: mockOnConversationSelect,
       })
     );
@@ -467,7 +638,9 @@ describe('useStoryActions', () => {
       await result.current.handleConfirmSection();
     });
 
-    expect(mockShowError).toHaveBeenCalledWith('Confirmation failed');
+    expect(mockShowError).toHaveBeenCalledWith(
+      'storyErrors.confirmFailedDetail:Confirmation failed'
+    );
   });
 
   it('should handle confirmSection error', async () => {
@@ -481,6 +654,7 @@ describe('useStoryActions', () => {
         setMessages: mockSetMessages,
         settings: mockSettings,
         showError: mockShowError,
+        showWarning: mockShowWarning,
         onConversationSelect: mockOnConversationSelect,
       })
     );
@@ -490,7 +664,7 @@ describe('useStoryActions', () => {
     });
 
     expect(mockShowError).toHaveBeenCalledWith(
-      'Failed to confirm section: Confirm failed'
+      'storyErrors.confirmFailedDetail:Confirm failed'
     );
   });
 
@@ -504,6 +678,7 @@ describe('useStoryActions', () => {
         setMessages: mockSetMessages,
         settings: mockSettings,
         showError: mockShowError,
+        showWarning: mockShowWarning,
         onConversationSelect: mockOnConversationSelect,
       })
     );
@@ -513,7 +688,7 @@ describe('useStoryActions', () => {
     });
 
     expect(mockShowError).toHaveBeenCalledWith(
-      'Failed to confirm section: Unknown error'
+      'storyErrors.confirmFailedDetail:Unknown error'
     );
   });
 
@@ -525,6 +700,7 @@ describe('useStoryActions', () => {
         setMessages: mockSetMessages,
         settings: mockSettings,
         showError: mockShowError,
+        showWarning: mockShowWarning,
         onConversationSelect: mockOnConversationSelect,
       })
     );
@@ -551,6 +727,7 @@ describe('useStoryActions', () => {
         setMessages: mockSetMessages,
         settings: mockSettings,
         showError: mockShowError,
+        showWarning: mockShowWarning,
         onConversationSelect: mockOnConversationSelect,
       })
     );
@@ -561,7 +738,9 @@ describe('useStoryActions', () => {
       await promise;
     });
 
-    expect(mockShowError).toHaveBeenCalledWith('Rewrite failed');
+    expect(mockShowError).toHaveBeenCalledWith(
+      'storyErrors.rewriteFailedDetail:Rewrite failed'
+    );
   });
 
   it('should handle rewriteSection error', async () => {
@@ -575,6 +754,7 @@ describe('useStoryActions', () => {
         setMessages: mockSetMessages,
         settings: mockSettings,
         showError: mockShowError,
+        showWarning: mockShowWarning,
         onConversationSelect: mockOnConversationSelect,
       })
     );
@@ -586,7 +766,7 @@ describe('useStoryActions', () => {
     });
 
     expect(mockShowError).toHaveBeenCalledWith(
-      'Failed to rewrite section: Rewrite failed'
+      'storyErrors.rewriteFailedDetail:Rewrite failed'
     );
   });
 
@@ -600,6 +780,7 @@ describe('useStoryActions', () => {
         setMessages: mockSetMessages,
         settings: mockSettings,
         showError: mockShowError,
+        showWarning: mockShowWarning,
         onConversationSelect: mockOnConversationSelect,
       })
     );
@@ -611,7 +792,7 @@ describe('useStoryActions', () => {
     });
 
     expect(mockShowError).toHaveBeenCalledWith(
-      'Failed to rewrite section: Unknown error'
+      'storyErrors.rewriteFailedDetail:Unknown error'
     );
   });
 
@@ -623,6 +804,7 @@ describe('useStoryActions', () => {
         setMessages: mockSetMessages,
         settings: mockSettings,
         showError: mockShowError,
+        showWarning: mockShowWarning,
         onConversationSelect: mockOnConversationSelect,
       })
     );
@@ -649,6 +831,7 @@ describe('useStoryActions', () => {
         setMessages: mockSetMessages,
         settings: mockSettings,
         showError: mockShowError,
+        showWarning: mockShowWarning,
         onConversationSelect: mockOnConversationSelect,
       })
     );
@@ -659,7 +842,9 @@ describe('useStoryActions', () => {
       await promise;
     });
 
-    expect(mockShowError).toHaveBeenCalledWith('Modify failed');
+    expect(mockShowError).toHaveBeenCalledWith(
+      'storyErrors.modifyFailedDetail:Modify failed'
+    );
   });
 
   it('should handle modifySection error', async () => {
@@ -673,6 +858,7 @@ describe('useStoryActions', () => {
         setMessages: mockSetMessages,
         settings: mockSettings,
         showError: mockShowError,
+        showWarning: mockShowWarning,
         onConversationSelect: mockOnConversationSelect,
       })
     );
@@ -684,7 +870,7 @@ describe('useStoryActions', () => {
     });
 
     expect(mockShowError).toHaveBeenCalledWith(
-      'Failed to modify section: Modify failed'
+      'storyErrors.modifyFailedDetail:Modify failed'
     );
   });
 
@@ -698,6 +884,7 @@ describe('useStoryActions', () => {
         setMessages: mockSetMessages,
         settings: mockSettings,
         showError: mockShowError,
+        showWarning: mockShowWarning,
         onConversationSelect: mockOnConversationSelect,
       })
     );
@@ -709,7 +896,7 @@ describe('useStoryActions', () => {
     });
 
     expect(mockShowError).toHaveBeenCalledWith(
-      'Failed to modify section: Unknown error'
+      'storyErrors.modifyFailedDetail:Unknown error'
     );
   });
 });

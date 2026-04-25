@@ -97,7 +97,6 @@ export const DialogContainer: React.FC = () => {
             onSave={handleSaveSettings}
             onCancel={() => {
               close(dialog.id);
-              // Clear form state when dialog closes
               dispatch(clearForm());
               initializedDialogIdsRef.current.delete(dialog.id);
             }}
@@ -137,7 +136,6 @@ export const DialogContainer: React.FC = () => {
             settings={payload.settings}
             onEdit={() => {
               close(dialog.id);
-              // Open settings form dialog
               if (payload.conversationId) {
                 settingsDialog.open(payload.conversationId, {
                   settings: payload.settings,

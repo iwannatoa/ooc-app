@@ -389,3 +389,54 @@
   margin-top: $spacing-md;
   display: block;
 }
+
+.storyLengthFieldset {
+  margin: $spacing-lg 0;
+  padding: $spacing-md;
+  border: 1px solid $border-color;
+  border-radius: $border-radius;
+
+  legend {
+    padding: 0 $spacing-xs;
+    color: $text-primary;
+    font-weight: 600;
+  }
+}
+
+.storyLengthOptions {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+  margin-top: $spacing-sm;
+}
+
+.radioLabel {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  cursor: pointer;
+  color: $text-secondary;
+}
+
+.totalSectionsRow {
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+  margin-top: $spacing-md;
+
+  input[type='number'] {
+    width: 5rem;
+    padding: $spacing-xs $spacing-sm;
+    border-radius: $border-radius;
+    border: 1px solid $border-color;
+    background: $bg-darker;
+    color: $text-primary;
+  }
+}
+
+.fieldHint {
+  margin: $spacing-sm 0 0;
+  font-size: $font-size-sm;
+  color: $text-secondary;
+  line-height: 1.4;
+}

@@ -5,7 +5,11 @@ import ConversationList from '../ConversationList';
 import * as useI18n from '@/i18n/i18n';
 import * as useConversationManagement from '@/hooks/useConversationManagement';
 import * as useUIState from '@/hooks/useUIState';
-import { createMockI18n, createMockConversationManagement, createMockUIState } from '@/mock';
+import {
+  createMockI18n,
+  createMockConversationManagement,
+  createMockUIState,
+} from '@/mock/testing';
 
 vi.mock('@/i18n/i18n');
 vi.mock('@/hooks/useConversationManagement');

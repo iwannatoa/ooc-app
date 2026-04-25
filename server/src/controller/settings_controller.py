@@ -16,6 +16,7 @@ from utils.logger import get_logger
 from utils.stream_response import create_stream_response
 from utils.controller_helpers import error_response, handle_errors
 import json
+from pathlib import Path
 
 logger = get_logger(__name__)
 
@@ -125,6 +126,10 @@ class SettingsController:
         @app.route('/api/conversation/characters/generate-stream', methods=['POST'])
         def generate_character_stream():
             return self.generate_character_stream()
+
+        @app.route('/api/story-templates', methods=['GET'])
+        def list_story_templates():
+            return self.list_story_templates()
     
     @handle_errors
     def get_conversations_list(self):
@@ -386,12 +391,14 @@ class SettingsController:
         if not conversation_id:
             return error_response(language, 'error_messages.conversation_id_required')
         
-        progress = self.story_service.update_progress(
-            conversation_id=conversation_id,
-            current_section=data.get('current_section'),
-            total_sections=data.get('total_sections'),
-            status=data.get('status')
-        )
+        update_kwargs = {
+            'conversation_id': conversation_id,
+            'current_section': data.get('current_section'),
+            'status': data.get('status'),
+        }
+        if 'total_sections' in data:
+            update_kwargs['total_sections'] = data['total_sections']
+        progress = self.story_service.update_progress(**update_kwargs)
         
         return jsonify({
             "success": True,
@@ -725,4 +732,21 @@ class SettingsController:
             )
         
         return create_stream_response(stream_generator=stream_generator())
+
+    def list_story_templates(self):
+        """List built-in story template descriptors (local JSON under ``utils/story_templates``)."""
+        root = Path(__file__).resolve().parent.parent / 'utils' / 'story_templates'
+        items = []
+        if root.is_dir():
+            for path in sorted(root.glob('*.json')):
+                try:
+                    with path.open(encoding='utf-8') as fh:
+                        data = json.load(fh)
+                    items.append({
+                        'id': data.get('id', path.stem),
+                        'title': data.get('title', path.stem),
+                    })
+                except Exception:
+                    logger.warning('Skip invalid story template file: %s', path)
+        return jsonify({'success': True, 'templates': items})
 

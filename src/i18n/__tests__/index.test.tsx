@@ -15,6 +15,8 @@ vi.mock('../locales/zh.json', () => ({
     },
     app: {
       title: '应用标题',
+      languagePreferenceLoadFailed: '加载语言失败',
+      languagePreferenceSaveFailed: '保存语言失败',
     },
   },
 }));
@@ -27,6 +29,8 @@ vi.mock('../locales/en.json', () => ({
     },
     app: {
       title: 'App Title',
+      languagePreferenceLoadFailed: 'Load language failed',
+      languagePreferenceSaveFailed: 'Save language failed',
     },
   },
 }));

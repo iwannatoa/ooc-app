@@ -21,7 +21,10 @@ export interface AISettingsRef {
 }
 
 type FieldType = 'text' | 'number' | 'password';
-type FieldKey = keyof AISettingsType['ollama'] | 'apiKey';
+type FieldKey =
+  | keyof AISettingsType['ollama']
+  | keyof AISettingsType['deepseek']
+  | 'apiKey';
 
 interface FieldConfig {
   key: FieldKey;
@@ -68,8 +71,19 @@ export const AISettings = forwardRef<AISettingsRef, AISettingsProps>(
           ...DEFAULT_SETTINGS.ai.deepseek,
           ...(settings?.deepseek ? filterUndefined(settings.deepseek) : {}),
         },
+        openai_compatible: {
+          ...DEFAULT_SETTINGS.ai.openai_compatible,
+          ...(settings?.openai_compatible
+            ? filterUndefined(settings.openai_compatible)
+            : {}),
+        },
       };
-    }, [settings?.provider, settings?.ollama, settings?.deepseek]);
+    }, [
+      settings?.provider,
+      settings?.ollama,
+      settings?.deepseek,
+      settings?.openai_compatible,
+    ]);
 
     // Local state for AI settings
     const [localSettings, setLocalSettings] =
@@ -90,7 +104,9 @@ export const AISettings = forwardRef<AISettingsRef, AISettingsProps>(
     const providerDisplayName =
       currentProvider === 'ollama'
         ? t('settingsPanel.providerOllama')
-        : t('settingsPanel.providerDeepSeek');
+        : currentProvider === 'deepseek'
+          ? t('settingsPanel.providerDeepSeek')
+          : t('settingsPanel.providerOpenAICompatible');
 
     const handleProviderChange = (provider: AIProvider) => {
       setLocalSettings((prev) => ({
@@ -117,7 +133,8 @@ export const AISettings = forwardRef<AISettingsRef, AISettingsProps>(
               [fieldKey]: value as string | number,
             },
           };
-        } else {
+        }
+        if (currentProvider === 'deepseek') {
           return {
             ...prev,
             deepseek: {
@@ -126,6 +143,13 @@ export const AISettings = forwardRef<AISettingsRef, AISettingsProps>(
             },
           };
         }
+        return {
+          ...prev,
+          openai_compatible: {
+            ...prev.openai_compatible,
+            [fieldKey]: value as string | number,
+          },
+        };
       });
     };
 
@@ -137,10 +161,11 @@ export const AISettings = forwardRef<AISettingsRef, AISettingsProps>(
           type: 'password',
           labelKey: 'settingsPanel.apiKey',
           placeholderKey: 'settingsPanel.apiKeyPlaceholder',
-          providers: ['deepseek'],
+          providers: ['deepseek', 'openai_compatible'],
           required: true,
           validate: (value) =>
-            typeof value === 'string' && value.trim().length > 0,
+            currentProvider === 'openai_compatible' ||
+            (typeof value === 'string' && value.trim().length > 0),
         },
         {
           key: 'baseUrl',
@@ -154,7 +179,9 @@ export const AISettings = forwardRef<AISettingsRef, AISettingsProps>(
           placeholderKey:
             currentProvider === 'deepseek'
               ? 'settingsPanel.apiUrlPlaceholder'
-              : undefined,
+              : currentProvider === 'openai_compatible'
+                ? 'settingsPanel.apiUrlOpenAICompatiblePlaceholder'
+                : undefined,
           required: true,
           validate: (value) =>
             typeof value === 'string' && value.trim().length > 0,
@@ -232,6 +259,9 @@ export const AISettings = forwardRef<AISettingsRef, AISettingsProps>(
             <option value='deepseek'>
               {t('settingsPanel.providerDeepSeek')}
             </option>
+            <option value='openai_compatible'>
+              {t('settingsPanel.providerOpenAICompatible')}
+            </option>
           </select>
         </div>
 
@@ -244,13 +274,16 @@ export const AISettings = forwardRef<AISettingsRef, AISettingsProps>(
             // Get value directly from config (initialSettings ensures defaults are present)
             const value =
               field.key === 'apiKey'
-                ? currentProvider === 'deepseek'
-                  ? localSettings.deepseek.apiKey ?? ''
+                ? currentProvider === 'deepseek' ||
+                    currentProvider === 'openai_compatible'
+                  ? (localSettings[currentProvider] as { apiKey?: string })
+                      .apiKey ?? ''
                   : ''
                 : (currentConfig[field.key] as string | number) ?? '';
 
             // Extract properties that don't belong to SettingsInput
             const { key, providers, ...inputProps } = field;
+            void providers;
 
             return (
               <SettingsInput

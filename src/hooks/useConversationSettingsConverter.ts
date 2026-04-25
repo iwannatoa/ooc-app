@@ -76,6 +76,8 @@ export const useConversationSettingsConverter = () => {
         allowAutoGenerateMainCharacters:
           settings?.additional_settings?.allow_auto_generate_main_characters !==
           false,
+        serializationOpenEnded: true,
+        finiteTotalSections: 10,
       };
     },
     []

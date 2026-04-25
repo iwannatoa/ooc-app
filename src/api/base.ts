@@ -16,10 +16,17 @@ export interface RequestConfig extends RequestInit {
   skipErrorHandling?: boolean;
 }
 
+/** Optional side channels for SSE consumers (e.g. story `parse_warnings` frames). */
+export interface StreamExtras {
+  parseWarningsCollector?: string[];
+}
+
 export interface ApiError extends Error {
   code?: number;
   status?: number;
   response?: any;
+  /** Stream ended with persist_failed SSE frame (chat saved to UI but not DB). */
+  persistFailed?: boolean;
 }
 
 /**
@@ -44,6 +51,32 @@ export function createApiError(
  * This function should be provided by the caller (from useFlaskPort hook)
  */
 export type GetApiUrlFn = () => Promise<string>;
+
+function buildAuthHeaders(
+  extra?: HeadersInit
+): Record<string, string> {
+  const token = import.meta.env.VITE_FLASK_API_TOKEN?.trim();
+  const base: Record<string, string> = {};
+  if (token) {
+    base.Authorization = `Bearer ${token}`;
+  }
+  if (!extra) {
+    return base;
+  }
+  if (extra instanceof Headers) {
+    extra.forEach((v, k) => {
+      base[k] = v;
+    });
+    return base;
+  }
+  if (Array.isArray(extra)) {
+    for (const [k, v] of extra) {
+      base[k] = v;
+    }
+    return base;
+  }
+  return { ...base, ...(extra as Record<string, string>) };
+}
 
 /**
  * Base API client class
@@ -97,6 +130,7 @@ export class BaseApiClient {
     try {
       const response = await fetch(url, {
         ...fetchConfig,
+        headers: buildAuthHeaders(fetchConfig.headers),
         signal: controller.signal,
       });
 
@@ -219,7 +253,8 @@ export class BaseApiClient {
     endpoint: string,
     body: any,
     onChunk: (chunk: string, accumulated: string) => void,
-    config: RequestConfig = {}
+    config: RequestConfig = {},
+    streamExtras?: StreamExtras
   ): Promise<string> {
     // Check mock router first for streaming endpoints
     const mockResponse = await mockRouter.match('POST', endpoint, { body });
@@ -246,10 +281,10 @@ export class BaseApiClient {
 
     const response = await fetch(url, {
       method: 'POST',
-      headers: {
+      headers: buildAuthHeaders({
         'Content-Type': 'application/json',
-        ...config.headers,
-      },
+        ...((config.headers as Record<string, string>) || {}),
+      }),
       body: JSON.stringify(body),
     });
 
@@ -287,9 +322,28 @@ export class BaseApiClient {
               if (data.error) {
                 throw createApiError(data.error);
               }
+              if (data.persist_failed) {
+                const err = createApiError(
+                  data.error || 'Failed to save chat messages'
+                ) as ApiError;
+                err.persistFailed = true;
+                throw err;
+              }
+              if ('parse_warnings' in data && Array.isArray(data.parse_warnings)) {
+                if (streamExtras?.parseWarningsCollector) {
+                  for (const w of data.parse_warnings) {
+                    if (typeof w === 'string') {
+                      streamExtras.parseWarningsCollector.push(w);
+                    }
+                  }
+                }
+                continue;
+              }
               if (data.done) {
                 return accumulated;
               }
+              // Parsed JSON but not a recognized SSE control payload — do not append to story text.
+              continue;
             } catch (e) {
               // If JSON parse fails, treat as plain text chunk
               if (!(e instanceof SyntaxError)) {

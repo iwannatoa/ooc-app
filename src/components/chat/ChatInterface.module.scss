@@ -9,3 +9,34 @@
   border-radius: $border-radius-lg;
   overflow: hidden;
 }
+
+.narrationBar {
+  display: flex;
+  gap: $spacing-sm;
+  padding: $spacing-sm $spacing-md;
+  border-top: 1px solid $border-color;
+  background: $bg-dark;
+
+  input {
+    flex: 1;
+    padding: $spacing-xs $spacing-sm;
+    border-radius: $border-radius;
+    border: 1px solid $border-color;
+    background: $bg-darker;
+    color: $text-primary;
+  }
+
+  button {
+    @include button-reset;
+    padding: $spacing-xs $spacing-md;
+    border-radius: $border-radius;
+    background: $bg-light;
+    color: $text-primary;
+    border: 1px solid $border-color;
+    white-space: nowrap;
+
+    &:disabled {
+      opacity: 0.5;
+    }
+  }
+}

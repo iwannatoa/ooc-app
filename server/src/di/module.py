@@ -59,81 +59,39 @@ class AppModule(Module):
     
     @provider
     def _create_chat_repository(self) -> ChatRepository:
-        """
-        Create chat repository (provide database path)
-        
-        Returns:
-            ChatRepository instance
-        """
-        from utils.db_path import get_database_path
-        
-        db_path = get_database_path()
-        return ChatRepository(db_path=db_path)
+        from infrastructure.database import get_sessionmaker
+
+        return ChatRepository(session_factory=get_sessionmaker())
     
     @provider
     def _create_conversation_repository(self) -> ConversationRepository:
-        """
-        Create conversation repository (provide database path)
-        
-        Returns:
-            ConversationRepository instance
-        """
-        from utils.db_path import get_database_path
-        
-        db_path = get_database_path()
-        return ConversationRepository(db_path=db_path)
+        from infrastructure.database import get_sessionmaker
+
+        return ConversationRepository(session_factory=get_sessionmaker())
     
     @provider
     def _create_summary_repository(self) -> SummaryRepository:
-        """
-        Create summary repository (provide database path)
-        
-        Returns:
-            SummaryRepository instance
-        """
-        from utils.db_path import get_database_path
-        
-        db_path = get_database_path()
-        return SummaryRepository(db_path=db_path)
+        from infrastructure.database import get_sessionmaker
+
+        return SummaryRepository(session_factory=get_sessionmaker())
     
     @provider
     def _create_story_progress_repository(self) -> StoryProgressRepository:
-        """
-        Create story progress repository (provide database path)
-        
-        Returns:
-            StoryProgressRepository instance
-        """
-        from utils.db_path import get_database_path
-        
-        db_path = get_database_path()
-        return StoryProgressRepository(db_path=db_path)
+        from infrastructure.database import get_sessionmaker
+
+        return StoryProgressRepository(session_factory=get_sessionmaker())
     
     @provider
     def _create_ai_config_repository(self) -> AIConfigRepository:
-        """
-        Create AI config repository (provide database path)
-        
-        Returns:
-            AIConfigRepository instance
-        """
-        from utils.db_path import get_database_path
-        
-        db_path = get_database_path()
-        return AIConfigRepository(db_path=db_path)
+        from infrastructure.database import get_sessionmaker
+
+        return AIConfigRepository(session_factory=get_sessionmaker())
     
     @provider
     def _create_app_settings_repository(self) -> AppSettingsRepository:
-        """
-        Create app settings repository (provide database path)
-        
-        Returns:
-            AppSettingsRepository instance
-        """
-        from utils.db_path import get_database_path
-        
-        db_path = get_database_path()
-        return AppSettingsRepository(db_path=db_path)
+        from infrastructure.database import get_sessionmaker
+
+        return AppSettingsRepository(session_factory=get_sessionmaker())
     
     @provider
     def _create_chat_service(
@@ -305,16 +263,9 @@ class AppModule(Module):
     
     @provider
     def _create_character_record_repository(self) -> CharacterRecordRepository:
-        """
-        Create character record repository (provide database path)
-        
-        Returns:
-            CharacterRecordRepository instance
-        """
-        from utils.db_path import get_database_path
-        
-        db_path = get_database_path()
-        return CharacterRecordRepository(db_path=db_path)
+        from infrastructure.database import get_sessionmaker
+
+        return CharacterRecordRepository(session_factory=get_sessionmaker())
     
     @provider
     def _create_character_service(

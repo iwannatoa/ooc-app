@@ -103,7 +103,12 @@ class AIConfigService:
         global_config = self.get_config(provider, include_api_key=True)
         
         if not global_config:
-            default_model = f'{provider}-chat' if provider == 'deepseek' else 'llama2'
+            if provider == 'deepseek':
+                default_model = 'deepseek-chat'
+            elif provider == 'openai_compatible':
+                default_model = 'gpt-4o-mini'
+            else:
+                default_model = 'llama2'
             return {
                 'provider': provider,
                 'model': model or default_model,

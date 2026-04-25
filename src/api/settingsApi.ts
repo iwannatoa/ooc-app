@@ -19,7 +19,7 @@ export class SettingsApi extends BaseApiClient {
     // Settings are stored as JSON string in backend
     try {
       return JSON.parse(response.settings);
-    } catch (error) {
+    } catch {
       throw new Error('Failed to parse app settings');
     }
   }

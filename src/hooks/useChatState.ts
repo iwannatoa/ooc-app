@@ -1,6 +1,7 @@
 import { useAppSelector, useAppDispatch } from '@/hooks/redux';
 import {
   setMessages,
+  applyStreamingAssistantChunk,
   addMessage,
   updateMessage,
   removeMessage,
@@ -10,6 +11,7 @@ import {
   removeModel,
   setSelectedModel,
   setSending,
+  setStoryOperation,
   setCurrentMessage,
   clearCurrentMessage,
   setConversationHistory,
@@ -22,7 +24,7 @@ import {
   resetChat,
   sendChatMessage,
 } from '@/store/slices/chatSlice';
-import { ChatMessage, OllamaModel } from '@/types';
+import { ChatMessage, ChatStoryOperation, OllamaModel } from '@/types';
 
 export const useChatState = () => {
   const dispatch = useAppDispatch();
@@ -40,6 +42,8 @@ export const useChatState = () => {
 
     // Message operations
     setMessages: (messages: ChatMessage[]) => dispatch(setMessages(messages)),
+    applyStreamingAssistantChunk: (content: string) =>
+      dispatch(applyStreamingAssistantChunk(content)),
     addMessage: (message: ChatMessage) => dispatch(addMessage(message)),
     updateMessage: (id: string, content: string) =>
       dispatch(updateMessage({ id, content })),
@@ -54,6 +58,8 @@ export const useChatState = () => {
 
     // Sending state
     setSending: (sending: boolean) => dispatch(setSending(sending)),
+    setStoryOperation: (op: ChatStoryOperation) =>
+      dispatch(setStoryOperation(op)),
 
     // Current message
     setCurrentMessage: (message: string) =>

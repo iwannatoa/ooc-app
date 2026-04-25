@@ -2,9 +2,14 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   # Frontend: TypeScript type checking
@@ -13,16 +18,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
           cache: 'npm'
-      
+
       - name: Install dependencies
         run: npm ci
-      
+
       - name: Type check
         run: npm run type-check
 
@@ -32,19 +37,124 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
           cache: 'npm'
-      
+
       - name: Install dependencies
         run: npm ci
-      
+
+      - name: ESLint and i18n key parity
+        run: npm run lint:eslint && npm run lint:i18n
+
       - name: Run frontend tests
         run: npm test
-        continue-on-error: true
+
+  # E2E: Playwright against Vite preview
+  e2e:
+    name: E2E Smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Playwright tests
+        run: npm run test:e2e
+
+  # Desktop: real Tauri + WebKitGTK via tauri-plugin-playwright (Linux headless with xvfb)
+  e2e-tauri-desktop:
+    name: E2E Tauri Desktop
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            curl \
+            wget \
+            libssl-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libglib2.0-dev \
+            pkg-config \
+            libwebkit2gtk-4.1-dev \
+            xvfb
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+          cache: 'pip'
+
+      - name: Install Python dependencies
+        working-directory: server
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Build Python backend (sidecar)
+        working-directory: server
+        run: python build.py --current-platform-only
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            src-tauri/target/
+          key: ${{ runner.os }}-cargo-tauri-e2e-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Install Playwright (Chromium; used by test harness)
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Tauri desktop smoke (xvfb)
+        run: xvfb-run -a npm run test:e2e:tauri
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-tauri-report
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
 
   # Backend: Python lint and test
   backend-lint:
@@ -52,22 +162,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.9'
           cache: 'pip'
-      
+
       - name: Install dependencies
         working-directory: server
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install flake8
-      
+
       - name: Run flake8
-        working-directory: server
         run: npm run lint:python
 
   backend-test:
@@ -75,39 +184,39 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.9'
           cache: 'pip'
-      
+
       - name: Install dependencies
         working-directory: server
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install -r requirements-test.txt
-      
+
       - name: Run pytest
         working-directory: server
         run: pytest
-      
+
       - name: Upload coverage reports
         uses: codecov/codecov-action@v3
         with:
           files: ./server/coverage.xml
           flags: backend
           name: backend-coverage
-        continue-on-error: true
+          fail_ci_if_error: false
 
-  # Rust: Check Tauri backend
+  # Rust: Test Tauri backend
   rust-check:
-    name: Rust Check
+    name: Rust Tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install system dependencies
         run: |
           sudo apt-get update
@@ -122,26 +231,26 @@ jobs:
             libglib2.0-dev \
             pkg-config \
             libwebkit2gtk-4.1-dev
-      
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.9'
           cache: 'pip'
-      
+
       - name: Install Python dependencies
         working-directory: server
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-      
+
       - name: Build Python backend
         working-directory: server
         run: python build.py --current-platform-only
-      
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
-      
+
       - name: Cache cargo registry
         uses: actions/cache@v3
         with:
@@ -154,8 +263,7 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-
-      
-      - name: Check Rust code
-        working-directory: src-tauri
-        run: cargo check
 
+      - name: Run Rust tests
+        working-directory: src-tauri
+        run: cargo test

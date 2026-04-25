@@ -35,6 +35,45 @@ export const ChatControls: React.FC = () => {
 
   const currentModel = getCurrentModel();
 
+  const handleExportMarkdown = useCallback(async () => {
+    if (!activeConversationId || !messages.length) {
+      return;
+    }
+    try {
+      const storyTitle =
+        conversationSettings?.title || t('conversation.unnamedConversation');
+      const chapterNumber =
+        progress?.current_section !== undefined
+          ? progress.current_section + 1
+          : 1;
+      const lines = messages.map((msg) => {
+        const role = msg.role === 'assistant' ? 'Assistant' : 'User';
+        return `## ${role}\n\n${msg.content}\n`;
+      });
+      const md = `# ${storyTitle}\n\n_${t('chat.chapter', { number: chapterNumber })}${progress?.total_sections ? ` / ${progress.total_sections}` : ''}_\n\n${lines.join('\n')}`;
+      const sanitizedTitle = storyTitle.replace(/[<>:"/\\|?*]/g, '_');
+      const filePath = await save({
+        defaultPath: `${sanitizedTitle}.md`,
+        filters: [{ name: 'Markdown', extensions: ['md'] }],
+      });
+      if (filePath) {
+        await writeTextFile(filePath, md);
+        showSuccess(t('chat.exportSuccess'));
+      }
+    } catch (error) {
+      console.error('Failed to export markdown:', error);
+      showError(t('chat.exportFailed'));
+    }
+  }, [
+    activeConversationId,
+    messages,
+    conversationSettings,
+    progress,
+    t,
+    showError,
+    showSuccess,
+  ]);
+
   const handleExportStory = useCallback(async () => {
     if (!activeConversationId || !messages.length) {
       return;
@@ -146,14 +185,23 @@ export const ChatControls: React.FC = () => {
 
       {/* Export button - positioned on the right */}
       {activeConversationId && conversationSettings && messages.length > 0 && (
-        <button
-          onClick={handleExportStory}
-          className={styles.exportButton}
-          title={t('chat.exportStory')}
-          style={{ marginLeft: 'auto' }}
-        >
-          {t('chat.export')}
-        </button>
+        <>
+          <button
+            onClick={handleExportMarkdown}
+            className={styles.exportButton}
+            title={t('chat.exportMarkdown')}
+            style={{ marginLeft: 'auto' }}
+          >
+            {t('chat.exportMd')}
+          </button>
+          <button
+            onClick={handleExportStory}
+            className={styles.exportButton}
+            title={t('chat.exportStory')}
+          >
+            {t('chat.export')}
+          </button>
+        </>
       )}
 
       {/* Show new button when collapsed */}

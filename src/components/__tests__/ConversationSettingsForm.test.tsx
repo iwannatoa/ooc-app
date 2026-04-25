@@ -9,7 +9,7 @@ import {
   createMockConversationSettingsGeneration,
   createMockConversationSettingsConverter,
   createMockI18n,
-} from '@/mock';
+} from '@/mock/testing';
 import { vi } from 'vitest';
 import {
   cleanup,
@@ -44,6 +44,8 @@ describe('ConversationSettingsForm', () => {
     vi.mocked(useConversationClient.useConversationClient).mockReturnValue(
       createMockConversationClient({
         confirmOutline: mockConversationClient.confirmOutline,
+        getProgress: vi.fn().mockResolvedValue(null),
+        updateProgress: vi.fn().mockResolvedValue({} as never),
       })
     );
 
@@ -62,6 +64,8 @@ describe('ConversationSettingsForm', () => {
           outlineConfirmed: false,
           allowAutoGenerateCharacters: false,
           allowAutoGenerateMainCharacters: false,
+          serializationOpenEnded: true,
+          finiteTotalSections: 10,
         },
         conversationId: 'test_001',
         isNewConversation: false,

@@ -9,6 +9,25 @@ import * as useConversationSettingsDialog from '@/hooks/useDialog';
 import * as useConversationManagement from '@/hooks/useConversationManagement';
 import * as useChatState from '@/hooks/useChatState';
 
+vi.mock('@/services/confirmDialogService', () => ({
+  confirmDialog: vi.fn(() => Promise.resolve(true)),
+}));
+
+vi.mock('@/hooks/useStoryProgress', () => ({
+  useStoryProgress: () => ({
+    progress: null,
+    loading: false,
+    refresh: vi.fn(),
+  }),
+}));
+
+vi.mock('@/hooks/useToast', () => ({
+  useToast: () => ({
+    showSuccess: vi.fn(),
+    showWarning: vi.fn(),
+  }),
+}));
+
 // Mock dependencies
 vi.mock('@/i18n/i18n');
 vi.mock('@/hooks/useAppLogic');
@@ -34,6 +53,8 @@ describe('StoryActions', () => {
 
     (useChatState.useChatState as any).mockReturnValue({
       isSending: false,
+      storyOperation: 'idle' as const,
+      messages: [],
     });
 
     (
@@ -143,6 +164,8 @@ describe('StoryActions', () => {
   it('should disable buttons when loading', () => {
     (useChatState.useChatState as any).mockReturnValue({
       isSending: true,
+      storyOperation: 'generate' as const,
+      messages: [],
     });
 
     renderWithProviders(<StoryActions />);

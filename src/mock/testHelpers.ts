@@ -105,8 +105,8 @@ export const createMockReadableStream = (
 ): ReadableStream<Uint8Array> => {
   // Create a proper ReadableStream
   const stream = new ReadableStream<Uint8Array>({
-    start(controller) {
-      // Mock implementation - controller not used in tests
+    start() {
+      // ReadableStream start hook intentionally empty for test doubles
     },
   });
   // Override getReader to return our mock reader

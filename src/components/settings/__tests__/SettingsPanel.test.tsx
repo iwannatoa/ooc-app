@@ -50,6 +50,10 @@ vi.mock('../AdvancedSettings', () => ({
   ),
 }));
 
+vi.mock('../DataSettings', () => ({
+  DataSettings: () => <div data-testid='data-settings'>Data Settings</div>,
+}));
+
 import { useSettingsState } from '@/hooks/useSettingsState';
 import { useApiClients } from '@/hooks/useApiClients';
 

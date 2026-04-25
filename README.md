@@ -6,7 +6,7 @@ A desktop AI-powered story creation application built with Tauri, React, and Fla
 
 - 🤖 **AI-Powered Story Generation**: Generate story content using Ollama or DeepSeek AI
 - 📚 **Story Management**: Create, save, and manage multiple stories with custom settings
-- 🎨 **Interactive Story Creation**: Use button-based actions (generate, confirm, rewrite, modify, add settings) instead of direct message input
+- 🎨 **Interactive Story Creation**: Use button-based actions (generate, confirm, rewrite, modify, add settings) instead of direct message input (the desktop UI does not expose a free-form chat box; story progression is driven by these actions)
 - 📖 **Story Settings**: Configure story background, characters, character personalities, and outlines
 - 🔄 **Story Summarization**: Automatically summarize long stories to manage context window and reduce token usage
 - 🌍 **Internationalization**: Support for Chinese and English
@@ -371,8 +371,10 @@ Templates are stored in JSON files (`server/src/utils/prompt_templates/`) for ea
 - `POST /api/conversation/characters/generate` - Generate characters
 - `POST /api/conversation/characters/generate-stream` - Generate characters (streaming)
 
-### Chat
-- `POST /api/chat` - Send chat message
+### Chat (API only in current desktop UI)
+The Flask API exposes generic chat endpoints for integrations, tests, and future UI. **The shipped Tauri/React app does not include a free-form message input**; in-app AI interaction is through story actions and streaming story endpoints above.
+
+- `POST /api/chat` - Send chat message (non-streaming)
 - `POST /api/chat-stream` - Send chat message (streaming)
 - `GET /api/models?provider=<provider>` - Get available models
 

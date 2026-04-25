@@ -2,7 +2,7 @@
 Stream response utility module
 Provides unified stream response wrapper method
 """
-from typing import Generator, Callable, Optional
+from typing import Generator, Callable, Optional, Dict, Any
 from flask import Response, stream_with_context
 import json
 from utils.logger import get_logger
@@ -14,7 +14,8 @@ def create_stream_response(
     stream_generator: Generator[str, None, None],
     on_chunk: Optional[Callable[[str], None]] = None,
     on_error: Optional[Callable[[Exception], None]] = None,
-    on_complete: Optional[Callable[[str], None]] = None
+    on_complete: Optional[Callable[[str], None]] = None,
+    persist_metadata: Optional[Dict[str, Any]] = None,
 ) -> Response:
     """
     Create unified stream response
@@ -24,6 +25,8 @@ def create_stream_response(
         on_chunk: Optional chunk processing callback function, receives chunk as parameter
         on_error: Optional error handling callback function, receives Exception as parameter
         on_complete: Optional completion callback function, receives accumulated complete content as parameter
+        persist_metadata: Optional dict the caller may share with on_complete; if after streaming the key
+            ``persist_failed`` is set (str), an extra SSE JSON frame is sent before ``done``.
     
     Returns:
         Flask Response object, configured as SSE stream
@@ -51,6 +54,10 @@ def create_stream_response(
                                 logger.warning(f"Error in on_error callback: {str(e)}")
                         
                         return
+                    pw = error_data.get('parse_warnings')
+                    if isinstance(pw, list):
+                        yield f"data: {json.dumps({'parse_warnings': pw})}\n\n"
+                        continue
                 except (json.JSONDecodeError, ValueError, AttributeError):
                     # Chunk is plain text
                     # Skip empty chunks to avoid sending unnecessary data
@@ -75,7 +82,16 @@ def create_stream_response(
                 try:
                     on_complete(accumulated_content)
                 except Exception as e:
-                    logger.warning(f"Error in on_complete callback: {str(e)}")
+                    logger.error(f"Error in on_complete callback: {str(e)}", exc_info=True)
+                    if persist_metadata is not None:
+                        persist_metadata['persist_failed'] = str(e)
+                    else:
+                        logger.warning(f"on_complete failed and persist_metadata not provided: {e}")
+            
+            if persist_metadata:
+                err = persist_metadata.get('persist_failed')
+                if err:
+                    yield f"data: {json.dumps({'persist_failed': True, 'error': err})}\n\n"
             
             # Send final message
             yield f"data: {json.dumps({'done': True})}\n\n"

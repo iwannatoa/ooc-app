@@ -2,6 +2,8 @@
 Unified AI service interface module
 """
 from typing import Dict, Optional
+from config import get_config
+from infrastructure.langchain_chat import invoke_langchain_chat
 from utils.logger import get_logger
 from utils.exceptions import ProviderError, ValidationError
 from service.ollama_service import OllamaService
@@ -63,7 +65,35 @@ class AIService:
         """
         if not message and not messages:
             raise ValidationError("Message or messages cannot be empty", field='message')
-        
+
+        cfg = get_config()
+        if cfg.USE_LANGCHAIN:
+            try:
+                text = invoke_langchain_chat(
+                    provider,
+                    message,
+                    model,
+                    api_key=api_key,
+                    base_url=base_url,
+                    max_tokens=max_tokens,
+                    temperature=temperature,
+                    system_prompt=system_prompt,
+                    messages=messages,
+                    ollama_base_url=self.ollama_service.base_url
+                    if provider == "ollama"
+                    else None,
+                )
+                return {"success": True, "response": text, "model": model}
+            except (ValidationError, ProviderError):
+                raise
+            except Exception as e:
+                logger.error(f"LangChain chat error: {str(e)}", exc_info=True)
+                raise ProviderError(
+                    f"Unexpected error: {str(e)}",
+                    provider=provider,
+                    status_code=500,
+                ) from e
+
         if provider == 'ollama':
             return self._chat_with_ollama(message, model, system_prompt, messages)
         elif provider == 'deepseek':
@@ -71,12 +101,27 @@ class AIService:
                 message, model, api_key, base_url, max_tokens, temperature,
                 system_prompt, messages
             )
+        elif provider == 'openai_compatible':
+            raise ProviderError(
+                "OpenAI-compatible provider requires USE_LANGCHAIN=true",
+                provider=provider,
+                status_code=400,
+            )
         else:
             raise ProviderError(
                 f"Unsupported provider: {provider}",
                 provider=provider,
                 status_code=400
             )
+    
+    # Ollama path (below): we concatenate system + history + user into one `prompt` string for
+    # `ollama generate`, instead of using Ollama's native `/api/chat` messages array. Reasons:
+    # (1) This codebase already formats history as "User: … / Assistant: …" to match how the UI
+    #     built the same strings for local models; switching only Ollama would split behavior vs
+    #     tests and saved prompts. (2) `/api/chat` adds another code path (tool calls, different
+    #     stop sequences) without fixing DeepSeek, which already uses OpenAI-style messages.
+    # A future spike could gate `OLLAMA_USE_CHAT_API=1` and map `messages` to `/api/chat` when we
+    # want feature parity; default stays string prompt for backward compatibility.
     
     def _chat_with_ollama(
         self,

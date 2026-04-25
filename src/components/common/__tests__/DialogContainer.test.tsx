@@ -10,23 +10,22 @@ import { DialogContainer } from '../DialogContainer';
 import { renderWithProviders, tick } from '@/test/utils';
 import { createTestStore } from '@/test/utils';
 
-// Mock all dialog components
 vi.mock('../../story', () => ({
   ConversationSettingsForm: ({ onSave, onCancel }: any) => (
-    <div data-testid='conversation-settings-form'>
+    <div data-testid="conversation-settings-form">
       <button onClick={onSave}>Save</button>
       <button onClick={onCancel}>Cancel</button>
     </div>
   ),
   SummaryPrompt: ({ onGenerate, onSave, onCancel }: any) => (
-    <div data-testid='summary-prompt'>
+    <div data-testid="summary-prompt">
       <button onClick={onGenerate}>Generate</button>
       <button onClick={onSave}>Save</button>
       <button onClick={onCancel}>Cancel</button>
     </div>
   ),
   StorySettingsView: ({ onEdit, onClose }: any) => (
-    <div data-testid='story-settings-view'>
+    <div data-testid="story-settings-view">
       <button onClick={onEdit}>Edit</button>
       <button onClick={onClose}>Close</button>
     </div>
@@ -35,7 +34,7 @@ vi.mock('../../story', () => ({
 
 vi.mock('../../settings', () => ({
   SettingsPanel: ({ onClose }: any) => (
-    <div data-testid='settings-panel'>
+    <div data-testid="settings-panel">
       <button onClick={onClose}>Close</button>
     </div>
   ),

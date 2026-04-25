@@ -23,7 +23,9 @@
     "mockModeOff": "⚪ Mock",
     "mockModeTooltipOn": "Turn off Mock mode",
     "mockModeTooltipOff": "Turn on Mock mode",
-    "switchLanguage": "Switch to English"
+    "switchLanguage": "Switch to English",
+    "languagePreferenceLoadFailed": "Could not load language preference from the server. Using local settings.",
+    "languagePreferenceSaveFailed": "Language preference was not saved to the server."
   },
   "conversation": {
     "title": "Story History",
@@ -31,6 +33,7 @@
     "newConversation": "New Story",
     "unnamedConversation": "Unnamed Story",
     "noConversations": "No stories",
+    "loadFailedDetail": "Failed to load stories: {detail}",
     "deleteConversation": "Delete Story",
     "confirmDeleteConversation": "Are you sure you want to delete this story? This action cannot be undone.",
     "editSettings": "Edit Settings",
@@ -97,7 +100,57 @@
     "deleteLastMessageTooltip": "Delete the last message and related character records",
     "confirmDeleteLastMessage": "Are you sure you want to delete the last message? This will also delete related character records.",
     "deleteLastMessageSuccess": "Deleted successfully",
-    "deleteLastMessageFailed": "Failed to delete last message: {error}"
+    "deleteLastMessageFailed": "Failed to delete last message: {error}",
+    "loadingGenerate": "Generating chapter…",
+    "loadingConfirm": "Advancing chapter…",
+    "loadingRewrite": "Rewriting…",
+    "loadingModify": "Applying edits…",
+    "loadingChatStream": "Sending message…",
+    "confirmNextChapterBody": "Confirm and move to the next chapter? This is hard to undo; use \"Continue current chapter\" if you only want more text in this chapter.",
+    "confirmNextChapterConfirm": "Next chapter",
+    "confirmDestructiveRewrite": "Apply a full rewrite using this feedback? A new assistant reply will be appended.",
+    "confirmDestructiveModify": "Apply edits using this feedback? A new assistant reply will be appended.",
+    "copyLastAssistant": "Copy last reply",
+    "copyLastAssistantSuccess": "Copied to clipboard",
+    "copyLastAssistantEmpty": "Nothing to copy yet"
+  },
+  "storyContext": {
+    "section": "Section {number}",
+    "outlinePending": "Outline not saved yet",
+    "outlineOk": "Outline ready",
+    "progressStatus": "Progress: {status}",
+    "status_pending": "draft",
+    "status_generating": "generating",
+    "status_completed": "completed"
+  },
+  "onboarding": {
+    "title": "Get started",
+    "stepPickStory": "Create or select a story from the list on the left.",
+    "stepOutline": "Open story settings and add a background plus outline.",
+    "stepModel": "Pick an AI provider and model in the bar above or in Settings.",
+    "openSettings": "Open settings",
+    "newStory": "New story"
+  },
+  "serverBanner": {
+    "connecting": "Connecting to the local API…",
+    "failed": "Could not reach the local API.",
+    "retry": "Retry"
+  },
+  "storyWarnings": {
+    "characterParseNotice": "Character tags in this reply were only partially parsed; the story text was kept. Check characters in settings if the roster looks off."
+  },
+  "storyErrors": {
+    "unknownDetail": "Unknown error",
+    "generateFailedDetail": "Could not generate story: {detail}",
+    "confirmFailedDetail": "Could not confirm section: {detail}",
+    "rewriteFailedDetail": "Could not rewrite section: {detail}",
+    "modifyFailedDetail": "Could not modify section: {detail}",
+    "persistStreamBodySavedNotHistory": "The reply was shown but may not be saved to history. You can retry sending or check the server log.",
+    "hint_network": "Check that the local API is running and the port is correct.",
+    "hint_auth": "Open Settings and verify the API token matches the desktop app.",
+    "hint_timeout": "The request timed out. Try again or use a smaller model context.",
+    "hint_ollama": "Start Ollama or switch provider in AI Settings.",
+    "hint_api_key": "Configure your API key in Settings > AI Settings."
   },
   "serverStatus": {
     "pythonServer": "Python Server",
@@ -130,13 +183,16 @@
       "general": "General",
       "ai": "AI Settings",
       "appearance": "Appearance",
-      "advanced": "Advanced"
+      "advanced": "Advanced",
+      "data": "Data & backup"
     },
     "language": "Language",
     "provider": "AI Provider",
     "selectProvider": "Select Provider",
     "providerOllama": "Ollama (Local)",
     "providerDeepSeek": "DeepSeek",
+    "providerOpenAICompatible": "OpenAI-compatible API",
+    "apiUrlOpenAICompatiblePlaceholder": "e.g. http://127.0.0.1:1234 (v1 is appended if missing)",
     "config": "Configuration",
     "model": "Model",
     "currentModel": "Current Model",
@@ -168,7 +224,17 @@
     "logLevelInfo": "Info",
     "logLevelDebug": "Debug",
     "enableDiagnostics": "Enable Diagnostics",
-    "fieldRequired": "This field is required"
+    "enableFreeformNote": "Show narration / user note bar in chat (appends a user message)",
+    "fieldRequired": "This field is required",
+    "dataIntro": "Export a local diagnostic ZIP (no API keys), copy your SQLite database, or restore from a backup. Restore stops the local API briefly; avoid running during generation.",
+    "dataExportDiagnostics": "Export diagnostic ZIP…",
+    "dataBackupDb": "Backup database…",
+    "dataRestoreDb": "Restore database…",
+    "dataDesktopOnly": "These actions are available in the desktop app (Tauri) only.",
+    "dataDiagnosticsSaved": "Diagnostic bundle saved.",
+    "dataBackupDone": "Database backup saved.",
+    "dataRestoreConfirm": "Replace the current database with the selected file? The app will restart the local API.",
+    "dataRestoreDone": "Database restored. You may need to reload the story list."
   },
   "conversationSettingsForm": {
     "title": "Story Settings",
@@ -207,7 +273,12 @@
     "allowAutoGenerateCharacters": "Allow AI to auto-generate characters",
     "allowAutoGenerateCharactersTooltip": "Allow AI to automatically add new characters when generating stories",
     "allowAutoGenerateMainCharacters": "Allow AI to auto-generate main characters",
-    "allowAutoGenerateMainCharactersTooltip": "Allow AI to automatically add main characters when generating stories (requires 'Allow AI to auto-generate characters' to be enabled)"
+    "allowAutoGenerateMainCharactersTooltip": "Allow AI to automatically add main characters when generating stories (requires 'Allow AI to auto-generate characters' to be enabled)",
+    "storyLengthMode": "Length & serialization",
+    "serializationOpen": "Ongoing (no fixed total sections)",
+    "serializationFinite": "Fixed total sections",
+    "totalSectionsLabel": "Total sections",
+    "totalSectionsHint": "With a fixed total, progress shows chapter i of N; ongoing hides N. Saved to story progress when you save settings."
   },
   "summaryPrompt": {
     "title": "Story Summary",
@@ -242,21 +313,29 @@
   "chat": {
     "chapter": "Chapter {number}",
     "export": "Export Story",
+    "exportMd": "Markdown",
+    "exportMarkdown": "Export conversation as Markdown",
     "exportStory": "Export current story content as text file",
     "exportSuccess": "Story exported successfully",
-    "exportFailed": "Failed to export story"
+    "exportFailed": "Failed to export story",
+    "sendMessageFailedDetail": "Failed to send message: {detail}",
+    "userNotePlaceholder": "User note or narration (saved as user message)",
+    "userNoteSubmit": "Append"
   },
   "modelSelector": {
+    "label": "AI model",
     "noModelsAvailable": "No models available"
   },
   "language": {
     "zh": "中文",
-    "en": "English"
+    "en": "English",
+    "ja": "日本語"
   },
   "titleBar": {
     "minimize": "Minimize",
     "maximize": "Maximize/Restore",
-    "close": "Close"
+    "close": "Close",
+    "releases": "Releases"
   }
 }
 

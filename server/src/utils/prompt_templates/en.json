@@ -8,9 +8,27 @@
     "4. Ensure character settings and behaviors conform to the settings",
     "",
     "**IMPORTANT**: All story content, dialogue, and narration must be written in English.",
-    "**IMPORTANT**: Story content must be output in plain text format, do not use any Markdown formatting (such as bold, italic, headings, lists, etc.).",
+    "**IMPORTANT**: Your story body (narration and dialogue) must be plain text: do not use Markdown (such as **bold**, # headings, list markers, etc.), except the closing `<CHARACTERS>` block as specified.",
+    "**NOTE**: Headings like \"##\" and numbered lists in this message only separate setting sections for readability; do not copy those formatting conventions into the story body.",
     ""
   ],
+  "shared_story_constraints": {
+    "title": "## Pace and length (required summary)",
+    "items": [
+      "- Pace: progress gradually; do not resolve the entire book's climax or finale in one section; local arcs may still close.",
+      "- Length: prefer ending at a full sentence or period; truncation by model limits is normal—avoid stopping mid-clause when possible."
+    ]
+  },
+  "context_notes": {
+    "history_truncated": "**Context note**: Older dialogue may not be fully loaded; follow the outline and recent turns—do not claim details you were not given.",
+    "older_via_summary": "**Context note**: Earlier plot is represented by the story progress summary; stay consistent with it."
+  },
+  "user_task_anchor": {
+    "generate_finite": "**Current task**: Generate section {chapter} of {total} (you are on section {current}).",
+    "generate_open": "**Current task**: Generate section {chapter} (open-ended serialization, no fixed total).",
+    "continue_finite": "**Current task**: Continue section {chapter} of {total} (you are on section {current}).",
+    "continue_open": "**Current task**: Continue section {chapter} (open-ended serialization)."
+  },
   "sections": {
     "background": "## Story Background",
     "characters": "## Main Characters",
@@ -20,8 +38,8 @@
     "supplement": "## Additional Settings"
   },
   "appeared_characters": {
-    "available_label": "**Available Characters**:",
-    "unavailable_label": "**Unavailable Characters** (dead or otherwise unavailable, should not appear in future story):",
+    "available_label": "Available characters:",
+    "unavailable_label": "Unavailable characters (dead or otherwise unavailable; should not appear in future story):",
     "main_label": " (Main)",
     "auto_generated_label": " (Auto-generated)"
   },
@@ -34,12 +52,20 @@
         "- Generate the story content for the current section based on the outline",
         "- Ensure plot continuity with previous sections",
         "- Each section should have appropriate length and completeness",
-        "- Leave a natural transition for the next section",
-        "- **IMPORTANT**: Control the story's pacing and progress the plot progressively. The current section should focus on the development of the current stage, avoiding premature revelation of the ending, rushing to the climax, or jumping directly to the conclusion. Maintain an appropriate narrative rhythm, let the plot unfold naturally, and preserve development space for subsequent sections.",
-        "- **CRITICAL REQUIREMENT**: You must ensure output sentences are complete. Even if approaching the output length limit, you must stop only after the current sentence is complete. Never truncate in the middle of a sentence. You may end in the middle of a paragraph, but the last sentence must be complete."
+        "- Leave a natural transition for the next section when a finite total is set; do not lock in the finale too early",
+        "- Pace and truncation: follow the \"Pace and length\" summary earlier in this system message."
       ]
     },
-    "without_progress": "**Note**: Follow the rhythm and structure of the outline to develop the story, but adjust as needed for the plot. **IMPORTANT**: Control the story's pacing and progress the plot progressively. Avoid premature revelation of the ending or rushing to the climax and conclusion. Focus on the development of the current stage, maintain an appropriate narrative rhythm, and preserve development space for subsequent sections."
+    "open_ended": {
+      "progress": "**Current progress**: Section {section} (open-ended serialization, no fixed total)",
+      "title": "**Open serialization instructions**:",
+      "instructions": [
+        "- Advance this section according to the outline; later sections may follow. There is no fixed total section count—do not write a definitive end to the whole book here.",
+        "- Local arcs may still have a beginning, middle, and transition without saving space for a single \"final act\".",
+        "- Pace and truncation: follow the \"Pace and length\" summary earlier in this system message."
+      ]
+    },
+    "without_progress": "**Note**: Follow the outline's rhythm and structure; adjust as needed. Pace and truncation: follow the \"Pace and length\" summary earlier in this system message."
   },
   "summary": {
     "intro": "Below is a summary of the previous story content. Please continue creating based on this:",
@@ -73,8 +99,7 @@
       "- Use third-person narration",
       "- Maintain appropriate paragraph length for readability (use blank lines to separate paragraphs)",
       "- Use quotation marks for dialogue",
-      "- This is section generation, ensure the current section has appropriate beginning, development, and transition",
-      "- **CRITICAL REQUIREMENT**: You must ensure output sentences are complete. Even if approaching the output length limit, you must stop only after the current sentence is complete. Never truncate in the middle of a sentence. You may end in the middle of a paragraph, but the last sentence must be complete.",
+      "- This is section generation—give the current section a clear arc; pace and truncation follow the \"Pace and length\" summary above.",
       "- After the story content, add character change information (if new characters appear or character status changes)"
     ],
     "section_generation_keyword": "section generation",
@@ -141,10 +166,10 @@
     }
   },
   "user_messages": {
-    "continue_story": "Please continue generating the next section of the story. Control the story's pacing and progress the plot progressively, avoiding premature revelation of the ending or rushing to the climax and conclusion. Focus on the development of the current section and maintain an appropriate narrative rhythm. **IMPORTANT**: You must ensure output sentences are complete. Even if approaching the output length limit, stop only after the current sentence is complete. Never truncate in the middle of a sentence. You may end in the middle of a paragraph, but the last sentence must be complete.",
-    "continue_story_with_chapter": "(Chapter {chapter_number}) Please continue generating the next section of the story. Control the story's pacing and progress the plot progressively, avoiding premature revelation of the ending or rushing to the climax and conclusion. Focus on the development of the current section and maintain an appropriate narrative rhythm. **IMPORTANT**: You must ensure output sentences are complete. Even if approaching the output length limit, stop only after the current sentence is complete. Never truncate in the middle of a sentence. You may end in the middle of a paragraph, but the last sentence must be complete.",
-    "generate_current_section": "Please generate the current section of the story based on the outline. Control the story's pacing and progress the plot progressively, avoiding premature revelation of the ending or rushing to the climax and conclusion. Focus on the development of the current section and maintain an appropriate narrative rhythm. **IMPORTANT**: You must ensure output sentences are complete. Even if approaching the output length limit, stop only after the current sentence is complete. Never truncate in the middle of a sentence. You may end in the middle of a paragraph, but the last sentence must be complete.",
-    "generate_current_section_with_chapter": "Please generate Chapter {chapter_number} of the story based on the outline. Control the story's pacing and progress the plot progressively, avoiding premature revelation of the ending or rushing to the climax and conclusion. Focus on the development of the current chapter and maintain an appropriate narrative rhythm. **IMPORTANT**: You must ensure output sentences are complete. Even if approaching the output length limit, stop only after the current sentence is complete. Never truncate in the middle of a sentence. You may end in the middle of a paragraph, but the last sentence must be complete."
+    "continue_story": "Please continue generating the next section of the story. For pace and truncation, follow the \"Pace and length\" summary in the system message.",
+    "continue_story_with_chapter": "(Chapter {chapter_number}) Please continue generating the next section of the story. For pace and truncation, follow the \"Pace and length\" summary in the system message.",
+    "generate_current_section": "Please generate the current section of the story based on the outline. For pace and truncation, follow the \"Pace and length\" summary in the system message.",
+    "generate_current_section_with_chapter": "Please generate Chapter {chapter_number} of the story based on the outline. For pace and truncation, follow the \"Pace and length\" summary in the system message."
   },
   "error_messages": {
     "outline_required": "Please set the story outline first",
@@ -161,7 +186,8 @@
     "no_content_to_rewrite": "No content to rewrite",
     "feedback_required": "feedback is required",
     "summary_required": "summary is required",
-    "deepseek_api_key_required": "DeepSeek API key is required. Please configure it in Settings > AI Settings."
+    "deepseek_api_key_required": "DeepSeek API key is required. Please configure it in Settings > AI Settings.",
+    "persist_chat_messages_failed": "Failed to save chat messages to the database. The reply was generated but may not appear in history."
   },
   "feedback_prompt": {
     "intro": "The user provided the following feedback:",

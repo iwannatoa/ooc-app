@@ -58,6 +58,9 @@ export const AdvancedSettings = forwardRef<
       enableDiagnostics:
         settings?.enableDiagnostics ??
         DEFAULT_SETTINGS.advanced.enableDiagnostics,
+      enableFreeformNote:
+        settings?.enableFreeformNote ??
+        DEFAULT_SETTINGS.advanced.enableFreeformNote,
     }),
     [
       settings?.enableStreaming,
@@ -65,6 +68,7 @@ export const AdvancedSettings = forwardRef<
       settings?.maxRetries,
       settings?.logLevel,
       settings?.enableDiagnostics,
+      settings?.enableFreeformNote,
     ]
   );
 
@@ -163,6 +167,14 @@ export const AdvancedSettings = forwardRef<
       parseValue: (value) => value === 'true',
       validate: () => true,
     },
+    {
+      key: 'enableFreeformNote',
+      type: 'checkbox',
+      labelKey: 'settingsPanel.enableFreeformNote',
+      getValue: (settings) => settings.enableFreeformNote ?? false,
+      parseValue: (value) => value === 'true',
+      validate: () => true,
+    },
   ];
 
   return (
@@ -177,6 +189,7 @@ export const AdvancedSettings = forwardRef<
 
         // Extract properties that don't belong to SettingsInput
         const { key, getValue, ...inputProps } = field;
+        void getValue;
 
         return (
           <SettingsInput

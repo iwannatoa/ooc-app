@@ -5,6 +5,12 @@ description = "OOC story with Embedded Python Flask API"
 authors = ["Patrick Zhang"]
 edition = "2021"
 
+[features]
+default = []
+# When enabled, registers the Playwright control plugin at runtime (desktop E2E).
+# The crate stays linked so Tauri can resolve playwright:default in capabilities.
+e2e-testing = []
+
 [dependencies]
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
@@ -17,6 +23,11 @@ ctrlc = "3.4"
 kill_tree = "0.2"
 tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"
+tauri-plugin-playwright = "0.2"
+zip = { version = "2.2", default-features = false, features = ["deflate"] }
 
 [build-dependencies]
 tauri-build = { version = "2.0", features = [] }
+
+[dev-dependencies]
+tempfile = "3"

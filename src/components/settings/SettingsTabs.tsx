@@ -7,7 +7,7 @@ import React, {
 } from 'react';
 import styles from './SettingsPanel.module.scss';
 
-export type SettingsTab = 'general' | 'ai' | 'appearance' | 'advanced';
+export type SettingsTab = 'general' | 'ai' | 'appearance' | 'advanced' | 'data';
 
 interface SettingsTabPaneProps {
   tab: SettingsTab;

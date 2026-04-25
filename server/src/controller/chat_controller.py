@@ -3,9 +3,6 @@ Chat controller
 """
 from flask import Flask, request, jsonify
 from injector import inject
-import threading
-import time
-import os
 from service.chat_orchestration_service import ChatOrchestrationService
 from service.summary_service import SummaryService
 from service.summary_orchestration_service import SummaryOrchestrationService
@@ -23,7 +20,7 @@ from utils.exceptions import APIError, ValidationError, ProviderError
 from utils.stream_response import create_stream_response
 from utils.i18n import get_i18n_text
 from utils.controller_helpers import error_response, handle_errors
-import re
+from utils.think_strip import strip_think_content
 
 logger = get_logger(__name__)
 
@@ -139,6 +136,10 @@ class ChatController:
         @app.route('/api/story/modify', methods=['POST'])
         def modify_section():
             return self.modify_section()
+
+        @app.route('/api/story/user-note', methods=['POST'])
+        def save_user_note():
+            return self.save_user_note()
         
         @app.route('/api/conversation/delete-last-message', methods=['POST'])
         def delete_last_message():
@@ -183,35 +184,15 @@ class ChatController:
             message=message,
             provider=provider,
             conversation_id=data.get('conversation_id'),
-            model=data.get('model')
+            model=data.get('model'),
+            language=language,
         )
         
         return jsonify(result)
     
     def _strip_think_content(self, text: str) -> str:
-        """
-        Remove think content from AI response
-        
-        Args:
-            text: Response text that may contain think content
-        
-        Returns:
-            Text with think content removed
-        """
-        # Remove <think>...</think> tags
-        text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL | re.IGNORECASE)
-        
-        # Remove ```think\n...\n``` code blocks
-        text = re.sub(r'```think\s*\n.*?\n```', '', text, flags=re.DOTALL | re.IGNORECASE)
-        
-        # Remove standalone ```think``` markers
-        text = re.sub(r'```think\s*```', '', text, flags=re.IGNORECASE)
-        
-        # Clean up extra whitespace
-        text = re.sub(r'\n\s*\n\s*\n+', '\n\n', text)
-        text = text.strip()
-        
-        return text
+        """Remove think content from AI response (delegates to shared util)."""
+        return strip_think_content(text)
     
     def chat_stream(self):
         """
@@ -278,12 +259,10 @@ class ChatController:
                     messages=messages if messages else None
                 )
             
-            # Define on_complete callback to save messages
+            persist_metadata: dict = {}
+
             def on_complete(accumulated_content: str):
-                # Remove think content from final text before saving
                 final_content = self._strip_think_content(accumulated_content)
-                
-                # Save messages after streaming completes
                 try:
                     self.chat_service.save_user_message(conversation_id, message)
                     self.chat_service.save_assistant_message(
@@ -293,11 +272,19 @@ class ChatController:
                         provider=api_config['provider']
                     )
                 except Exception as e:
-                    logger.warning(f"Failed to save messages: {str(e)}")
-            
+                    logger.error(
+                        "Failed to persist streamed chat messages",
+                        exc_info=True,
+                    )
+                    persist_metadata['persist_failed'] = get_i18n_text(
+                        language,
+                        'error_messages.persist_chat_messages_failed',
+                    )
+
             return create_stream_response(
                 stream_generator=stream_generator(),
-                on_complete=on_complete
+                on_complete=on_complete,
+                persist_metadata=persist_metadata,
             )
         
         except ValidationError as e:
@@ -464,11 +451,16 @@ class ChatController:
             if not provider:
                 return error_response(language, 'error_messages.provider_required')
             
+            raw_op = data.get('feedback_operation')
+            feedback_operation = (
+                raw_op if raw_op in ('rewrite', 'modify') else None
+            )
             result = self.story_generation_service.rewrite_section(
                 conversation_id=conversation_id,
                 feedback=feedback,
                 provider=provider,
-                model=data.get('model')
+                model=data.get('model'),
+                feedback_operation=feedback_operation,
             )
             
             return jsonify(result)
@@ -521,7 +513,20 @@ class ChatController:
                 "success": False,
                 "error": f"Server error: {str(e)}"
             }), 500
-    
+
+    def save_user_note(self):
+        """Append a free-form user note as a normal user chat row (no AI call)."""
+        data = request.json or {}
+        conversation_id = data.get('conversation_id')
+        text = (data.get('text') or data.get('message') or '').strip()
+        language = self.app_settings_service.get_language()
+        if not conversation_id:
+            return error_response(language, 'error_messages.conversation_id_required')
+        if not text:
+            return jsonify({'success': False, 'error': 'text_required'}), 400
+        saved = self.chat_service.save_user_message(conversation_id, text)
+        return jsonify({'success': True, 'message': saved})
+
     def get_models(self):
         """
         Get available models list
@@ -534,7 +539,22 @@ class ChatController:
         try:
             provider = request.args.get('provider', 'ollama')
             logger.info(f"Fetching models for provider: {provider}")
-            
+
+            if provider == 'openai_compatible':
+                cfg = self.ai_config_service.get_config(
+                    'openai_compatible', include_api_key=False
+                )
+                name = (cfg or {}).get('model') or 'configured-model'
+                return jsonify({
+                    'success': True,
+                    'models': [{
+                        'name': name,
+                        'model': name,
+                        'modified_at': '',
+                        'size': 0,
+                    }],
+                })
+
             result = self.ai_service.get_models(provider=provider)
             return jsonify(result)
         
@@ -571,26 +591,6 @@ class ChatController:
                 "ollama_available": False,
                 "error": str(e)
             }), 503
-    
-    def stop_server(self):
-        """
-        Stop server endpoint
-        
-        Returns:
-            - success: Whether successful
-            - message: Message
-        """
-        def shutdown():
-            time.sleep(1)
-            os._exit(0)
-        
-        logger.info("Server shutdown requested")
-        threading.Thread(target=shutdown, daemon=True).start()
-        
-        return jsonify({
-            "success": True,
-            "message": "Server is shutting down"
-        })
     
     @handle_errors
     def get_conversation(self):

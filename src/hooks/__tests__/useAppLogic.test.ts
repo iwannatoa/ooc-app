@@ -25,7 +25,7 @@ import {
   createMockStoryProgress,
   createMockConversationManagement,
   createMockStoryActions,
-} from '@/mock';
+} from '@/mock/testing';
 
 vi.mock('../useChatState');
 vi.mock('../useSettingsState');
@@ -671,13 +671,47 @@ describe('useAppLogic', () => {
       const { result } = renderHook(() => useAppLogic());
 
       expect(result.current.handleGenerateStory).toBe(mockHandleGenerateStory);
-      expect(result.current.handleConfirmSection).toBe(
+      expect(result.current.handleConfirmSection).not.toBe(
         mockHandleConfirmSection
       );
       expect(result.current.handleRewriteSection).toBe(
         mockHandleRewriteSection
       );
       expect(result.current.handleModifySection).toBe(mockHandleModifySection);
+    });
+
+    it('should call confirmSection after next-chapter confirm dialog accepts', async () => {
+      vi.mocked(confirmDialog).mockResolvedValue(true);
+      mockHandleConfirmSection.mockClear();
+
+      const { result } = renderHook(() => useAppLogic());
+
+      await act(async () => {
+        await result.current.handleConfirmSection();
+      });
+
+      expect(confirmDialog).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'storyActions.confirmNextChapterBody',
+          confirmText: 'storyActions.confirmNextChapterConfirm',
+          cancelText: 'common.cancel',
+          confirmButtonStyle: 'default',
+        })
+      );
+      expect(mockHandleConfirmSection).toHaveBeenCalledTimes(1);
+    });
+
+    it('should not call confirmSection when next-chapter dialog is dismissed', async () => {
+      vi.mocked(confirmDialog).mockResolvedValue(false);
+      mockHandleConfirmSection.mockClear();
+
+      const { result } = renderHook(() => useAppLogic());
+
+      await act(async () => {
+        await result.current.handleConfirmSection();
+      });
+
+      expect(mockHandleConfirmSection).not.toHaveBeenCalled();
     });
   });
 

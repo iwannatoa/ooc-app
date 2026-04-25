@@ -36,6 +36,15 @@ export const DEFAULT_SETTINGS: AppSettings = {
       temperature: 0.7,
       apiKey: '',
     },
+    openai_compatible: {
+      provider: 'openai_compatible',
+      baseUrl: 'http://127.0.0.1:1234/v1',
+      model: 'gpt-4o-mini',
+      timeout: 120000,
+      maxTokens: 2048,
+      temperature: 0.7,
+      apiKey: '',
+    },
   },
   advanced: {
     enableStreaming: false,
@@ -43,5 +52,6 @@ export const DEFAULT_SETTINGS: AppSettings = {
     maxRetries: 3,
     logLevel: 'info',
     enableDiagnostics: false,
+    enableFreeformNote: false,
   },
 };

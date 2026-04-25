@@ -6,7 +6,7 @@
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:1420",
-    "beforeDevCommand": "",
+    "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build:python && npm run build"
   },
   "bundle": {
@@ -23,6 +23,7 @@
     "externalBin": ["resources/flask-api"]
   },
   "app": {
+    "withGlobalTauri": true,
     "windows": [
       {
         "title": "OOC story",

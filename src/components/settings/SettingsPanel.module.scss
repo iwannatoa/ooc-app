@@ -232,3 +232,42 @@
     }
   }
 }
+
+.dataHint {
+  color: $text-secondary;
+  font-size: $font-size-sm;
+  margin-bottom: $spacing-md;
+  line-height: 1.4;
+}
+
+.dataActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-sm;
+
+  button {
+    @include button-reset;
+    padding: $spacing-sm $spacing-md;
+    border-radius: $border-radius;
+    font-size: $font-size-sm;
+    background: $bg-light;
+    color: $text-primary;
+    border: 1px solid $border-color;
+
+    &:hover:not(:disabled) {
+      background: $bg-lighter;
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+}
+
+.dataStatus {
+  margin-top: $spacing-md;
+  color: $text-secondary;
+  font-size: $font-size-sm;
+  white-space: pre-wrap;
+}

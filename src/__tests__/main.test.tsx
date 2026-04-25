@@ -88,9 +88,11 @@ describe('main.tsx', () => {
     const providerChildren = strictModeChildren.props.children;
     expect(providerChildren.type.name).toBe('I18nProvider');
 
-    // I18nProvider should have App as child
+    // I18nProvider should wrap App with ErrorBoundary
     const i18nChildren = providerChildren.props.children;
-    expect(i18nChildren.type.name).toBe('default');
+    expect(i18nChildren.type.name).toBe('ErrorBoundary');
+    const boundaryChildren = i18nChildren.props.children;
+    expect(boundaryChildren.type.name).toBe('default');
   });
 });
 

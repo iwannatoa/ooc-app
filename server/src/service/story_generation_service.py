@@ -1,7 +1,7 @@
 """
 Story generation service layer
 """
-from typing import Optional, Dict, List, TYPE_CHECKING, Generator
+from typing import List, Optional, Dict, TYPE_CHECKING, Generator, Tuple, Literal
 import json
 from service.ai_service import AIService
 from service.ai_service_streaming import AIServiceStreaming
@@ -11,16 +11,72 @@ from service.summary_service import SummaryService
 from service.story_service import StoryService
 from service.ai_config_service import AIConfigService
 from service.app_settings_service import AppSettingsService
-from utils.system_prompt import build_system_prompt, build_feedback_prompt
+from utils.system_prompt import (
+    build_system_prompt,
+    build_feedback_prompt,
+    FeedbackOperation,
+)
 from utils.i18n import get_i18n_text
 from utils.prompt_template_loader import PromptTemplateLoader
 from config import get_config
+from utils.story_context_selection import select_messages_for_ai_context
+from infrastructure.database import unit_of_work
 from utils.logger import get_logger
 
 if TYPE_CHECKING:
     from service.character_service import CharacterService
 
 logger = get_logger(__name__)
+
+
+def merge_story_llm_overrides(api_config: Dict, settings: Optional[Dict]) -> Dict:
+    """Apply optional per-story overrides from ``additional_settings`` (JSON on conversation)."""
+    if not settings:
+        return api_config
+    add = settings.get("additional_settings")
+    if not isinstance(add, dict):
+        return api_config
+    out = dict(api_config)
+    st = add.get("storyTemperature")
+    sm = add.get("storyMaxTokens")
+    try:
+        if st is not None and str(st).strip() != "":
+            out["temperature"] = float(st)
+    except (TypeError, ValueError):
+        pass
+    try:
+        if sm is not None and str(sm).strip() != "":
+            out["max_tokens"] = int(sm)
+    except (TypeError, ValueError):
+        pass
+    return out
+
+
+def _prepend_task_anchor(
+    language: str,
+    flow: Literal["generate", "continue"],
+    body: str,
+    chapter_number: int,
+    current_section: Optional[int],
+    total_sections: Optional[int],
+) -> str:
+    """Prefix one-line task anchor from templates (finite vs open serialization)."""
+    template = PromptTemplateLoader.get_template(language)
+    anchors = template.get("user_task_anchor") or {}
+    finite = total_sections is not None
+    if flow == "generate":
+        key = "generate_finite" if finite else "generate_open"
+    else:
+        key = "continue_finite" if finite else "continue_open"
+    fmt = anchors.get(key)
+    if not fmt:
+        return body
+    if finite:
+        cur = (current_section if current_section is not None else 0) + 1
+        line = fmt.format(chapter=chapter_number, total=total_sections, current=cur)
+    else:
+        line = fmt.format(chapter=chapter_number)
+    return f"{line}\n{body}"
 
 
 class StoryGenerationService:
@@ -60,14 +116,24 @@ class StoryGenerationService:
         self.app_settings_service = app_settings_service
         self.character_service = character_service
         self.config = get_config()
-    
+
+    def _story_api_config(
+        self, conversation_id: str, provider: str, model: Optional[str]
+    ) -> Dict:
+        settings = self.conversation_service.get_settings(conversation_id)
+        api = self.ai_config_service.get_config_for_api(
+            provider=provider,
+            model=model,
+        )
+        return merge_story_llm_overrides(api, settings)
+
     def _record_characters_from_message(
         self,
         conversation_id: str,
         message_id: int,
         content: str,
         settings: Optional[Dict]
-    ) -> str:
+    ) -> Tuple[str, List[str]]:
         """
         Record characters from generated message
         
@@ -78,10 +144,10 @@ class StoryGenerationService:
             settings: Conversation settings
         
         Returns:
-            Cleaned story content (without character tags)
+            (cleaned story content without character tags, parse_warning codes)
         """
         if not self.character_service or not settings:
-            return content
+            return content, []
         
         predefined_chars = settings.get('characters', [])
         allow_auto = settings.get('allow_auto_generate_characters', True)
@@ -91,7 +157,9 @@ class StoryGenerationService:
         
         try:
             # Parse content to extract story and character information
-            story_content, character_info = self.character_service.parse_story_with_characters(content)
+            story_content, character_info, parse_warnings = (
+                self.character_service.parse_story_with_characters(content)
+            )
             
             # Record characters using AI-extracted information (preferred)
             self.character_service.record_characters_from_message(
@@ -107,11 +175,11 @@ class StoryGenerationService:
             )
             
             # Return cleaned story content
-            return story_content
+            return story_content, parse_warnings
         except Exception as e:
             logger.warning(f"Failed to record characters: {str(e)}")
             # Return original content if parsing fails
-            return content
+            return content, ["character_parse_exception"]
     
     def generate_story_section(
         self,
@@ -143,24 +211,26 @@ class StoryGenerationService:
             }
         
         progress = self.story_service.get_progress(conversation_id)
-        
-        api_config = self.ai_config_service.get_config_for_api(
-            provider=provider,
-            model=model
-        )
-        
+
+        api_config = self._story_api_config(conversation_id, provider, model)
+
         self.story_service.update_progress(
             conversation_id=conversation_id,
             status='generating'
         )
         
-        messages, system_prompt = self._prepare_generation_context(conversation_id)
+        messages, system_prompt = self._prepare_generation_context(
+            conversation_id, context_kind="story_generate"
+        )
         
         language = self.app_settings_service.get_language()
         # Get current section number for chapter information
         current_section = None
+        total_sections_hint: Optional[int] = None
         if isinstance(progress, dict):
             current_section = progress.get('current_section')
+            ts_raw = progress.get("total_sections")
+            total_sections_hint = int(ts_raw) if ts_raw is not None else None
         
         # Build user message with chapter information if available
         if current_section is not None:
@@ -173,7 +243,16 @@ class StoryGenerationService:
                 # Fallback to default message if template not found
                 user_message = get_i18n_text(language, 'user_messages.generate_current_section')
         else:
+            chapter_number = 1
             user_message = get_i18n_text(language, 'user_messages.generate_current_section')
+        user_message = _prepend_task_anchor(
+            language,
+            "generate",
+            user_message,
+            chapter_number,
+            current_section,
+            total_sections_hint,
+        )
         result = self.ai_service.chat(
             provider=api_config['provider'],
             message=user_message,
@@ -193,33 +272,40 @@ class StoryGenerationService:
             
             # Record characters from generated content and get cleaned story content
             settings = self.conversation_service.get_settings(conversation_id)
-            clean_content = self._record_characters_from_message(
+            clean_content, parse_warnings = self._record_characters_from_message(
                 conversation_id=conversation_id,
                 message_id=0,  # Will be set after message is saved
                 content=response_content,
                 settings=settings
             )
-            
-            self.chat_service.save_user_message(conversation_id, user_message)
-            self.chat_service.save_assistant_message(
-                conversation_id=conversation_id,
-                content=clean_content,  # Save cleaned content without character tags
-                model=result.get('model'),
-                provider=api_config['provider']
-            )
-            
-            # Ensure progress is a dict before calling .get()
-            if isinstance(progress, dict):
-                current_section = progress.get('current_section', 0) or 0
-            else:
-                current_section = 0
-            self.story_service.update_progress(
-                conversation_id=conversation_id,
-                last_generated_content=clean_content,  # Use cleaned content
-                last_generated_section=current_section,
-                status='completed'
-            )
-            
+            if parse_warnings:
+                result['parse_warnings'] = parse_warnings
+
+            with unit_of_work() as session:
+                self.chat_service.save_user_message(
+                    conversation_id, user_message, session=session
+                )
+                self.chat_service.save_assistant_message(
+                    conversation_id=conversation_id,
+                    content=clean_content,  # Save cleaned content without character tags
+                    model=result.get('model'),
+                    provider=api_config['provider'],
+                    session=session,
+                )
+
+                # Ensure progress is a dict before calling .get()
+                if isinstance(progress, dict):
+                    current_section = progress.get('current_section', 0) or 0
+                else:
+                    current_section = 0
+                self.story_service.update_progress(
+                    conversation_id=conversation_id,
+                    last_generated_content=clean_content,  # Use cleaned content
+                    last_generated_section=current_section,
+                    status='completed',
+                    session=session,
+                )
+
             self._check_and_mark_summary_needed(conversation_id, result)
             
             updated_progress = self.story_service.get_progress(conversation_id)
@@ -254,24 +340,26 @@ class StoryGenerationService:
             return
         
         progress = self.story_service.get_progress(conversation_id)
-        
-        api_config = self.ai_config_service.get_config_for_api(
-            provider=provider,
-            model=model
-        )
-        
+
+        api_config = self._story_api_config(conversation_id, provider, model)
+
         self.story_service.update_progress(
             conversation_id=conversation_id,
             status='generating'
         )
         
-        messages, system_prompt = self._prepare_generation_context(conversation_id)
+        messages, system_prompt = self._prepare_generation_context(
+            conversation_id, context_kind="story_generate"
+        )
         
         language = self.app_settings_service.get_language()
         # Get current section number for chapter information
         current_section = None
+        total_sections_hint: Optional[int] = None
         if isinstance(progress, dict):
             current_section = progress.get('current_section')
+            ts_raw = progress.get("total_sections")
+            total_sections_hint = int(ts_raw) if ts_raw is not None else None
         
         # Build user message with chapter information if available
         if current_section is not None:
@@ -284,7 +372,16 @@ class StoryGenerationService:
                 # Fallback to default message if template not found
                 user_message = get_i18n_text(language, 'user_messages.generate_current_section')
         else:
+            chapter_number = 1
             user_message = get_i18n_text(language, 'user_messages.generate_current_section')
+        user_message = _prepend_task_anchor(
+            language,
+            "generate",
+            user_message,
+            chapter_number,
+            current_section,
+            total_sections_hint,
+        )
         
         # Stream the response
         accumulated_content = ""
@@ -323,40 +420,48 @@ class StoryGenerationService:
                 
                 # Record characters from generated content and get cleaned story content
                 settings = self.conversation_service.get_settings(conversation_id)
-                clean_content = self._record_characters_from_message(
+                clean_content, parse_warnings = self._record_characters_from_message(
                     conversation_id=conversation_id,
                     message_id=0,  # Will be set after message is saved
                     content=accumulated_content,
                     settings=settings
                 )
-                
-                self.chat_service.save_user_message(conversation_id, user_message)
-                self.chat_service.save_assistant_message(
-                    conversation_id=conversation_id,
-                    content=clean_content,  # Save cleaned content without character tags
-                    model=api_config['model'],
-                    provider=api_config['provider']
-                )
-                
-                # Get current section from progress (re-fetch to ensure we have the latest)
-                current_progress = self.story_service.get_progress(conversation_id)
-                if isinstance(current_progress, dict):
-                    current_section = current_progress.get('current_section', 0)
-                elif progress and isinstance(progress, dict):
-                    current_section = progress.get('current_section', 0)
-                else:
-                    current_section = 0
-                    
-                self.story_service.update_progress(
-                    conversation_id=conversation_id,
-                    last_generated_content=accumulated_content,
-                    last_generated_section=current_section,
-                    status='completed'
-                )
+
+                with unit_of_work() as session:
+                    self.chat_service.save_user_message(
+                        conversation_id, user_message, session=session
+                    )
+                    self.chat_service.save_assistant_message(
+                        conversation_id=conversation_id,
+                        content=clean_content,  # Save cleaned content without character tags
+                        model=api_config['model'],
+                        provider=api_config['provider'],
+                        session=session,
+                    )
+
+                    current_progress = self.story_service.get_progress(
+                        conversation_id, session=session
+                    )
+                    if isinstance(current_progress, dict):
+                        current_section = current_progress.get('current_section', 0)
+                    elif progress and isinstance(progress, dict):
+                        current_section = progress.get('current_section', 0)
+                    else:
+                        current_section = 0
+
+                    self.story_service.update_progress(
+                        conversation_id=conversation_id,
+                        last_generated_content=clean_content,
+                        last_generated_section=current_section,
+                        status='completed',
+                        session=session,
+                    )
                 
                 # Check if summary is needed
                 result = {"success": True, "response": accumulated_content}
                 self._check_and_mark_summary_needed(conversation_id, result)
+                if parse_warnings:
+                    yield json.dumps({"parse_warnings": parse_warnings}) + "\n"
             except Exception as e:
                 error_msg = str(e)
                 logger.error(f"Error saving streamed content: {error_msg}", exc_info=True)
@@ -405,25 +510,33 @@ class StoryGenerationService:
             current_section=new_section,
             status='generating'
         )
-        
-        api_config = self.ai_config_service.get_config_for_api(
-            provider=provider,
-            model=model
+
+        api_config = self._story_api_config(conversation_id, provider, model)
+
+        messages, system_prompt = self._prepare_generation_context(
+            conversation_id, current_section=new_section, context_kind="story_generate"
         )
         
-        messages, system_prompt = self._prepare_generation_context(conversation_id, current_section=new_section)
-        
         language = self.app_settings_service.get_language()
-        from utils.prompt_template_loader import PromptTemplateLoader
         template = PromptTemplateLoader.get_template(language)
         # Add chapter information to continue_story message
         chapter_number = new_section + 1  # Convert from 0-based to 1-based
+        ts_raw = progress.get("total_sections") if isinstance(progress, dict) else None
+        total_sections_hint = int(ts_raw) if ts_raw is not None else None
         continue_story_template = template.get('user_messages', {}).get('continue_story_with_chapter', '')
         if continue_story_template:
             user_message = continue_story_template.format(chapter_number=chapter_number)
         else:
             # Fallback to default continue_story message if template not found
             user_message = template['user_messages']['continue_story']
+        user_message = _prepend_task_anchor(
+            language,
+            "continue",
+            user_message,
+            chapter_number,
+            new_section,
+            total_sections_hint,
+        )
         result = self.ai_service.chat(
             provider=api_config['provider'],
             message=user_message,
@@ -443,12 +556,14 @@ class StoryGenerationService:
             
             # Record characters from generated content and get cleaned story content
             settings = self.conversation_service.get_settings(conversation_id)
-            clean_content = self._record_characters_from_message(
+            clean_content, parse_warnings = self._record_characters_from_message(
                 conversation_id=conversation_id,
                 message_id=0,  # Will be set after message is saved
                 content=response_content,
                 settings=settings
             )
+            if parse_warnings:
+                result['parse_warnings'] = parse_warnings
             
             self.chat_service.save_user_message(conversation_id, user_message)
             self.chat_service.save_assistant_message(
@@ -478,7 +593,8 @@ class StoryGenerationService:
         conversation_id: str,
         feedback: str,
         provider: str,
-        model: Optional[str] = None
+        model: Optional[str] = None,
+        feedback_operation: Optional[FeedbackOperation] = None,
     ) -> Dict:
         """
         Rewrite current section
@@ -488,6 +604,7 @@ class StoryGenerationService:
             feedback: User feedback/rewrite request
             provider: AI provider (ollama or deepseek)
             model: Model name (uses default from global config if not provided)
+            feedback_operation: When ``modify`` or ``rewrite``, skip keyword-based detection.
         
         Returns:
             Generation result dictionary
@@ -517,16 +634,20 @@ class StoryGenerationService:
                 "success": False,
                 "error": error_msg
             }
-        
-        api_config = self.ai_config_service.get_config_for_api(
-            provider=provider,
-            model=model
+
+        api_config = self._story_api_config(conversation_id, provider, model)
+
+        messages, system_prompt = self._prepare_generation_context(
+            conversation_id, context_kind="story_feedback"
         )
         
-        messages, system_prompt = self._prepare_generation_context(conversation_id)
-        
         language = self.app_settings_service.get_language()
-        user_message = build_feedback_prompt(feedback, previous_content, language)
+        user_message = build_feedback_prompt(
+            feedback,
+            previous_content,
+            language,
+            forced_operation=feedback_operation,
+        )
         
         result = self.ai_service.chat(
             provider=api_config['provider'],
@@ -552,7 +673,9 @@ class StoryGenerationService:
                 if last_assistant_msg and last_assistant_msg.get('content'):
                     try:
                         # Parse the previous message to find character status changes and revert them
-                        story_content, character_info = self.character_service.parse_story_with_characters(last_assistant_msg['content'])
+                        story_content, character_info, _ = self.character_service.parse_story_with_characters(
+                            last_assistant_msg['content']
+                        )
                         
                         # Revert status changes that occurred in the previous message
                         if character_info.get("status_changes"):
@@ -583,12 +706,14 @@ class StoryGenerationService:
             
             # Record characters from generated content and get cleaned story content
             settings = self.conversation_service.get_settings(conversation_id)
-            clean_content = self._record_characters_from_message(
+            clean_content, parse_warnings = self._record_characters_from_message(
                 conversation_id=conversation_id,
                 message_id=0,  # Will be set after message is saved
                 content=response_content,
                 settings=settings
             )
+            if parse_warnings:
+                result['parse_warnings'] = parse_warnings
             
             self.chat_service.save_user_message(conversation_id, feedback)
             self.chat_service.save_assistant_message(
@@ -635,13 +760,16 @@ class StoryGenerationService:
             conversation_id=conversation_id,
             feedback=feedback,
             provider=provider,
-            model=model
+            model=model,
+            feedback_operation="modify",
         )
     
     def _prepare_generation_context(
         self,
         conversation_id: str,
-        current_section: Optional[int] = None
+        current_section: Optional[int] = None,
+        *,
+        context_kind: Literal["story_generate", "story_feedback"] = "story_generate",
     ) -> tuple[List[Dict], str]:
         """
         Prepare generation context
@@ -649,6 +777,7 @@ class StoryGenerationService:
         Args:
             conversation_id: Conversation ID
             current_section: Current section number, if not provided, get from progress
+            context_kind: Controls which optional system blocks are included.
         
         Returns:
             (Messages list, System prompt)
@@ -687,7 +816,36 @@ class StoryGenerationService:
             if isinstance(additional_settings, dict):
                 supplement = additional_settings.get('supplement')
         
-        # Build system prompt
+        all_messages = self.chat_service.get_conversation(conversation_id)
+        
+        estimated_system_tokens = self.summary_service.estimate_tokens(
+            build_system_prompt(
+                background=settings.get('background') if settings else None,
+                characters=settings.get('characters') if settings else None,
+                character_personality=settings.get('character_personality') if settings else None,
+                outline=settings.get('outline') if settings else None,
+                summary=summary_text,
+                current_section=current_section,
+                total_sections=total_sections,
+                appeared_characters=appeared_characters,
+                supplement=supplement,
+                language=language,
+                context_kind=context_kind,
+                history_truncated=False,
+                older_via_summary=False,
+            )
+        )
+        
+        messages_for_ai, history_truncated, older_via_summary = select_messages_for_ai_context(
+            all_messages,
+            summary_text=summary_text,
+            estimated_system_tokens=estimated_system_tokens,
+            estimate_tokens=self.summary_service.estimate_tokens,
+            recent_messages_with_summary=self.config.RECENT_MESSAGES_WITH_SUMMARY,
+            max_message_history=self.config.MAX_MESSAGE_HISTORY,
+            max_context_tokens=self.config.MAX_CONTEXT_TOKENS,
+        )
+        
         system_prompt = build_system_prompt(
             background=settings.get('background') if settings else None,
             characters=settings.get('characters') if settings else None,
@@ -698,45 +856,11 @@ class StoryGenerationService:
             total_sections=total_sections,
             appeared_characters=appeared_characters,
             supplement=supplement,
-            language=language
+            language=language,
+            context_kind=context_kind,
+            history_truncated=history_truncated,
+            older_via_summary=older_via_summary,
         )
-        
-        all_messages = self.chat_service.get_conversation(conversation_id)
-        
-        estimated_system_tokens = self.summary_service.estimate_tokens(system_prompt)
-        
-        messages_for_ai = []
-        if summary_text:
-            recent_count = self.config.RECENT_MESSAGES_WITH_SUMMARY
-            recent_messages = all_messages[-recent_count:] if len(all_messages) > recent_count else all_messages
-            messages_for_ai = [
-                {"role": msg.get('role', 'user'), "content": msg.get('content', '')}
-                for msg in recent_messages
-            ]
-        else:
-            max_history = self.config.MAX_MESSAGE_HISTORY
-            max_tokens = self.config.MAX_CONTEXT_TOKENS
-            
-            selected_messages = []
-            current_tokens = estimated_system_tokens
-            
-            for msg in reversed(all_messages):
-                msg_content = msg.get('content', '')
-                msg_tokens = self.summary_service.estimate_tokens(msg_content)
-                
-                if current_tokens + msg_tokens > max_tokens and len(selected_messages) > 0:
-                    break
-                
-                if len(selected_messages) >= max_history:
-                    break
-                
-                selected_messages.insert(0, msg)
-                current_tokens += msg_tokens
-            
-            messages_for_ai = [
-                {"role": msg.get('role', 'user'), "content": msg.get('content', '')}
-                for msg in selected_messages
-            ]
         
         return messages_for_ai, system_prompt
     

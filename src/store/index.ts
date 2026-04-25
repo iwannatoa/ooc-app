@@ -5,11 +5,13 @@ import settingsSlice from './slices/settingsSlice';
 import uiSlice from './slices/uiSlice';
 import dialogSlice from './slices/dialogSlice';
 import conversationSettingsFormSlice from './slices/conversationSettingsFormSlice';
+import conversationsReducer from './slices/conversationsSlice';
 
 export const store = configureStore({
   reducer: {
     server: serverSlice,
     chat: chatSlice,
+    conversations: conversationsReducer,
     settings: settingsSlice,
     ui: uiSlice,
     dialog: dialogSlice,

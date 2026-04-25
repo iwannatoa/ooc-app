@@ -46,6 +46,8 @@ export interface AdvancedSettings {
   maxRetries: number;
   logLevel: 'debug' | 'info' | 'warn' | 'error';
   enableDiagnostics: boolean;
+  /** Optional one-line user narration appended as a user chat row (desktop flow). */
+  enableFreeformNote?: boolean;
 }
 
 /**

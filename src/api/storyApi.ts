@@ -18,6 +18,8 @@ export interface StoryActionResponse {
   response?: string;
   error?: string;
   story_progress?: any;
+  /** Server-side `<CHARACTERS>` parse anomaly codes (optional, backward compatible). */
+  parse_warnings?: string[];
 }
 
 export class StoryApi extends BaseApiClient {
@@ -45,6 +47,7 @@ export class StoryApi extends BaseApiClient {
     const provider = this.settings.ai.provider;
     const config = this.settings.ai[provider];
 
+    const parseWarningsCollector: string[] = [];
     const accumulated = await this.stream(
       '/api/story/generate-stream',
       {
@@ -52,12 +55,18 @@ export class StoryApi extends BaseApiClient {
         provider: provider,
         model: config.model,
       },
-      onChunk
+      onChunk,
+      {},
+      { parseWarningsCollector }
     );
 
     return {
       success: true,
       response: stripThinkContent(accumulated),
+      parse_warnings:
+        parseWarningsCollector.length > 0
+          ? parseWarningsCollector
+          : undefined,
     };
   }
 
@@ -92,6 +101,8 @@ export class StoryApi extends BaseApiClient {
       feedback: feedback,
       provider: provider,
       model: config.model,
+      /** UI「改写」入口：显式传 rewrite，服务端跳过关键词推断（与 /modify 对称）。 */
+      feedback_operation: 'rewrite',
     });
 
     return data;
@@ -115,6 +126,20 @@ export class StoryApi extends BaseApiClient {
     });
 
     return data;
+  }
+
+  /**
+   * Append a user-authored note to the conversation transcript (no AI round-trip).
+   */
+  async saveUserNote(conversationId: string, text: string): Promise<{
+    success: boolean;
+    message?: { id: number; role: string; content: string };
+    error?: string;
+  }> {
+    return this.post('/api/story/user-note', {
+      conversation_id: conversationId,
+      text,
+    });
   }
 }
 

@@ -3,9 +3,8 @@ Chat record data model
 """
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, Text, DateTime, Index
-from sqlalchemy.ext.declarative import declarative_base
 
-Base = declarative_base()
+from model.base import Base
 
 
 class ChatRecord(Base):
@@ -18,11 +17,13 @@ class ChatRecord(Base):
     content = Column(Text, nullable=False, comment='Message content')
     model = Column(String(100), nullable=True, comment='Model used')
     provider = Column(String(50), nullable=True, comment='AI provider: ollama, deepseek')
+    parent_message_id = Column(Integer, nullable=True, comment='Parent message for rewrite/branch')
+    variant_group_id = Column(String(64), nullable=True, index=True, comment='Groups rewrite variants')
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True, comment='Created at')
     
     # Add index to improve query performance
     __table_args__ = (
-        Index('idx_conversation_created', 'conversation_id', 'created_at'),
+        Index('idx_chat_records_conv_created', 'conversation_id', 'created_at'),
     )
     
     def to_dict(self) -> dict:
@@ -34,6 +35,8 @@ class ChatRecord(Base):
             'content': self.content,
             'model': self.model,
             'provider': self.provider,
+            'parent_message_id': self.parent_message_id,
+            'variant_group_id': self.variant_group_id,
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
 

@@ -4,7 +4,7 @@ Provides common functions for controllers
 """
 from functools import wraps
 from flask import jsonify
-from typing import Optional, Callable
+from typing import Optional, Callable, Any
 from utils.i18n import get_i18n_text
 from utils.exceptions import APIError, ValidationError, ProviderError, ServiceError
 from utils.logger import get_logger
@@ -39,7 +39,7 @@ def error_response(
 
 def validate_required(
     language: str,
-    value: any,
+    value: Any,
     field_name: str,
     error_key: Optional[str] = None
 ):

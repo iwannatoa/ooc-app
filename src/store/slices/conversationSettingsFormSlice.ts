@@ -24,6 +24,11 @@ export interface ConversationSettingsFormData {
   // Auto-generation options
   allowAutoGenerateCharacters: boolean;
   allowAutoGenerateMainCharacters: boolean;
+
+  /** true = open-ended serialization (``total_sections`` null on save) */
+  serializationOpenEnded: boolean;
+  /** Used when ``serializationOpenEnded`` is false (clamped 1–999 on save). */
+  finiteTotalSections: number;
 }
 
 /**
@@ -65,6 +70,8 @@ const createInitialFormData = (
     settings?.allow_auto_generate_characters !== false,
   allowAutoGenerateMainCharacters:
     settings?.additional_settings?.allow_auto_generate_main_characters !== false,
+  serializationOpenEnded: true,
+  finiteTotalSections: 10,
 });
 
 const initialState: ConversationSettingsFormState = {

@@ -8,23 +8,38 @@ import {
   ConversationWithSettings,
 } from '@/types';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useAppDispatch, useAppSelector } from '@/hooks/redux';
+import {
+  setConversationListLoading,
+  setConversationListSuccess,
+  setConversationListFailure,
+  prependConversation,
+} from '@/store/slices/conversationsSlice';
 import { useAiClient } from './useAiClient';
 import { useChatState } from './useChatState';
 import { useConversationClient } from './useConversationClient';
 import { useSettingsState } from './useSettingsState';
 import { useUIState } from './useUIState';
-import { useConversationSettingsDialog, useSummaryPromptDialog } from './useDialog';
+import {
+  useConversationSettingsDialog,
+  useSummaryPromptDialog,
+} from './useDialog';
 import { confirmDialog } from '@/services/confirmDialogService';
 import { useI18n } from '@/i18n/i18n';
+import { useToast } from '@/hooks/useToast';
+import { reportApiFailureToToast } from '@/utils/reportApiFailure';
 
 export const useConversationManagement = () => {
-  const [conversations, setConversations] = useState<
-    ConversationWithSettings[]
-  >([]);
-  const [loading, setLoading] = useState(false);
+  const dispatch = useAppDispatch();
+  const conversations = useAppSelector((s) => s.conversations?.items ?? []);
+  const listStatus = useAppSelector(
+    (s) => s.conversations?.listStatus ?? 'idle'
+  );
+
   const [summaryMessageCount, setSummaryMessageCount] = useState(0);
-  
-  // Use Redux for UI state
+  /** List fetch uses Redux listStatus; this covers select/save/delete blocking UI. */
+  const [interactionLoading, setInteractionLoading] = useState(false);
+
   const uiState = useUIState();
   const {
     isNewConversation,
@@ -33,7 +48,6 @@ export const useConversationManagement = () => {
     setPendingConversationId,
   } = uiState;
 
-  // Use dialog hooks
   const settingsDialog = useConversationSettingsDialog();
   const summaryDialog = useSummaryPromptDialog();
 
@@ -43,10 +57,13 @@ export const useConversationManagement = () => {
     setMessages,
     removeConversation,
     messages,
+    setSending,
+    setStoryOperation,
+    applyStreamingAssistantChunk,
   } = useChatState();
 
-  // Use ref to store latest messages for callback
   const messagesRef = useRef<ChatMessage[]>(messages);
+  const selectGenerationRef = useRef(0);
 
   useEffect(() => {
     messagesRef.current = messages;
@@ -56,41 +73,34 @@ export const useConversationManagement = () => {
   const { sendMessageStream } = useAiClient(settings);
   const conversationClient = useConversationClient();
   const { t } = useI18n();
+  const { showError, showWarning } = useToast();
+
+  const loading = listStatus === 'loading' || interactionLoading;
 
   const loadConversations = useCallback(async () => {
+    dispatch(setConversationListLoading());
     try {
-      setLoading(true);
       const list = await conversationClient.getConversationsList();
-      setConversations(list);
+      dispatch(setConversationListSuccess(list));
     } catch (error) {
       console.error('Failed to load conversations:', error);
-    } finally {
-      setLoading(false);
+      dispatch(
+        setConversationListFailure(
+          error instanceof Error ? error.message : undefined
+        )
+      );
+      reportApiFailureToToast(error, {
+        t,
+        showError,
+        detailKey: 'conversation.loadFailedDetail',
+        hintNamespace: 'storyErrors',
+      });
     }
-  }, [conversationClient]);
+  }, [conversationClient, dispatch, showError, t]);
 
   useEffect(() => {
-    let mounted = true;
-    const load = async () => {
-      try {
-        setLoading(true);
-        const list = await conversationClient.getConversationsList();
-        if (mounted) {
-          setConversations(list);
-        }
-      } catch (error) {
-        console.error('Failed to load conversations:', error);
-      } finally {
-        if (mounted) {
-          setLoading(false);
-        }
-      }
-    };
-    load();
-    return () => {
-      mounted = false;
-    };
-  }, []);
+    void loadConversations();
+  }, [loadConversations]);
 
   const handleNewConversation = useCallback(() => {
     const newId = `conv_${Date.now()}_${Math.random()
@@ -98,7 +108,6 @@ export const useConversationManagement = () => {
       .substring(2, 9)}`;
     setPendingConversationId(newId);
     setIsNewConversation(true);
-    // Open settings dialog for new conversation
     settingsDialog.open(newId, {
       isNewConversation: true,
     });
@@ -106,18 +115,24 @@ export const useConversationManagement = () => {
 
   const handleSelectConversation = useCallback(
     async (conversationId: string) => {
+      const gen = ++selectGenerationRef.current;
       try {
-        setLoading(true);
+        setInteractionLoading(true);
         setActiveConversation(conversationId);
-        const messages = await conversationClient.getConversationMessages(
+        const loaded = await conversationClient.getConversationMessages(
           conversationId
         );
-        setMessages(messages);
+        if (gen !== selectGenerationRef.current) return;
+        setMessages(loaded);
       } catch (error) {
         console.error('Failed to load conversation:', error);
-        setMessages([]);
+        if (gen === selectGenerationRef.current) {
+          setMessages([]);
+        }
       } finally {
-        setLoading(false);
+        if (gen === selectGenerationRef.current) {
+          setInteractionLoading(false);
+        }
       }
     },
     [conversationClient, setMessages, setActiveConversation]
@@ -126,7 +141,7 @@ export const useConversationManagement = () => {
   const handleSaveSettings = useCallback(
     async (settingsData: Partial<ConversationSettings>) => {
       try {
-        setLoading(true);
+        setInteractionLoading(true);
         await conversationClient.createOrUpdateSettings(settingsData);
         settingsDialog.close();
         setIsNewConversation(false);
@@ -135,8 +150,7 @@ export const useConversationManagement = () => {
           setPendingConversationId(null);
           setActiveConversation(settingsData.conversation_id);
           setMessages([]);
-          
-          // Immediately add the new conversation to the list for instant feedback
+
           const newConversation: ConversationWithSettings = {
             id: settingsData.conversation_id,
             title: settingsData.title || t('conversation.unnamedConversation'),
@@ -145,22 +159,16 @@ export const useConversationManagement = () => {
             updatedAt: Date.now(),
             settings: settingsData as ConversationSettings,
           };
-          
-          setConversations((prev) => {
-            // Remove if already exists (shouldn't happen, but just in case)
-            const filtered = prev.filter((c) => c.id !== newConversation.id);
-            // Add to the beginning of the list
-            return [newConversation, ...filtered];
-          });
+
+          dispatch(prependConversation(newConversation));
         }
 
-        // Reload conversations to get the latest data from backend
         await loadConversations();
       } catch (error) {
         console.error('Failed to save settings:', error);
         throw error;
       } finally {
-        setLoading(false);
+        setInteractionLoading(false);
       }
     },
     [
@@ -169,18 +177,16 @@ export const useConversationManagement = () => {
       setActiveConversation,
       setMessages,
       loadConversations,
-      settings,
       settingsDialog,
       setIsNewConversation,
       setPendingConversationId,
-      setConversations,
+      dispatch,
       t,
     ]
   );
 
   const handleDeleteConversation = useCallback(
     async (conversationId: string) => {
-      // Show confirmation dialog
       const confirmed = await confirmDialog({
         message: t('conversation.confirmDeleteConversation'),
         confirmText: t('common.confirm'),
@@ -213,70 +219,41 @@ export const useConversationManagement = () => {
     ]
   );
 
-  // Edit story settings
-  const handleEditSettings = useCallback((conversationId: string) => {
-    setPendingConversationId(conversationId);
-    setIsNewConversation(false);
-    // Get current settings for this conversation
-    const conversation = conversations.find(c => c.id === conversationId);
-    settingsDialog.open(conversationId, {
-      settings: conversation?.settings,
-      isNewConversation: false,
-    });
-  }, [conversations, settingsDialog]);
+  const handleEditSettings = useCallback(
+    (conversationId: string) => {
+      setPendingConversationId(conversationId);
+      setIsNewConversation(false);
+      const conversation = conversations.find((c) => c.id === conversationId);
+      settingsDialog.open(conversationId, {
+        settings: conversation?.settings,
+        isNewConversation: false,
+      });
+    },
+    [conversations, settingsDialog, setPendingConversationId, setIsNewConversation]
+  );
 
   const handleSendMessage = useCallback(
     async (message: string) => {
-      let convId = activeConversationId;
+      const convId = activeConversationId;
 
-      // If no active story, create new story and show settings form
       if (!convId) {
         handleNewConversation();
-        return; // Wait for user to complete settings before sending message
+        return;
       }
 
+      setStoryOperation('chat_stream');
+      setSending(true);
       try {
-        // Use streaming interface to send message
-        let assistantMessageId: string | null = null;
-
         const aiMessage = await sendMessageStream(
           message,
           convId,
           (_: string, accumulated: string) => {
-            // Get current message list (use ref to get latest value)
-            const currentMessages = messagesRef.current;
-            const lastMessage = currentMessages[currentMessages.length - 1];
-
-            if (lastMessage && lastMessage.role === 'assistant') {
-              // Update existing message - create new object instead of modifying existing one
-              assistantMessageId =
-                lastMessage.id || `msg_${Date.now()}_${Math.random()}`;
-              const updatedMessages = currentMessages.map((msg, index) =>
-                index === currentMessages.length - 1
-                  ? { ...msg, content: accumulated }
-                  : msg
-              );
-              setMessages(updatedMessages);
-            } else {
-              // Add new message
-              assistantMessageId = `msg_${Date.now()}_${Math.random()}`;
-              setMessages([
-                ...currentMessages,
-                {
-                  role: 'assistant',
-                  content: accumulated,
-                  timestamp: Date.now(),
-                  id: assistantMessageId,
-                },
-              ]);
-            }
+            applyStreamingAssistantChunk(accumulated);
           }
         );
 
-        // Message has been saved by backend (think part filtered), reload messages
         await handleSelectConversation(convId);
 
-        // Check if summary is needed
         if (aiMessage.needsSummary && aiMessage.messageCount) {
           setSummaryMessageCount(aiMessage.messageCount);
           if (convId) {
@@ -285,7 +262,16 @@ export const useConversationManagement = () => {
         }
       } catch (error) {
         console.error('Failed to send message:', error);
+        reportApiFailureToToast(error, {
+          t,
+          showError,
+          showWarning,
+          detailKey: 'chat.sendMessageFailedDetail',
+          hintNamespace: 'storyErrors',
+        });
         throw error;
+      } finally {
+        setSending(false);
       }
     },
     [
@@ -293,11 +279,16 @@ export const useConversationManagement = () => {
       sendMessageStream,
       handleNewConversation,
       handleSelectConversation,
-      setMessages,
+      setSending,
+      setStoryOperation,
+      showError,
+      showWarning,
+      t,
+      applyStreamingAssistantChunk,
+      summaryDialog,
     ]
   );
 
-  // Generate summary
   const handleGenerateSummary = useCallback(async (): Promise<string> => {
     if (!activeConversationId) {
       throw new Error('No active conversation');
@@ -311,7 +302,6 @@ export const useConversationManagement = () => {
     );
   }, [activeConversationId, conversationClient, settings]);
 
-  // Save summary
   const handleSaveSummary = useCallback(
     async (summary: string): Promise<void> => {
       if (!activeConversationId) {
@@ -323,7 +313,6 @@ export const useConversationManagement = () => {
     [activeConversationId, conversationClient, summaryDialog]
   );
 
-  // Get current settings for active conversation
   const conversationSettings = conversations.find(
     (c) => c.id === (pendingConversationId || activeConversationId)
   )?.settings;

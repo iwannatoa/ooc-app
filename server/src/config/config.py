@@ -4,7 +4,11 @@
 Application configuration module
 """
 import os
-from typing import Optional
+from typing import FrozenSet, Optional, Tuple
+
+
+def _parse_csv(value: str) -> Tuple[str, ...]:
+    return tuple(x.strip() for x in value.split(',') if x.strip())
 
 
 class Config:
@@ -14,8 +18,31 @@ class Config:
     PORT: int = int(os.getenv('FLASK_PORT', '5000'))
     DEBUG: bool = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
     
-    # CORS configuration
-    CORS_ENABLED: bool = True
+    # CORS configuration (origins empty + CORS_ENABLED True => no cross-origin in practice)
+    CORS_ENABLED: bool = os.getenv('CORS_ENABLED', 'true').lower() == 'true'
+    _cors_origins_env: str = os.getenv('CORS_ORIGINS', '').strip()
+    CORS_ORIGINS: Tuple[str, ...] = _parse_csv(_cors_origins_env) if _cors_origins_env else ()
+    CORS_ALLOW_METHODS: Tuple[str, ...] = _parse_csv(
+        os.getenv('CORS_ALLOW_METHODS', 'GET,POST,PUT,PATCH,DELETE,OPTIONS')
+    )
+    CORS_ALLOW_HEADERS: Tuple[str, ...] = _parse_csv(
+        os.getenv('CORS_ALLOW_HEADERS', 'Content-Type,Authorization')
+    )
+
+    # API Bearer token (optional). If set, all /api/* except exempt paths require
+    # Authorization: Bearer <token>. Same value should be set for the Tauri/desktop client.
+    _api_token_raw: str = os.getenv('FLASK_API_TOKEN', '').strip()
+    FLASK_API_TOKEN: Optional[str] = _api_token_raw if _api_token_raw else None
+
+    # Paths exempt from Bearer check (no leading API prefix duplication for '/')
+    API_AUTH_EXEMPT_PATHS: FrozenSet[str] = frozenset(
+        p.strip()
+        for p in os.getenv(
+            'API_AUTH_EXEMPT_PATHS',
+            '/,/api/health',
+        ).split(',')
+        if p.strip()
+    )
     
     # Ollama configuration
     OLLAMA_BASE_URL: str = os.getenv('OLLAMA_BASE_URL', 'http://localhost:11434')
@@ -52,17 +79,38 @@ class Config:
     ESTIMATED_TOKENS_PER_MESSAGE: int = int(os.getenv('ESTIMATED_TOKENS_PER_MESSAGE', '500'))  # Estimated tokens per message
     MAX_CONTEXT_TOKENS: int = int(os.getenv('MAX_CONTEXT_TOKENS', '60000'))  # Max context tokens (default 60K, suitable for most models)
 
+    # LangChain: unified chat invoke/stream (set false to use legacy Ollama generate + DeepSeek requests)
+    USE_LANGCHAIN: bool = os.getenv('USE_LANGCHAIN', 'true').lower() in (
+        '1',
+        'true',
+        'yes',
+    )
+
 
 class DevelopmentConfig(Config):
     """Development environment configuration"""
     DEBUG: bool = True
     LOG_LEVEL: str = 'DEBUG'
+    _dev_cors = os.getenv('CORS_ORIGINS', '').strip()
+    CORS_ORIGINS: Tuple[str, ...] = (
+        _parse_csv(_dev_cors)
+        if _dev_cors
+        else (
+            'http://localhost:1420',
+            'http://127.0.0.1:1420',
+            'tauri://localhost',
+            'https://tauri.localhost',
+        )
+    )
 
 
 class ProductionConfig(Config):
     """Production environment configuration"""
     DEBUG: bool = False
     LOG_LEVEL: str = 'INFO'
+    # Strict CORS: set CORS_ORIGINS in deployment; default none
+    _prod_cors = os.getenv('CORS_ORIGINS', '').strip()
+    CORS_ORIGINS: Tuple[str, ...] = _parse_csv(_prod_cors) if _prod_cors else ()
 
 
 class TestingConfig(Config):
@@ -70,6 +118,12 @@ class TestingConfig(Config):
     TESTING: bool = True
     DEBUG: bool = True
     LOG_LEVEL: str = 'DEBUG'
+    # Unit tests mock legacy services; LangChain path would require LC mocks or network.
+    USE_LANGCHAIN: bool = os.getenv('USE_LANGCHAIN', 'false').lower() in ('1', 'true', 'yes')
+    _test_cors = os.getenv('CORS_ORIGINS', '').strip()
+    CORS_ORIGINS: Tuple[str, ...] = (
+        _parse_csv(_test_cors) if _test_cors else ('http://127.0.0.1', 'http://localhost')
+    )
 
 
 # Configuration dictionary
