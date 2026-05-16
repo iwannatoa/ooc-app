@@ -5,7 +5,11 @@ const baseURL = `http://127.0.0.1:${port}`;
 
 export default defineConfig({
   testDir: './e2e',
-  testIgnore: ['**/tauri-desktop.spec.ts', '**/tauri-desktop.spec.mjs'],
+  testIgnore: [
+    '**/tauri-desktop.spec.ts',
+    '**/tauri-desktop.spec.mjs',
+    '**/flask-integration.spec.ts',
+  ],
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
@@ -21,5 +25,8 @@ export default defineConfig({
     url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,
+    env: {
+      VITE_FLASK_BASE_URL: baseURL,
+    },
   },
 });

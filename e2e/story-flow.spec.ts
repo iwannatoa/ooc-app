@@ -11,9 +11,11 @@ test('story workspace basic flow is accessible', async ({ page }) => {
 test('ai provider options can be switched in settings', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: /settings|设置/i }).first().click();
-  await page.getByRole('button', { name: /ai|模型|智能/i }).first().click();
-
-  const providerSelect = page.locator('select:not([disabled])').first();
+  await page.getByRole('button', { name: /AI Settings|AI 设置/i }).click();
+  const content = page.locator(
+    '[class*="settingsPanelOverlay"] [class*="settingsContent"]'
+  );
+  const providerSelect = content.locator('select').first();
   await expect(providerSelect).toBeVisible();
   await providerSelect.selectOption('openai');
   await expect(providerSelect).toHaveValue('openai');
@@ -65,9 +67,12 @@ test('models request remains bounded after switching to ollama', async ({ page }
   await expect(page.locator('#root')).toBeVisible();
 
   await page.getByRole('button', { name: /settings|设置/i }).first().click();
-  await page.getByRole('button', { name: /ai|模型|智能/i }).first().click();
+  await page.getByRole('button', { name: /AI Settings|AI 设置/i }).click();
 
-  const providerSelect = page.locator('select:not([disabled])').first();
+  const content = page.locator(
+    '[class*="settingsPanelOverlay"] [class*="settingsContent"]'
+  );
+  const providerSelect = content.locator('select').first();
   await expect(providerSelect).toBeVisible();
   await providerSelect.selectOption('ollama');
   await expect(providerSelect).toHaveValue('ollama');

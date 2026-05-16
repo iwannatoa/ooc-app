@@ -115,6 +115,14 @@ export class AiApi extends BaseApiClient {
     );
 
     const capabilityNoticeCollector: string[] = [];
+    const chatStreamMeta: {
+      needsSummary?: boolean;
+      messageCount?: number;
+    } = {};
+    const streamExtras = {
+      capabilityNoticeCollector,
+      chatStreamMeta,
+    };
     const accumulated = hasLocalFiles
       ? await this.streamFormData(
           '/api/chat-stream',
@@ -128,9 +136,7 @@ export class AiApi extends BaseApiClient {
           }),
           onChunk,
           undefined,
-          {
-            capabilityNoticeCollector,
-          }
+          streamExtras
         )
       : await this.stream(
           '/api/chat-stream',
@@ -144,9 +150,7 @@ export class AiApi extends BaseApiClient {
           },
           onChunk,
           undefined,
-          {
-            capabilityNoticeCollector,
-          }
+          streamExtras
         );
 
     // Strip think content from final response
@@ -158,6 +162,8 @@ export class AiApi extends BaseApiClient {
       model: config.model,
       timestamp: Date.now(),
       providerCapabilityNotice: capabilityNoticeCollector.join('\n').trim() || undefined,
+      needsSummary: chatStreamMeta.needsSummary,
+      messageCount: chatStreamMeta.messageCount,
     };
   }
 

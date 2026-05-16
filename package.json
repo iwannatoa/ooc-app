@@ -18,7 +18,7 @@
     "type-check": "tsc --noEmit",
     "lint": "npm run lint:ts && npm run lint:eslint && npm run lint:python && npm run lint:i18n",
     "lint:ts": "tsc --noEmit",
-    "lint:eslint": "eslint \"src/**/*.{ts,tsx}\" \"e2e/**/*.ts\" \"playwright.config.ts\" \"playwright.tauri.config.ts\"",
+    "lint:eslint": "eslint \"src/**/*.{ts,tsx}\" \"e2e/**/*.ts\" \"playwright.config.ts\" \"playwright.flask.config.ts\" \"playwright.tauri.config.ts\"",
     "lint:python": "node scripts/python-runner.mjs -m flake8 server/src --config=server/.flake8",
     "lint:i18n": "node scripts/check-i18n-keys.mjs",
     "check": "npm run lint && npm run test:python",
@@ -35,6 +35,7 @@
     "test:python": "node scripts/python-runner.mjs -m pytest server",
     "test:python:coverage": "node scripts/python-runner.mjs -m pytest --cov=server/src --cov-report=html server",
     "test:e2e": "playwright test",
+    "test:e2e:flask": "playwright test --config=playwright.flask.config.ts",
     "test:e2e:tauri": "playwright test --config=playwright.tauri.config.ts",
     "test:e2e:install": "playwright install"
   },

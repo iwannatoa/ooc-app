@@ -1,48 +1,14 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import { installMockStoryApi } from './helpers/mockStoryApi';
 import { expectNoSeriousOrCriticalViolations } from './axe-helpers';
-
-const clickNewStory = async (page: Page) => {
-  await page.getByRole('button', { name: /new story|新建故事|new/i }).first().click();
-  await expect(page.locator('#title')).toBeVisible();
-};
-
-const saveStorySettings = async (
-  page: Page,
-  {
-    background,
-    outline,
-  }: { background: string; outline?: string }
-) => {
-  await page.locator('#title').fill(`Story ${Date.now()}`);
-  await page.locator('#background').fill(background);
-  await page.locator('#outline').fill(
-    outline || 'Default outline for deterministic E2E flow.'
-  );
-  await page.locator('form button[type="submit"]').click();
-  await page.locator('[class*="conversationList"] [role="button"]').first().click();
-  await expect(page.locator('input[aria-label]').first()).toBeVisible({
-    timeout: 15_000,
-  });
-};
-
-const sendChatMessage = async (
-  page: Page,
-  text: string
-) => {
-  const input = page.locator('input[aria-label]').first();
-  await expect(input).toBeVisible();
-  await input.fill(text);
-  await input.press('Enter');
-};
-
-const deleteFirstConversation = async (page: Page) => {
-  const itemContainer = page
-    .locator('[class*="conversationList"] [class*="item"]')
-    .first();
-  await itemContainer.locator('button:has-text("×")').click();
-  await page.getByRole('button', { name: /confirm|确认/i }).first().click();
-};
+import {
+  clickNewStory,
+  closeSettingsPanel,
+  deleteFirstConversation,
+  openSettings,
+  saveStorySettings,
+  sendChatMessage,
+} from './helpers/storyFlow';
 
 test('story creation and first message roundtrip works end-to-end', async ({
   page,
@@ -124,7 +90,7 @@ test('provider switch keeps message sending available', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('#root')).toBeVisible();
 
-  await page.getByRole('button', { name: /settings|设置/i }).first().click();
+  await openSettings(page);
   await page.getByRole('button', { name: /ai|模型|智能/i }).first().click();
   const providerSelect = page
     .locator('select:has(option[value="openai"])')
@@ -134,10 +100,7 @@ test('provider switch keeps message sending available', async ({ page }) => {
   await expect(providerSelect).toHaveValue('openai');
   await providerSelect.selectOption('ollama');
   await expect(providerSelect).toHaveValue('ollama');
-  await page
-    .locator('[class*="settingsPanelOverlay"] button:has-text("×")')
-    .first()
-    .click();
+  await closeSettingsPanel(page);
 
   await clickNewStory(page);
   await saveStorySettings(page, {

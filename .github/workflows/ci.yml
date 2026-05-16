@@ -75,6 +75,42 @@ jobs:
       - name: Run Playwright tests
         run: npm run test:e2e
 
+  # Optional: real Flask + Vite preview (narrow); trigger manually to avoid flaky default CI
+  e2e-flask-integration:
+    name: E2E Flask integration (narrow)
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Python dependencies
+        working-directory: server
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Flask-backed Playwright smoke
+        run: npm run test:e2e:flask
+
   # Desktop: real Tauri + WebKitGTK via tauri-plugin-playwright (Linux headless with xvfb)
   e2e-tauri-desktop:
     name: E2E Tauri Desktop

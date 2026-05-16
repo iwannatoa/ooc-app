@@ -17,11 +17,18 @@ export interface RequestConfig extends RequestInit {
   skipErrorHandling?: boolean;
 }
 
+/** Optional metadata emitted as JSON SSE lines on `/api/chat-stream` (before `done`). */
+export interface ChatStreamMeta {
+  needsSummary?: boolean;
+  messageCount?: number;
+}
+
 /** Optional side channels for SSE consumers (e.g. story `parse_warnings` frames). */
 export interface StreamExtras {
   parseWarningsCollector?: string[];
   capabilityNoticeCollector?: string[];
   contextTraceCollector?: unknown[];
+  chatStreamMeta?: ChatStreamMeta;
 }
 
 export interface ApiError extends Error {
@@ -479,6 +486,19 @@ export class BaseApiClient {
                 streamExtras?.contextTraceCollector?.push(data.context_trace);
                 continue;
               }
+              if (
+                streamExtras?.chatStreamMeta &&
+                (typeof data.needs_summary === 'boolean' ||
+                  typeof data.message_count === 'number')
+              ) {
+                if (typeof data.needs_summary === 'boolean') {
+                  streamExtras.chatStreamMeta.needsSummary = data.needs_summary;
+                }
+                if (typeof data.message_count === 'number') {
+                  streamExtras.chatStreamMeta.messageCount = data.message_count;
+                }
+                continue;
+              }
               if (data.done) {
                 return accumulated;
               }
@@ -614,6 +634,19 @@ export class BaseApiClient {
             }
             if ('context_trace' in data && data.context_trace) {
               streamExtras?.contextTraceCollector?.push(data.context_trace);
+              continue;
+            }
+            if (
+              streamExtras?.chatStreamMeta &&
+              (typeof data.needs_summary === 'boolean' ||
+                typeof data.message_count === 'number')
+            ) {
+              if (typeof data.needs_summary === 'boolean') {
+                streamExtras.chatStreamMeta.needsSummary = data.needs_summary;
+              }
+              if (typeof data.message_count === 'number') {
+                streamExtras.chatStreamMeta.messageCount = data.message_count;
+              }
               continue;
             }
             if (data.done) {

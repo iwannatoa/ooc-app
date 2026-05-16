@@ -118,7 +118,10 @@ describe('I18n', () => {
       });
 
       expect(global.fetch).toHaveBeenCalledWith(
-        `${mockApiUrl}/api/app-settings/language`
+        `${mockApiUrl}/api/app-settings/language`,
+        expect.objectContaining({
+          headers: expect.any(Object),
+        })
       );
     });
 

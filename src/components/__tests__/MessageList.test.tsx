@@ -103,7 +103,7 @@ describe('MessageList', () => {
     expect(screen.queryByText('AI')).not.toBeInTheDocument();
   });
 
-  it('should filter out user messages', () => {
+  it('should render user and assistant messages', () => {
     renderWithProviders(<MessageList />, {
       initialState: {
         chat: {
@@ -124,7 +124,7 @@ describe('MessageList', () => {
       },
     });
 
-    expect(screen.queryByText('User message')).not.toBeInTheDocument();
+    expect(screen.getByText('User message')).toBeInTheDocument();
     expect(screen.getByText('Assistant message')).toBeInTheDocument();
   });
 

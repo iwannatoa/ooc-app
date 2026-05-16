@@ -1,106 +1,13 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import { installMockStoryApi } from './helpers/mockStoryApi';
-
-/** Injected before navigation so PDF / Bundle flows work without native Tauri in vite preview. */
-const installE2eTauriHooks = async (page: Page) => {
-  await page.addInitScript(`
-    (function () {
-      window.__OOC_E2E_LAST_WRITE__ = undefined;
-      var hooks = {
-        pickSavePath: async function (opts) {
-          var dp = opts && opts.defaultPath ? String(opts.defaultPath) : '';
-          if (dp.endsWith('.pdf')) return '/tmp/ooc-e2e-export.pdf';
-          if (dp.endsWith('.json')) return '/tmp/ooc-e2e-bundle.json';
-          return '/tmp/ooc-e2e-generic.bin';
-        },
-        writeBinary: async function (path, data) {
-          window.__OOC_E2E_LAST_WRITE__ = {
-            path: path,
-            kind: 'binary',
-            byteLength: data.byteLength,
-          };
-        },
-        writeText: async function (path, text) {
-          window.__OOC_E2E_LAST_WRITE__ = {
-            path: path,
-            kind: 'text',
-            textLength: text.length,
-          };
-        },
-      };
-      window.__OOC_E2E__ = hooks;
-      globalThis.__OOC_E2E__ = hooks;
-    })();
-  `);
-};
-
-/**
- * Re-apply hooks after navigation: ensures `globalThis.__OOC_E2E__` is present at click-time.
- * Use string evaluate so hook implementations match `addInitScript` serialization.
- */
-const primeOocE2eHooks = (page: Page) =>
-  page.evaluate(`
-    (function () {
-      window.__OOC_E2E_LAST_WRITE__ = undefined;
-      var hooks = {
-        pickSavePath: async function (opts) {
-          var dp = opts && opts.defaultPath ? String(opts.defaultPath) : '';
-          if (dp.endsWith('.pdf')) return '/tmp/ooc-e2e-export.pdf';
-          if (dp.endsWith('.json')) return '/tmp/ooc-e2e-bundle.json';
-          return '/tmp/ooc-e2e-generic.bin';
-        },
-        writeBinary: async function (path, data) {
-          window.__OOC_E2E_LAST_WRITE__ = {
-            path: path,
-            kind: 'binary',
-            byteLength: data.byteLength,
-          };
-        },
-        writeText: async function (path, text) {
-          window.__OOC_E2E_LAST_WRITE__ = {
-            path: path,
-            kind: 'text',
-            textLength: text.length,
-          };
-        },
-      };
-      window.__OOC_E2E__ = hooks;
-      globalThis.__OOC_E2E__ = hooks;
-    })();
-  `);
-
-const gotoApp = async (page: Page, path = '/') => {
-  await page.goto(path);
-  await primeOocE2eHooks(page);
-};
-
-const clickNewStory = async (page: Page) => {
-  await page.getByRole('button', { name: /new story|新建故事|new/i }).first().click();
-  await expect(page.locator('#title')).toBeVisible();
-};
-
-const saveStorySettings = async (
-  page: Page,
-  { background, outline }: { background: string; outline?: string }
-) => {
-  await page.locator('#title').fill(`Story ${Date.now()}`);
-  await page.locator('#background').fill(background);
-  await page.locator('#outline').fill(
-    outline || 'Default outline for deterministic E2E flow.'
-  );
-  await page.locator('form button[type="submit"]').click();
-  await page.locator('[class*="conversationList"] [role="button"]').first().click();
-  await expect(page.locator('input[aria-label]').first()).toBeVisible({
-    timeout: 15_000,
-  });
-};
-
-const sendChatMessage = async (page: Page, text: string) => {
-  const input = page.locator('input[aria-label]').first();
-  await expect(input).toBeVisible();
-  await input.fill(text);
-  await input.press('Enter');
-};
+import {
+  clickNewStory,
+  gotoApp,
+  installE2eTauriHooks,
+  primeOocE2eHooks,
+  saveStorySettings,
+  sendChatMessage,
+} from './helpers/storyFlow';
 
 test.describe('REQ-QA-002 key paths', () => {
   test.beforeEach(async ({ page }) => {

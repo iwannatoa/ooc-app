@@ -26,5 +26,11 @@ test('settings panel shows data tab and no serious axe violations', async ({
       name: /restore encrypted backup|恢复加密备份包/i,
     })
   ).toBeVisible();
+  while (
+    (await page.getByRole('button', { name: 'Dismiss notification' }).count()) >
+    0
+  ) {
+    await page.getByRole('button', { name: 'Dismiss notification' }).first().click();
+  }
   await expectNoSeriousOrCriticalViolations(page);
 });

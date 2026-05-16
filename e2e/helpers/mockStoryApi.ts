@@ -241,8 +241,17 @@ const buildAssistantReply = (
   return `Turn ${turn}: ${anchor}. Plot advances with: ${message}`;
 };
 
-export const installMockStoryApi = async (page: Page): Promise<MockApiState> => {
+export interface InstallMockStoryOptions {
+  /** When true, the first POST `/api/chat-stream` returns 503 once (then succeeds). */
+  failChatStreamOnce?: boolean;
+}
+
+export const installMockStoryApi = async (
+  page: Page,
+  options: InstallMockStoryOptions = {}
+): Promise<MockApiState> => {
   let appSettingsJson = buildInitialAppSettingsJson();
+  let chatStreamFailRemaining = options.failChatStreamOnce ? 1 : 0;
 
   const state: MockApiState = {
     conversations: new Map<string, MockConversation>(),
@@ -427,6 +436,11 @@ export const installMockStoryApi = async (page: Page): Promise<MockApiState> => 
     }
 
     if (pathname === '/api/chat-stream' && method === 'POST') {
+      if (chatStreamFailRemaining > 0) {
+        chatStreamFailRemaining -= 1;
+        await json(route, { error: 'E2E simulated chat stream failure' }, 503);
+        return;
+      }
       const body = readBody(route);
       const conversationId = String(body.conversation_id || '').trim();
       const userText = String(body.message || '').trim();
@@ -461,7 +475,14 @@ export const installMockStoryApi = async (page: Page): Promise<MockApiState> => 
       conversation.messages.push(userMessage, assistantMessage);
       conversation.updated_at = nowIso();
 
-      const sse = `data: ${assistantText}\n\ndata: {"done": true}\n\n`;
+      const sseParts: string[] = [`data: ${assistantText}\n\n`];
+      if (userText.includes('__E2E_TRIGGER_SUMMARY__')) {
+        sseParts.push(
+          `data: ${JSON.stringify({ needs_summary: true, message_count: 12 })}\n\n`
+        );
+      }
+      sseParts.push(`data: ${JSON.stringify({ done: true })}\n\n`);
+      const sse = sseParts.join('');
       await route.fulfill({
         status: 200,
         headers: {
@@ -471,6 +492,72 @@ export const installMockStoryApi = async (page: Page): Promise<MockApiState> => 
           connection: 'keep-alive',
         },
         body: sse,
+      });
+      return;
+    }
+
+    if (pathname === '/api/story/generate-stream' && method === 'POST') {
+      const body = readBody(route);
+      const conversationId = String(body.conversation_id || '').trim();
+      const conversation = ensureConversation(state, conversationId);
+      const genText = 'E2E generated chapter prose.';
+      const assistantMessage: MockMessage = {
+        id: `gen-${Date.now()}`,
+        role: 'assistant',
+        content: genText,
+        created_at: nowIso(),
+      };
+      conversation.messages.push(assistantMessage);
+      conversation.updated_at = nowIso();
+      const sse = `data: ${genText}\n\ndata: ${JSON.stringify({ done: true })}\n\n`;
+      await route.fulfill({
+        status: 200,
+        headers: {
+          ...CORS_HEADERS,
+          'content-type': 'text/event-stream',
+          'cache-control': 'no-cache',
+          connection: 'keep-alive',
+        },
+        body: sse,
+      });
+      return;
+    }
+
+    if (pathname === '/api/story/confirm' && method === 'POST') {
+      const body = readBody(route);
+      const conversationId = String(body.conversation_id || '').trim();
+      ensureConversation(state, conversationId);
+      const progress = state.progress.get(conversationId) || {
+        current_section: 0,
+        total_sections: 3,
+        outline_confirmed: true,
+        status: 'draft',
+      };
+      const nextSection = (progress.current_section ?? 0) + 1;
+      const updated: MockProgress = {
+        ...progress,
+        current_section: nextSection,
+      };
+      state.progress.set(conversationId, updated);
+      const conversation = ensureConversation(state, conversationId);
+      const responseText = 'E2E confirm: chapter advanced.';
+      conversation.messages.push({
+        id: `conf-${Date.now()}`,
+        role: 'assistant',
+        content: responseText,
+        created_at: nowIso(),
+      });
+      conversation.updated_at = nowIso();
+      await json(route, {
+        success: true,
+        response: responseText,
+        story_progress: {
+          conversation_id: conversationId,
+          current_section: nextSection,
+          total_sections: progress.total_sections ?? 3,
+          outline_confirmed: true,
+          status: 'completed',
+        },
       });
       return;
     }

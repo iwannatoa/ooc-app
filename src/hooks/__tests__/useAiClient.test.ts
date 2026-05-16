@@ -147,7 +147,7 @@ describe('useAiClient', () => {
     const sendPromise = result.current.sendMessage('Hello', 'conv_1');
     const response = await sendPromise;
 
-    expect(mockSendMessage).toHaveBeenCalledWith('Hello', 'conv_1');
+    expect(mockSendMessage).toHaveBeenCalledWith('Hello', 'conv_1', undefined);
     expect(response).toEqual(mockResponse);
     expect(result.current.loading).toBe(false);
   });
@@ -190,7 +190,8 @@ describe('useAiClient', () => {
     expect(mockSendMessageStream).toHaveBeenCalledWith(
       'Hello',
       'conv_1',
-      onChunk
+      onChunk,
+      undefined
     );
     expect(response).toEqual(mockResponse);
     expect(result.current.loading).toBe(false);
@@ -213,7 +214,8 @@ describe('useAiClient', () => {
     expect(mockSendMessageStream).toHaveBeenCalledWith(
       'Hello',
       'conv_1',
-      expect.any(Function)
+      expect.any(Function),
+      undefined
     );
   });
 
