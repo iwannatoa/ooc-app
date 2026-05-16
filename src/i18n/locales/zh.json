@@ -249,7 +249,20 @@
     "dataDiagnosticsSaved": "诊断包已保存。",
     "dataBackupDone": "数据库备份已保存。",
     "dataRestoreConfirm": "用所选文件替换当前数据库？应用将重启本地 API。",
-    "dataRestoreDone": "数据库已恢复。若列表未更新，请刷新或重新打开会话。"
+    "dataRestoreDone": "数据库已恢复。若列表未更新，请刷新或重新打开会话。",
+    "dataEncryptedExport": "导出加密备份包…",
+    "dataEncryptedRestore": "恢复加密备份包…",
+    "dataEncryptedExportDone": "加密备份包已导出。",
+    "dataEncryptedRestoreDone": "加密备份包已恢复。",
+    "dataEncryptedPasswordPrompt": "请输入备份密码",
+    "dataEncryptedPasswordConfirmPrompt": "请再次输入备份密码",
+    "dataEncryptedPasswordMismatch": "两次输入的密码不一致。",
+    "dataEncryptedErrInvalidPassword": "密码错误，无法解密备份包。",
+    "dataEncryptedErrCorruptedPackage": "备份包已损坏或格式无效。",
+    "dataEncryptedErrVersionUnsupported": "备份包版本不受支持。",
+    "dataEncryptedErrIo": "读写备份包失败，请检查文件权限与磁盘空间。",
+    "dataEncryptedErrCrypto": "加密或解密失败，请重试。",
+    "dataEncryptedUnknownError": "备份恢复失败，请重试。"
   },
   "conversationSettingsForm": {
     "title": "故事设置",

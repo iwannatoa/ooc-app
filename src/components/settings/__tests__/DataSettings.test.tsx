@@ -112,4 +112,76 @@ describe('DataSettings', () => {
       );
     });
   });
+
+  it('exports encrypted backup with password confirmation', async () => {
+    // @ts-expect-error test-only runtime flag
+    window.__TAURI_INTERNALS__ = {};
+    mockSave.mockResolvedValue('C:/tmp/ooc-encrypted-backup.zip');
+    const promptSpy = vi
+      .spyOn(window, 'prompt')
+      .mockReturnValueOnce('secret-password')
+      .mockReturnValueOnce('secret-password');
+    mockInvoke.mockResolvedValue({ success: true, data: 'ok' });
+
+    renderWithProviders(<DataSettings />, {
+      initialState: {
+        settings: {
+          settings: {
+            activeProfileId: 'profile-a',
+            profiles: [{ id: 'profile-a', name: 'Profile A' }],
+          },
+        },
+      },
+    });
+
+    fireEvent.click(screen.getByText('settingsPanel.dataEncryptedExport'));
+
+    await waitFor(() => {
+      const call = mockInvoke.mock.calls.find(
+        (item) => item[0] === 'export_encrypted_backup_bundle'
+      );
+      expect(call).toBeTruthy();
+      expect(call?.[1]).toEqual(
+        expect.objectContaining({
+          destPath: 'C:/tmp/ooc-encrypted-backup.zip',
+          profileId: 'profile-a',
+          password: 'secret-password',
+        })
+      );
+      expect(
+        screen.getByText('settingsPanel.dataEncryptedExportDone')
+      ).toBeInTheDocument();
+    });
+
+    promptSpy.mockRestore();
+  });
+
+  it('shows mapped error for encrypted restore failure', async () => {
+    // @ts-expect-error test-only runtime flag
+    window.__TAURI_INTERNALS__ = {};
+    mockOpen.mockResolvedValue('C:/tmp/ooc-encrypted-backup.zip');
+    const promptSpy = vi.spyOn(window, 'prompt').mockReturnValue('wrong');
+    mockInvoke.mockResolvedValue({
+      success: false,
+      error: 'BACKUP_ERR_INVALID_PASSWORD',
+    });
+
+    renderWithProviders(<DataSettings />);
+    fireEvent.click(screen.getByText('settingsPanel.dataEncryptedRestore'));
+
+    await waitFor(() => {
+      expect(mockInvoke).toHaveBeenCalledWith(
+        'restore_encrypted_backup_bundle',
+        expect.objectContaining({
+          srcPath: 'C:/tmp/ooc-encrypted-backup.zip',
+          password: 'wrong',
+        })
+      );
+      expect(
+        screen.getByText('settingsPanel.dataEncryptedErrInvalidPassword')
+      ).toBeInTheDocument();
+    });
+
+    promptSpy.mockRestore();
+  });
 });

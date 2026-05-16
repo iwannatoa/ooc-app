@@ -8,6 +8,12 @@ import { useI18n } from '@/i18n/i18n';
 import { useSettingsState } from '@/hooks/useSettingsState';
 import styles from './SettingsPanel.module.scss';
 
+interface ApiResponse<T> {
+  success: boolean;
+  data?: T;
+  error?: string;
+}
+
 function isTauriRuntime(): boolean {
   return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 }
@@ -147,6 +153,109 @@ export const DataSettings: React.FC = () => {
     }
   }, [activeProfileId, t]);
 
+  const mapBackupError = (code?: string): string => {
+    if (!code) {
+      return t('settingsPanel.dataEncryptedUnknownError');
+    }
+    const mapping: Record<string, string> = {
+      BACKUP_ERR_INVALID_PASSWORD: 'settingsPanel.dataEncryptedErrInvalidPassword',
+      BACKUP_ERR_CORRUPTED_PACKAGE: 'settingsPanel.dataEncryptedErrCorruptedPackage',
+      BACKUP_ERR_VERSION_UNSUPPORTED:
+        'settingsPanel.dataEncryptedErrVersionUnsupported',
+      BACKUP_ERR_IO: 'settingsPanel.dataEncryptedErrIo',
+      BACKUP_ERR_CRYPTO: 'settingsPanel.dataEncryptedErrCrypto',
+    };
+    return t(mapping[code] || 'settingsPanel.dataEncryptedUnknownError');
+  };
+
+  const onExportEncryptedBackup = useCallback(async () => {
+    setHint(null);
+    if (!isTauriRuntime()) {
+      setHint(t('settingsPanel.dataDesktopOnly'));
+      return;
+    }
+    const password = window.prompt(t('settingsPanel.dataEncryptedPasswordPrompt'));
+    if (!password) return;
+    const confirmPassword = window.prompt(
+      t('settingsPanel.dataEncryptedPasswordConfirmPrompt')
+    );
+    if (confirmPassword !== password) {
+      setHint(t('settingsPanel.dataEncryptedPasswordMismatch'));
+      return;
+    }
+    const path = await save({
+      defaultPath: `ooc-encrypted-backup-${Date.now()}.oocbak.zip`,
+      filters: [{ name: 'Encrypted Backup', extensions: ['zip', 'oocbak'] }],
+    });
+    if (!path) return;
+    setBusy(true);
+    try {
+      const activeProfile =
+        settings.profiles?.find((p) => p.id === activeProfileId) || null;
+      const profileFingerprint = await hashProfileId(activeProfileId);
+      const response = await invoke<ApiResponse<string>>(
+        'export_encrypted_backup_bundle',
+        {
+          destPath: path,
+          profileId: activeProfileId,
+          password,
+          profileFingerprint,
+          settingsJson: JSON.stringify({
+            profile: activeProfile,
+            activeProfileId,
+          }),
+        }
+      );
+      if (!response.success) {
+        setHint(mapBackupError(response.error));
+        return;
+      }
+      setHint(t('settingsPanel.dataEncryptedExportDone'));
+    } catch (e) {
+      setHint(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }, [activeProfileId, settings.profiles, t]);
+
+  const onRestoreEncryptedBackup = useCallback(async () => {
+    setHint(null);
+    if (!isTauriRuntime()) {
+      setHint(t('settingsPanel.dataDesktopOnly'));
+      return;
+    }
+    const path = await open({
+      multiple: false,
+      filters: [{ name: 'Encrypted Backup', extensions: ['zip', 'oocbak'] }],
+    });
+    if (!path || Array.isArray(path)) return;
+    const password = window.prompt(t('settingsPanel.dataEncryptedPasswordPrompt'));
+    if (!password) return;
+    setBusy(true);
+    try {
+      const activeProfile =
+        settings.profiles?.find((p) => p.id === activeProfileId) || null;
+      const response = await invoke<ApiResponse<string>>(
+        'restore_encrypted_backup_bundle',
+        {
+          srcPath: path,
+          profileId: activeProfileId,
+          password,
+          storyLibraryPath: activeProfile?.storyLibraryPath || null,
+        }
+      );
+      if (!response.success) {
+        setHint(mapBackupError(response.error));
+        return;
+      }
+      setHint(t('settingsPanel.dataEncryptedRestoreDone'));
+    } catch (e) {
+      setHint(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }, [activeProfileId, settings.profiles, t]);
+
   const onCheckUpdate = useCallback(async () => {
     setHint(null);
     setReleaseNotes(null);
@@ -222,6 +331,20 @@ export const DataSettings: React.FC = () => {
           onClick={onBackupDb}
         >
           {t('settingsPanel.dataBackupDb')}
+        </button>
+        <button
+          type='button'
+          disabled={busy}
+          onClick={onExportEncryptedBackup}
+        >
+          {t('settingsPanel.dataEncryptedExport')}
+        </button>
+        <button
+          type='button'
+          disabled={busy}
+          onClick={onRestoreEncryptedBackup}
+        >
+          {t('settingsPanel.dataEncryptedRestore')}
         </button>
         <button
           type='button'

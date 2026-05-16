@@ -16,5 +16,15 @@ test('settings panel shows data tab and no serious axe violations', async ({
   await expect(
     page.getByText(/diagnostic zip|诊断 zip|desktop app|桌面版/i).first()
   ).toBeVisible();
+  await expect(
+    page.getByRole('button', {
+      name: /export encrypted backup|导出加密备份包/i,
+    })
+  ).toBeVisible();
+  await expect(
+    page.getByRole('button', {
+      name: /restore encrypted backup|恢复加密备份包/i,
+    })
+  ).toBeVisible();
   await expectNoSeriousOrCriticalViolations(page);
 });

@@ -241,7 +241,20 @@
     "dataDiagnosticsSaved": "Diagnostic bundle saved.",
     "dataBackupDone": "Database backup saved.",
     "dataRestoreConfirm": "Replace the current database with the selected file? The app will restart the local API.",
-    "dataRestoreDone": "Database restored. You may need to reload the story list."
+    "dataRestoreDone": "Database restored. You may need to reload the story list.",
+    "dataEncryptedExport": "Export encrypted backup…",
+    "dataEncryptedRestore": "Restore encrypted backup…",
+    "dataEncryptedExportDone": "Encrypted backup exported.",
+    "dataEncryptedRestoreDone": "Encrypted backup restored.",
+    "dataEncryptedPasswordPrompt": "Enter backup password",
+    "dataEncryptedPasswordConfirmPrompt": "Confirm backup password",
+    "dataEncryptedPasswordMismatch": "Passwords do not match.",
+    "dataEncryptedErrInvalidPassword": "Invalid password. Cannot decrypt backup package.",
+    "dataEncryptedErrCorruptedPackage": "Backup package is corrupted or invalid.",
+    "dataEncryptedErrVersionUnsupported": "Backup package version is not supported.",
+    "dataEncryptedErrIo": "Failed to read or write backup package. Check disk and permissions.",
+    "dataEncryptedErrCrypto": "Encryption or decryption failed. Please retry.",
+    "dataEncryptedUnknownError": "Backup operation failed. Please retry."
   },
   "conversationSettingsForm": {
     "title": "Story Settings",

@@ -4,6 +4,7 @@
 )]
 
 mod api;
+mod backup_crypto;
 mod commands;
 mod diagnostics;
 mod logger;
@@ -17,7 +18,10 @@ use commands::{
     get_profile_data_root, frontend_log, start_python_server, switch_active_profile,
     stop_python_server, stop_python_server_internal, PythonServer,
 };
-use diagnostics::{backup_chat_database, export_diagnostic_bundle, restore_chat_database};
+use diagnostics::{
+    backup_chat_database, export_diagnostic_bundle, export_encrypted_backup_bundle,
+    restore_chat_database, restore_encrypted_backup_bundle,
+};
 use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::menu::{MenuBuilder, MenuItemBuilder};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
@@ -84,8 +88,10 @@ fn main() {
             switch_active_profile,
             frontend_log,
             export_diagnostic_bundle,
+            export_encrypted_backup_bundle,
             backup_chat_database,
             restore_chat_database,
+            restore_encrypted_backup_bundle,
         ])
         .setup(move |app| {
             let app_handle = app.app_handle().clone();
