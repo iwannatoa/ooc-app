@@ -71,8 +71,8 @@ fn main() {
         };
         let pw_cfg = PluginConfig::new().socket_path(&socket_path);
         builder = builder.plugin(tauri_plugin_playwright::init_with_config(pw_cfg));
-        // tauri-playwright currently detects readiness via this stdout marker.
-        println!("tauri-plugin-playwright: listening on unix:{}", socket_path);
+        // Readiness: `tauri-plugin-playwright` emits `listening on unix:` to stderr when the socket binds.
+        // Do not print the same line here — the Node harness matches that substring and would connect too early (ENOENT).
     }
 
     builder
