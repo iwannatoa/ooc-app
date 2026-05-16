@@ -7,6 +7,7 @@ re-executed after a partial failure (prefer IF NOT EXISTS / defensive checks).
 
 Older databases default to user_version 0; new installs run steps until ``SCHEMA_USER_VERSION``.
 If the file's user_version exceeds the app's ``SCHEMA_USER_VERSION``, the app does not downgrade.
+Production rollback relies on encrypted/plain backups or replacing the database file; there is no SQL ``down`` migration path that lowers ``PRAGMA user_version``.
 """
 from __future__ import annotations
 
@@ -215,7 +216,12 @@ def apply_phase_a_contract_migrations(engine: Engine) -> None:
     logger.info("Phase A contract migrations checked")
 
 
-def apply_schema_migrations(engine: Optional[Engine] = None) -> None:
+def apply_schema_migrations(
+    engine: Optional[Engine] = None,
+    *,
+    target_version: Optional[int] = None,
+    dry_run: bool = False,
+) -> None:
     """
     Run pending migrations from ``PRAGMA user_version`` up to ``SCHEMA_USER_VERSION``.
     Pass ``engine`` or rely on ``database.get_engine()`` after ``init_engine``.
@@ -226,6 +232,15 @@ def apply_schema_migrations(engine: Optional[Engine] = None) -> None:
         engine = get_engine()
 
     current = get_schema_user_version(engine)
+    target = SCHEMA_USER_VERSION if target_version is None else int(target_version)
+    if target < current:
+        logger.warning(
+            "Requested migration target_version (%s) is lower than current user_version (%s); "
+            "downgrade is not supported, skipping.",
+            target,
+            current,
+        )
+        return
     if current > SCHEMA_USER_VERSION:
         logger.warning(
             "Database PRAGMA user_version (%s) is greater than application "
@@ -236,11 +251,39 @@ def apply_schema_migrations(engine: Optional[Engine] = None) -> None:
         return
 
     for target_ver, migrate_fn in SCHEMA_MIGRATIONS:
-        if current < target_ver:
+        if current < target_ver <= target:
             logger.info("Applying schema migration step %s", target_ver)
+            if dry_run:
+                current = target_ver
+                continue
             migrate_fn(engine)
             set_schema_user_version(engine, target_ver)
             current = target_ver
+
+
+def plan_schema_migrations(
+    engine: Optional[Engine] = None,
+    target_version: Optional[int] = None,
+) -> List[int]:
+    """
+    Dry-run migration planner: returns ordered version steps that would be applied.
+    Never mutates DB state and never downgrades.
+    """
+    if engine is None:
+        from infrastructure.database import get_engine
+
+        engine = get_engine()
+
+    current = get_schema_user_version(engine)
+    ceiling = SCHEMA_USER_VERSION if target_version is None else int(target_version)
+    if ceiling < current:
+        logger.warning(
+            "Migration planner received downgrade target (%s < %s); returning no-op plan.",
+            ceiling,
+            current,
+        )
+        return []
+    return [version for version, _ in SCHEMA_MIGRATIONS if current < version <= ceiling]
 
 
 def apply_chat_attachment_migrations(engine: Engine) -> None:

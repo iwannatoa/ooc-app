@@ -16,6 +16,20 @@
   text-overflow: ellipsis;
 }
 
+.contextTracePanel {
+  margin-bottom: $spacing-sm;
+  padding: $spacing-sm;
+  border: 1px solid $border-color;
+  border-radius: $border-radius;
+  background: $bg-dark;
+  color: $text-secondary;
+  font-size: $font-size-xs;
+}
+
+.contextTraceRow {
+  margin-top: 2px;
+}
+
 .actionButtons {
   @include flex-row;
   gap: $spacing-sm;

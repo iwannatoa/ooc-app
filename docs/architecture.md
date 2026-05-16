@@ -95,7 +95,7 @@ Query string or JSON body must include `conversation_id` (same as other conversa
 ### HTTP: chat and multi-part messages (contract)
 
 - For `POST /api/chat` and `POST /api/chat-stream`, the JSON body may include **`message_parts`** (array: text segments and attachment metadata) and **`input_mode`** (`freeChat` | `storyAction`) in addition to `message`, `conversation_id`, `provider`, and `model`.
-- Today, non-text parts are normalized into persistence metadata (for example `attachment_ref`); the model path remains primarily text. **Full multimodal** (multipart upload, on-disk storage, LangChain image parts, capability-based UI fallback) is still in flight—see [`todo.md`](../todo.md).
+- Today, non-text parts are normalized into persistence metadata (for example `attachment_ref`); the model path remains primarily text. Multimodal and capability-based behavior are implemented incrementally—see `server/src/infrastructure/provider_capabilities.py`, chat routes/controllers, and [`testing.md`](./testing.md) for current coverage.
 
 ### Frontend types
 

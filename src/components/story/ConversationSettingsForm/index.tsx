@@ -44,6 +44,14 @@ const ConversationSettingsForm: React.FC<ConversationSettingsFormProps> = ({
     }>
   >([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
+  const [lastPresetSnapshot, setLastPresetSnapshot] = useState<{
+    background: string;
+    outline: string;
+    characters: string[];
+    characterPersonality: Record<string, string>;
+    conversationTemperature: string;
+    conversationMaxTokens: string;
+  } | null>(null);
 
   // Form state management (Redux)
   const { formData, conversationId, isNewConversation, updateFields } =
@@ -201,15 +209,66 @@ const ConversationSettingsForm: React.FC<ConversationSettingsFormProps> = ({
                   disabled={!selectedTemplate}
                   onClick={() => {
                     if (!selectedTemplate) return;
+                    setLastPresetSnapshot({
+                      background: formData.background,
+                      outline: formData.outline,
+                      characters: [...formData.characters],
+                      characterPersonality: { ...formData.characterPersonality },
+                      conversationTemperature: formData.conversationTemperature,
+                      conversationMaxTokens: formData.conversationMaxTokens,
+                    });
+                    const additional = selectedTemplate.additional_settings || {};
                     updateFields({
                       background:
                         selectedTemplate.background || formData.background,
                       outline:
                         selectedTemplate.outline_hint || formData.outline,
+                      characters:
+                        selectedTemplate.characters?.length
+                          ? selectedTemplate.characters
+                          : formData.characters,
+                      characterPersonality:
+                        selectedTemplate.character_personality &&
+                        Object.keys(selectedTemplate.character_personality).length
+                          ? selectedTemplate.character_personality
+                          : formData.characterPersonality,
+                      conversationTemperature:
+                        (additional.conversationTemperature as
+                          | string
+                          | number
+                          | undefined)?.toString() ||
+                        formData.conversationTemperature,
+                      conversationMaxTokens:
+                        (additional.conversationMaxTokens as
+                          | string
+                          | number
+                          | undefined)?.toString() || formData.conversationMaxTokens,
                     });
                   }}
                 >
                   Apply
+                </button>
+                <button
+                  type='button'
+                  className={styles.cancelButton}
+                  disabled={!lastPresetSnapshot}
+                  onClick={() => {
+                    if (!lastPresetSnapshot) return;
+                    updateFields({
+                      background: lastPresetSnapshot.background,
+                      outline: lastPresetSnapshot.outline,
+                      characters: [...lastPresetSnapshot.characters],
+                      characterPersonality: {
+                        ...lastPresetSnapshot.characterPersonality,
+                      },
+                      conversationTemperature:
+                        lastPresetSnapshot.conversationTemperature,
+                      conversationMaxTokens: lastPresetSnapshot.conversationMaxTokens,
+                    });
+                    setLastPresetSnapshot(null);
+                  }}
+                >
+                  Undo Preset
                 </button>
               </div>
             </div>

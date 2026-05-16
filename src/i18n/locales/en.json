@@ -181,6 +181,7 @@
   },
   "settingsPanel": {
     "title": "Settings",
+    "activeProfile": "Active profile",
     "tabs": {
       "general": "General",
       "ai": "AI Settings",

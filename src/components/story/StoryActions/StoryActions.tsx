@@ -29,6 +29,7 @@ const StoryActions: React.FC = () => {
     canGenerate,
     canDeleteLast,
     isFirstChapter,
+    latestContextTrace,
   } = useAppLogic();
 
   const loading = isSending;
@@ -157,6 +158,27 @@ const StoryActions: React.FC = () => {
       {contextLine && (
         <div className={styles.contextBar} title={contextLine}>
           {contextLine}
+        </div>
+      )}
+      {latestContextTrace && (
+        <div className={styles.contextTracePanel}>
+          <strong>Context Trace</strong>
+          <div className={styles.contextTraceRow}>
+            Budget: {latestContextTrace.budgetUsed?.usedTokens ?? 0}/
+            {latestContextTrace.budgetUsed?.totalBudget ?? 0}
+          </div>
+          <div className={styles.contextTraceRow}>
+            Layers: recent {latestContextTrace.budgetUsed?.usedByLayer?.recent ?? 0}
+            , history {latestContextTrace.budgetUsed?.usedByLayer?.history ?? 0},
+            summary {latestContextTrace.budgetUsed?.usedByLayer?.summary ?? 0},
+            system {latestContextTrace.budgetUsed?.usedByLayer?.system ?? 0}
+          </div>
+          <div className={styles.contextTraceRow}>
+            Selected: {(latestContextTrace.selectedSources || []).join(', ') || '-'}
+          </div>
+          <div className={styles.contextTraceRow}>
+            Trim: {(latestContextTrace.trimReasons || []).join(', ') || '-'}
+          </div>
         </div>
       )}
       <div className={styles.actionButtons}>

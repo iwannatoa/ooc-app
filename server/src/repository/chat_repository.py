@@ -254,6 +254,39 @@ class ChatRepository:
             ).mappings().all()
             return [dict(r) for r in rows]
 
+    def get_savepoint(self, conversation_id: str, savepoint_id: str) -> Optional[Dict]:
+        with repository_session(self._session_factory, None) as sess:
+            row = sess.execute(
+                text(
+                    "SELECT savepoint_id, message_id, label, created_at "
+                    "FROM story_savepoints WHERE conversation_id=:conversation_id "
+                    "AND savepoint_id=:savepoint_id LIMIT 1"
+                ),
+                {
+                    "conversation_id": conversation_id,
+                    "savepoint_id": savepoint_id,
+                },
+            ).mappings().first()
+            return dict(row) if row else None
+
+    def restore_to_message(self, conversation_id: str, message_id: int) -> int:
+        with repository_session(self._session_factory, None) as sess:
+            deleted = (
+                sess.query(ChatRecord)
+                .filter(
+                    ChatRecord.conversation_id == conversation_id,
+                    ChatRecord.id > message_id,
+                )
+                .delete(synchronize_session=False)
+            )
+            logger.info(
+                "Restored conversation to savepoint: conversation_id=%s message_id=%s deleted=%s",
+                conversation_id,
+                message_id,
+                deleted,
+            )
+            return int(deleted or 0)
+
     def mark_ending(
         self,
         conversation_id: str,

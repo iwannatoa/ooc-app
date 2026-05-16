@@ -44,7 +44,118 @@ export interface MockApiState {
     conversationMessages: number;
     models: number;
   };
+  /** Latest JSON string returned/served by mock GET `/api/app-settings`. */
+  getAppSettingsJson: () => string;
 }
+
+const buildInitialAppSettingsJson = (): string =>
+  JSON.stringify({
+    general: {
+      language: 'en',
+      autoStart: false,
+      minimizeToTray: true,
+      startWithSystem: false,
+    },
+    appearance: {
+      theme: 'dark',
+      fontSize: 'medium',
+      fontFamily: 'system-ui, -apple-system, sans-serif',
+    },
+    ai: {
+      provider: 'ollama',
+      ollama: {
+        provider: 'ollama',
+        baseUrl: 'http://localhost:11434',
+        model: 'llama3',
+        timeout: 120000,
+        maxTokens: 2048,
+        temperature: 0.7,
+      },
+      deepseek: {
+        provider: 'deepseek',
+        baseUrl: 'https://api.deepseek.com',
+        model: 'deepseek-chat',
+        timeout: 60000,
+        maxTokens: 2048,
+        temperature: 0.7,
+        apiKey: '',
+      },
+      openai_compatible: {
+        provider: 'openai_compatible',
+        baseUrl: 'http://127.0.0.1:1234/v1',
+        model: 'gpt-4o-mini',
+        timeout: 120000,
+        maxTokens: 2048,
+        temperature: 0.7,
+        apiKey: '',
+      },
+      openai: {
+        provider: 'openai',
+        baseUrl: 'https://api.openai.com',
+        model: 'gpt-4o-mini',
+        timeout: 120000,
+        maxTokens: 2048,
+        temperature: 0.7,
+        apiKey: '',
+      },
+      azure: {
+        provider: 'azure',
+        baseUrl: 'https://example-resource.openai.azure.com/openai/v1',
+        model: 'gpt-4o-mini',
+        timeout: 120000,
+        maxTokens: 2048,
+        temperature: 0.7,
+        apiKey: '',
+      },
+      anthropic: {
+        provider: 'anthropic',
+        baseUrl: 'https://api.anthropic.com',
+        model: 'claude-3-5-sonnet-latest',
+        timeout: 120000,
+        maxTokens: 2048,
+        temperature: 0.7,
+        apiKey: '',
+      },
+      glm: {
+        provider: 'glm',
+        baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
+        model: 'glm-4-flash',
+        timeout: 120000,
+        maxTokens: 2048,
+        temperature: 0.7,
+        apiKey: '',
+      },
+      kimi: {
+        provider: 'kimi',
+        baseUrl: 'https://api.moonshot.cn',
+        model: 'moonshot-v1-8k',
+        timeout: 120000,
+        maxTokens: 2048,
+        temperature: 0.7,
+        apiKey: '',
+      },
+      minimax: {
+        provider: 'minimax',
+        baseUrl: 'https://api.minimax.chat',
+        model: 'MiniMax-Text-01',
+        timeout: 120000,
+        maxTokens: 2048,
+        temperature: 0.7,
+        apiKey: '',
+      },
+    },
+    advanced: {
+      enableStreaming: false,
+      apiTimeout: 120000,
+      maxRetries: 3,
+      logLevel: 'info',
+      enableDiagnostics: false,
+      enableAnonymousTelemetry: false,
+      enableFreeformNote: false,
+    },
+    profiles: [],
+    activeProfileId: undefined,
+  });
 
 const CORS_HEADERS: Record<string, string> = {
   'access-control-allow-origin': '*',
@@ -131,6 +242,8 @@ const buildAssistantReply = (
 };
 
 export const installMockStoryApi = async (page: Page): Promise<MockApiState> => {
+  let appSettingsJson = buildInitialAppSettingsJson();
+
   const state: MockApiState = {
     conversations: new Map<string, MockConversation>(),
     progress: new Map<string, MockProgress>(),
@@ -141,6 +254,7 @@ export const installMockStoryApi = async (page: Page): Promise<MockApiState> => 
       conversationMessages: 0,
       models: 0,
     },
+    getAppSettingsJson: () => appSettingsJson,
   };
 
   await page.route('**/api/**', async (route) => {
@@ -175,6 +289,21 @@ export const installMockStoryApi = async (page: Page): Promise<MockApiState> => 
     }
 
     if (pathname === '/api/app-settings/language' && method === 'POST') {
+      await json(route, { success: true });
+      return;
+    }
+
+    if (pathname === '/api/app-settings' && method === 'GET') {
+      await json(route, { settings: appSettingsJson });
+      return;
+    }
+
+    if (pathname === '/api/app-settings' && method === 'POST') {
+      const body = readBody(route);
+      const next = body.settings;
+      if (typeof next === 'string') {
+        appSettingsJson = next;
+      }
       await json(route, { success: true });
       return;
     }
@@ -428,6 +557,141 @@ export const installMockStoryApi = async (page: Page): Promise<MockApiState> => 
 
     if (pathname === '/api/conversation/progress/confirm-outline' && method === 'POST') {
       await json(route, { success: true });
+      return;
+    }
+
+    if (pathname === '/api/conversation/assistant-variants' && method === 'GET') {
+      const conversationId = String(
+        url.searchParams.get('conversation_id') || ''
+      ).trim();
+      const conversation = ensureConversation(state, conversationId);
+      const assistantRows = conversation.messages
+        .filter((m) => m.role === 'assistant')
+        .map((m, idx) => ({
+          id: idx + 1,
+          content: m.content,
+          model: 'llama3',
+          provider: 'ollama',
+          created_at: m.created_at,
+        }))
+        .reverse();
+      const variants =
+        assistantRows.length >= 2
+          ? assistantRows
+          : [
+              {
+                id: 2,
+                content: 'Fallback variant B',
+                model: 'llama3',
+                provider: 'ollama',
+                created_at: nowIso(),
+              },
+              {
+                id: 1,
+                content: 'Fallback variant A',
+                model: 'llama3',
+                provider: 'ollama',
+                created_at: nowIso(),
+              },
+            ];
+      await json(route, { variants });
+      return;
+    }
+
+    if (pathname === '/api/conversation/assistant-variants/restore' && method === 'POST') {
+      await json(route, { success: true });
+      return;
+    }
+
+    if (pathname === '/api/story/branches' && method === 'GET') {
+      const conversationId = String(
+        url.searchParams.get('conversation_id') || ''
+      ).trim();
+      await json(route, {
+        branches: [
+          {
+            branch_id: 'main',
+            conversation_id: conversationId,
+            parent_message_id: null,
+            label: 'Main',
+          },
+        ],
+      });
+      return;
+    }
+
+    if (pathname === '/api/story/branches' && method === 'POST') {
+      await json(route, { success: true, branch_id: `branch-${Date.now()}` });
+      return;
+    }
+
+    if (pathname === '/api/story/savepoint' && method === 'GET') {
+      const conversationId = String(
+        url.searchParams.get('conversation_id') || ''
+      ).trim();
+      const conversation = ensureConversation(state, conversationId);
+      const assistantCount = conversation.messages.filter((m) => m.role === 'assistant').length;
+      await json(route, {
+        savepoints: [
+          {
+            savepoint_id: 'sp-1',
+            conversation_id: conversationId,
+            message_id: assistantCount,
+            label: 'Latest',
+          },
+        ],
+      });
+      return;
+    }
+
+    if (pathname === '/api/story/savepoint' && method === 'POST') {
+      await json(route, { success: true, savepoint_id: `sp-${Date.now()}` });
+      return;
+    }
+
+    if (pathname === '/api/story/savepoint/restore' && method === 'POST') {
+      await json(route, { success: true });
+      return;
+    }
+
+    if (pathname === '/api/story/ending' && method === 'GET') {
+      await json(route, { endings: [] });
+      return;
+    }
+
+    if (pathname === '/api/story/ending' && method === 'POST') {
+      await json(route, { success: true });
+      return;
+    }
+
+    if (pathname === '/api/export/pdf' && method === 'POST') {
+      await json(route, {
+        success: true,
+        pdf_base64: 'UERG',
+        filename: 'story.pdf',
+      });
+      return;
+    }
+
+    if (pathname === '/api/export/project-bundle' && method === 'POST') {
+      const body = readBody(route);
+      await json(route, {
+        success: true,
+        bundle: {
+          version: 3,
+          conversation_id: body.conversation_id || '',
+          settings: {},
+          progress: {},
+          messages: [],
+          integrity: { sha256: 'mock', message_count: 0 },
+        },
+        filename: 'story.ooc-project.json',
+      });
+      return;
+    }
+
+    if (pathname === '/api/import/project-bundle/validate' && method === 'POST') {
+      await json(route, { success: true, valid: true });
       return;
     }
 

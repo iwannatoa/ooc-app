@@ -10,7 +10,7 @@
 
 import { BaseApiClient } from './base';
 import type { GetApiUrlFn } from './base';
-import { AppSettings, StoryProgress } from '@/types';
+import { AppSettings, StoryContextTrace, StoryProgress } from '@/types';
 import { stripThinkContent } from '@/utils/parseThinkContent';
 
 export interface StoryActionResponse {
@@ -18,6 +18,7 @@ export interface StoryActionResponse {
   response?: string;
   error?: string;
   story_progress?: StoryProgress;
+  context_trace?: StoryContextTrace;
   /** Server-side `<CHARACTERS>` parse anomaly codes (optional, backward compatible). */
   parse_warnings?: string[];
 }
@@ -60,6 +61,7 @@ export class StoryApi extends BaseApiClient {
     const config = this.settings.ai[provider];
 
     const parseWarningsCollector: string[] = [];
+    const contextTraceCollector: unknown[] = [];
     const accumulated = await this.stream(
       '/api/story/generate-stream',
       {
@@ -69,12 +71,14 @@ export class StoryApi extends BaseApiClient {
       },
       onChunk,
       {},
-      { parseWarningsCollector }
+      { parseWarningsCollector, contextTraceCollector }
     );
 
     return {
       success: true,
       response: stripThinkContent(accumulated),
+      context_trace: (contextTraceCollector[contextTraceCollector.length - 1] ??
+        undefined) as StoryContextTrace | undefined,
       parse_warnings:
         parseWarningsCollector.length > 0
           ? parseWarningsCollector

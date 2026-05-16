@@ -299,7 +299,11 @@ export const DataSettings: React.FC = () => {
   }, [t]);
 
   return (
-    <div className={styles.settingsSection}>
+    <div
+      className={styles.settingsSection}
+      role='region'
+      aria-label={t('settingsPanel.tabs.data')}
+    >
       <h3>{t('settingsPanel.tabs.data')}</h3>
       <p className={styles.dataHint}>{t('settingsPanel.dataIntro')}</p>
       <p className={styles.dataHint}>
@@ -354,9 +358,19 @@ export const DataSettings: React.FC = () => {
           {t('settingsPanel.dataRestoreDb')}
         </button>
       </div>
-      {hint ? <p className={styles.dataStatus}>{hint}</p> : null}
+      {hint ? (
+        <p className={styles.dataStatus} role='status' aria-live='polite'>
+          {hint}
+        </p>
+      ) : null}
       {releaseNotes ? (
-        <pre className={styles.dataStatus}>{releaseNotes}</pre>
+        <pre
+          className={styles.dataStatus}
+          role='region'
+          aria-label={t('settingsPanel.dataUpdaterAvailable')}
+        >
+          {releaseNotes}
+        </pre>
       ) : null}
     </div>
   );

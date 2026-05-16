@@ -16,6 +16,7 @@ vi.mock('@tauri-apps/plugin-dialog', () => ({
 
 vi.mock('@tauri-apps/plugin-fs', () => ({
   writeTextFile: vi.fn(),
+  writeFile: vi.fn(),
 }));
 
 // Mock hooks
@@ -45,6 +46,9 @@ vi.mock('@/hooks/useStoryProgress', () => ({
 
 vi.mock('@/hooks/useToast', () => ({
   useToast: vi.fn(),
+}));
+vi.mock('@/hooks/useConversationClient', () => ({
+  useConversationClient: vi.fn(),
 }));
 
 vi.mock('../ModelSelector', () => ({
@@ -79,7 +83,7 @@ vi.mock('../ModelSelector', () => ({
 }));
 
 import { save } from '@tauri-apps/plugin-dialog';
-import { writeTextFile } from '@tauri-apps/plugin-fs';
+import { writeFile, writeTextFile } from '@tauri-apps/plugin-fs';
 import { useConversationManagement } from '@/hooks/useConversationManagement';
 import { useChatState } from '@/hooks/useChatState';
 import { useChatActions } from '@/hooks/useChatActions';
@@ -88,6 +92,7 @@ import { useUIState } from '@/hooks/useUIState';
 import { useStoryProgress } from '@/hooks/useStoryProgress';
 import { useToast } from '@/hooks/useToast';
 import { useI18n } from '@/i18n/i18n';
+import { useConversationClient } from '@/hooks/useConversationClient';
 
 describe('ChatControls', () => {
   const mockHandleNewConversation = vi.fn();
@@ -97,6 +102,19 @@ describe('ChatControls', () => {
   const mockSetSettingsSidebarCollapsed = vi.fn();
   const mockShowError = vi.fn();
   const mockShowSuccess = vi.fn();
+  const mockConversationClient = {
+    getAssistantVariants: vi.fn(),
+    restoreAssistantVariant: vi.fn(),
+    getConversationMessages: vi.fn(),
+    createStoryBranch: vi.fn(),
+    createStorySavepoint: vi.fn(),
+    getStorySavepoints: vi.fn(),
+    restoreStorySavepoint: vi.fn(),
+    getStoryBranches: vi.fn(),
+    markStoryEnding: vi.fn(),
+    exportStoryPdf: vi.fn(),
+    exportProjectBundle: vi.fn(),
+  };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -121,6 +139,7 @@ describe('ChatControls', () => {
     mockFn(useChatState).mockReturnValue({
       models: [{ name: 'Model 1', model: 'model1' }],
       messages: [],
+      setMessages: vi.fn(),
     });
 
     mockFn(useChatActions).mockReturnValue({
@@ -151,6 +170,7 @@ describe('ChatControls', () => {
       showError: mockShowError,
       showSuccess: mockShowSuccess,
     });
+    mockFn(useConversationClient).mockReturnValue(mockConversationClient);
   });
 
   it('should render model selector for ollama provider', () => {
@@ -405,5 +425,98 @@ describe('ChatControls', () => {
       },
       { container }
     );
+  });
+
+  it('should restore savepoint and refresh messages', async () => {
+    const setMessages = vi.fn();
+    mockFn(useChatState).mockReturnValue({
+      models: [],
+      messages: [
+        { id: '1', role: 'assistant', content: 'Story content' },
+      ],
+      setMessages,
+    });
+    mockConversationClient.getStorySavepoints.mockResolvedValue([
+      { savepoint_id: 'sp-1', label: 'checkpoint' },
+    ]);
+    mockConversationClient.restoreStorySavepoint.mockResolvedValue(true);
+    mockConversationClient.getConversationMessages.mockResolvedValue([
+      { id: '1', role: 'assistant', content: 'Restored' },
+    ]);
+    vi.spyOn(window, 'prompt').mockReturnValue('sp-1');
+
+    renderWithProviders(<ChatControls />);
+    fireEvent.click(screen.getByText('Restore'));
+
+    await waitFor(() => {
+      expect(mockConversationClient.restoreStorySavepoint).toHaveBeenCalledWith(
+        'conv1',
+        'sp-1'
+      );
+      expect(setMessages).toHaveBeenCalled();
+    });
+  });
+
+  it('should rollback using explicit selected variant target', async () => {
+    const setMessages = vi.fn();
+    mockFn(useChatState).mockReturnValue({
+      models: [],
+      messages: [
+        { id: '11', role: 'assistant', content: 'Latest A' },
+      ],
+      setMessages,
+    });
+    mockConversationClient.getAssistantVariants.mockResolvedValue([
+      { id: 11, content: 'Latest A' },
+      { id: 10, content: 'Prev B' },
+    ]);
+    mockConversationClient.restoreAssistantVariant.mockResolvedValue(true);
+    mockConversationClient.getConversationMessages.mockResolvedValue([
+      { id: '99', role: 'assistant', content: 'Restored B' },
+    ]);
+
+    renderWithProviders(<ChatControls />);
+    fireEvent.click(screen.getByText('Rollback'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Variant Diff')).toBeInTheDocument();
+    });
+    fireEvent.change(screen.getByLabelText('rollback-target'), {
+      target: { value: '10' },
+    });
+    fireEvent.click(screen.getByText('Confirm Rollback'));
+
+    await waitFor(() => {
+      expect(mockConversationClient.restoreAssistantVariant).toHaveBeenCalledWith(
+        'conv1',
+        10
+      );
+      expect(setMessages).toHaveBeenCalled();
+    });
+  });
+
+  it('should export pdf via server endpoint', async () => {
+    mockFn(save).mockResolvedValue('/path/to/file.pdf');
+    mockFn(writeFile).mockResolvedValue(undefined);
+    mockConversationClient.exportStoryPdf.mockResolvedValue({
+      pdf_base64: btoa('%PDF-1.4'),
+      filename: 'story.pdf',
+    });
+    mockFn(useChatState).mockReturnValue({
+      models: [],
+      messages: [{ id: '1', role: 'assistant', content: 'Story content' }],
+      setMessages: vi.fn(),
+    });
+
+    renderWithProviders(<ChatControls />);
+    fireEvent.click(screen.getByText('PDF'));
+
+    await waitFor(() => {
+      expect(mockConversationClient.exportStoryPdf).toHaveBeenCalledWith(
+        'conv1',
+        'Test Story'
+      );
+      expect(writeFile).toHaveBeenCalled();
+    });
   });
 });

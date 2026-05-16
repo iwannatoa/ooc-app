@@ -147,6 +147,7 @@ export const useAppLogic = () => {
     handleConfirmSection: runConfirmSection,
     handleRewriteSection,
     handleModifySection,
+    latestContextTrace,
   } = storyActions;
 
   const handleConfirmSection = useCallback(async () => {
@@ -224,5 +225,6 @@ export const useAppLogic = () => {
     handleRewriteSection,
     handleModifySection,
     handleDeleteLastMessage,
+    latestContextTrace,
   };
 };

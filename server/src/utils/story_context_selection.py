@@ -40,6 +40,9 @@ def select_messages_for_ai_context_with_trace(
     recent_messages_with_summary: int,
     max_message_history: int,
     max_context_tokens: int,
+    effective_budget_ratio: float = 0.8,
+    recent_budget_ratio: float = 0.4,
+    summary_budget_ratio: float = 0.3,
 ) -> Tuple[List[Dict], bool, bool, Dict[str, Any]]:
     """
     Context-management aware selector with lightweight trace output.
@@ -50,9 +53,12 @@ def select_messages_for_ai_context_with_trace(
     # Context Management budget rule:
     # - use 80% of model context as working budget
     # - reserve >=40% for recent turns
-    effective_budget = max(1, int(max_context_tokens * 0.8))
-    recent_budget = max(1, int(effective_budget * 0.4))
-    summary_budget = max(1, int(effective_budget * 0.3))
+    safe_effective_ratio = min(0.95, max(0.5, float(effective_budget_ratio)))
+    safe_recent_ratio = min(0.9, max(0.1, float(recent_budget_ratio)))
+    safe_summary_ratio = min(0.8, max(0.05, float(summary_budget_ratio)))
+    effective_budget = max(1, int(max_context_tokens * safe_effective_ratio))
+    recent_budget = max(1, int(effective_budget * safe_recent_ratio))
+    summary_budget = max(1, int(effective_budget * safe_summary_ratio))
 
     history_truncated = False
     older_via_summary = False
@@ -61,6 +67,14 @@ def select_messages_for_ai_context_with_trace(
         summary_version=summary_version,
         total_budget=effective_budget,
     )
+    trace["strategy"] = {
+        "maxContextTokens": max_context_tokens,
+        "recentMessagesWithSummary": recent_messages_with_summary,
+        "maxMessageHistory": max_message_history,
+        "effectiveBudgetRatio": safe_effective_ratio,
+        "recentBudgetRatio": safe_recent_ratio,
+        "summaryBudgetRatio": safe_summary_ratio,
+    }
     trace["budgetUsed"]["usedByLayer"]["system"] = estimated_system_tokens
 
     if summary_text:
@@ -146,6 +160,9 @@ def select_messages_for_ai_context(
     recent_messages_with_summary: int,
     max_message_history: int,
     max_context_tokens: int,
+    effective_budget_ratio: float = 0.8,
+    recent_budget_ratio: float = 0.4,
+    summary_budget_ratio: float = 0.3,
 ) -> Tuple[List[Dict], bool, bool]:
     """
     Mirror ``StoryGenerationService._prepare_generation_context`` history rules.
@@ -163,6 +180,9 @@ def select_messages_for_ai_context(
             recent_messages_with_summary=recent_messages_with_summary,
             max_message_history=max_message_history,
             max_context_tokens=max_context_tokens,
+            effective_budget_ratio=effective_budget_ratio,
+            recent_budget_ratio=recent_budget_ratio,
+            summary_budget_ratio=summary_budget_ratio,
         )
     )
     return messages_for_ai, history_truncated, older_via_summary

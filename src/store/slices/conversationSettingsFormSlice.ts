@@ -35,6 +35,13 @@ export interface ConversationSettingsFormData {
   conversationMaxTokens: string;
   /** Conversation-level stop words override (optional, comma/newline separated). */
   conversationStopWords: string;
+  contextRecentMessagesWithSummary: string;
+  contextMaxMessageHistory: string;
+  contextMaxContextTokens: string;
+  contextEffectiveBudgetRatio: string;
+  contextRecentBudgetRatio: string;
+  contextSummaryBudgetRatio: string;
+  summaryRefreshDeltaMessages: string;
 }
 
 /**
@@ -87,6 +94,21 @@ const createInitialFormData = (
   )
     ? settings?.additional_settings?.conversationStopWords.join(', ')
     : settings?.additional_settings?.conversationStopWords?.toString() || '',
+  contextRecentMessagesWithSummary:
+    settings?.additional_settings?.contextRecentMessagesWithSummary?.toString() ||
+    '',
+  contextMaxMessageHistory:
+    settings?.additional_settings?.contextMaxMessageHistory?.toString() || '',
+  contextMaxContextTokens:
+    settings?.additional_settings?.contextMaxContextTokens?.toString() || '',
+  contextEffectiveBudgetRatio:
+    settings?.additional_settings?.contextEffectiveBudgetRatio?.toString() || '',
+  contextRecentBudgetRatio:
+    settings?.additional_settings?.contextRecentBudgetRatio?.toString() || '',
+  contextSummaryBudgetRatio:
+    settings?.additional_settings?.contextSummaryBudgetRatio?.toString() || '',
+  summaryRefreshDeltaMessages:
+    settings?.additional_settings?.summaryRefreshDeltaMessages?.toString() || '',
 });
 
 const initialState: ConversationSettingsFormState = {

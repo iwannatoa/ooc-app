@@ -270,6 +270,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, open }) => {
           <h2>{t('settingsPanel.title')}</h2>
           <div className={styles.profileBar}>
             <select
+              aria-label={t('settingsPanel.activeProfile') || 'Active profile'}
               value={activeProfileId || ''}
               onChange={(e) => {
                 void handleSwitchProfile(e.target.value);

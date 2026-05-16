@@ -44,6 +44,13 @@ describe('useConversationSettingsConverter', () => {
       conversationTemperature: '',
       conversationMaxTokens: '',
       conversationStopWords: '',
+      contextRecentMessagesWithSummary: '',
+      contextMaxMessageHistory: '',
+      contextMaxContextTokens: '',
+      contextEffectiveBudgetRatio: '',
+      contextRecentBudgetRatio: '',
+      contextSummaryBudgetRatio: '',
+      summaryRefreshDeltaMessages: '',
     };
 
     const apiFormat = result.current.toApiFormat(formData, 'conv_001');
@@ -68,6 +75,13 @@ describe('useConversationSettingsConverter', () => {
         conversationTemperature: undefined,
         conversationMaxTokens: undefined,
         conversationStopWords: undefined,
+        contextRecentMessagesWithSummary: undefined,
+        contextMaxMessageHistory: undefined,
+        contextMaxContextTokens: undefined,
+        contextEffectiveBudgetRatio: undefined,
+        contextRecentBudgetRatio: undefined,
+        contextSummaryBudgetRatio: undefined,
+        summaryRefreshDeltaMessages: undefined,
       },
     });
   });
@@ -101,6 +115,13 @@ describe('useConversationSettingsConverter', () => {
       conversationTemperature: '',
       conversationMaxTokens: '',
       conversationStopWords: '',
+      contextRecentMessagesWithSummary: '',
+      contextMaxMessageHistory: '',
+      contextMaxContextTokens: '',
+      contextEffectiveBudgetRatio: '',
+      contextRecentBudgetRatio: '',
+      contextSummaryBudgetRatio: '',
+      summaryRefreshDeltaMessages: '',
     };
 
     const apiFormat = result.current.toApiFormat(formData, 'conv_001');
@@ -139,6 +160,13 @@ describe('useConversationSettingsConverter', () => {
       conversationTemperature: '',
       conversationMaxTokens: '',
       conversationStopWords: '',
+      contextRecentMessagesWithSummary: '',
+      contextMaxMessageHistory: '',
+      contextMaxContextTokens: '',
+      contextEffectiveBudgetRatio: '',
+      contextRecentBudgetRatio: '',
+      contextSummaryBudgetRatio: '',
+      summaryRefreshDeltaMessages: '',
     };
 
     const apiFormat = result.current.toApiFormat(formData, 'conv_001');
@@ -175,6 +203,13 @@ describe('useConversationSettingsConverter', () => {
       conversationTemperature: '',
       conversationMaxTokens: '',
       conversationStopWords: '',
+      contextRecentMessagesWithSummary: '',
+      contextMaxMessageHistory: '',
+      contextMaxContextTokens: '',
+      contextEffectiveBudgetRatio: '',
+      contextRecentBudgetRatio: '',
+      contextSummaryBudgetRatio: '',
+      summaryRefreshDeltaMessages: '',
     };
 
     const apiFormat = result.current.toApiFormat(formData, 'conv_001');
@@ -235,6 +270,13 @@ describe('useConversationSettingsConverter', () => {
       conversationTemperature: '',
       conversationMaxTokens: '',
       conversationStopWords: '',
+      contextRecentMessagesWithSummary: '',
+      contextMaxMessageHistory: '',
+      contextMaxContextTokens: '',
+      contextEffectiveBudgetRatio: '',
+      contextRecentBudgetRatio: '',
+      contextSummaryBudgetRatio: '',
+      summaryRefreshDeltaMessages: '',
     });
   });
 
@@ -264,6 +306,13 @@ describe('useConversationSettingsConverter', () => {
       conversationTemperature: '',
       conversationMaxTokens: '',
       conversationStopWords: '',
+      contextRecentMessagesWithSummary: '',
+      contextMaxMessageHistory: '',
+      contextMaxContextTokens: '',
+      contextEffectiveBudgetRatio: '',
+      contextRecentBudgetRatio: '',
+      contextSummaryBudgetRatio: '',
+      summaryRefreshDeltaMessages: '',
     });
   });
 
@@ -347,6 +396,13 @@ describe('useConversationSettingsConverter', () => {
       conversationTemperature: '',
       conversationMaxTokens: '',
       conversationStopWords: 'END, STOP\n###',
+      contextRecentMessagesWithSummary: '',
+      contextMaxMessageHistory: '',
+      contextMaxContextTokens: '',
+      contextEffectiveBudgetRatio: '',
+      contextRecentBudgetRatio: '',
+      contextSummaryBudgetRatio: '',
+      summaryRefreshDeltaMessages: '',
     };
 
     const apiFormat = result.current.toApiFormat(formData, 'conv_001');
@@ -358,6 +414,50 @@ describe('useConversationSettingsConverter', () => {
       'STOP',
       '###',
     ]);
+  });
+
+  it('should include context strategy fields in additional_settings', () => {
+    const store = createTestStore();
+    const { result } = renderHook(() => useConversationSettingsConverter(), {
+      wrapper: createWrapper(store),
+    });
+    const formData: ConversationSettingsFormData = {
+      title: 'Ctx',
+      background: 'Ctx',
+      supplement: '',
+      characters: ['Alice'],
+      characterPersonality: {},
+      characterIsMain: {},
+      characterGenerationHints: '',
+      outline: '',
+      generatedOutline: null,
+      outlineConfirmed: false,
+      serializationOpenEnded: true,
+      finiteTotalSections: 10,
+      allowAutoGenerateCharacters: true,
+      allowAutoGenerateMainCharacters: true,
+      conversationTemperature: '',
+      conversationMaxTokens: '',
+      conversationStopWords: '',
+      contextRecentMessagesWithSummary: '15',
+      contextMaxMessageHistory: '80',
+      contextMaxContextTokens: '20000',
+      contextEffectiveBudgetRatio: '0.85',
+      contextRecentBudgetRatio: '0.45',
+      contextSummaryBudgetRatio: '0.25',
+      summaryRefreshDeltaMessages: '30',
+    };
+    const apiFormat = result.current.toApiFormat(formData, 'conv_001');
+    const additionalSettings = apiFormat.additional_settings as
+      | Record<string, unknown>
+      | undefined;
+    expect(additionalSettings?.contextRecentMessagesWithSummary).toBe('15');
+    expect(additionalSettings?.contextMaxMessageHistory).toBe('80');
+    expect(additionalSettings?.contextMaxContextTokens).toBe('20000');
+    expect(additionalSettings?.contextEffectiveBudgetRatio).toBe('0.85');
+    expect(additionalSettings?.contextRecentBudgetRatio).toBe('0.45');
+    expect(additionalSettings?.contextSummaryBudgetRatio).toBe('0.25');
+    expect(additionalSettings?.summaryRefreshDeltaMessages).toBe('30');
   });
 });
 

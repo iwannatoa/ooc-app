@@ -181,6 +181,7 @@
   },
   "settingsPanel": {
     "title": "设置",
+    "activeProfile": "当前配置文件",
     "tabs": {
       "general": "通用",
       "ai": "AI 设置",

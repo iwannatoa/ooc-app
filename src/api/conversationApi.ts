@@ -57,6 +57,9 @@ export interface StoryTemplateItem {
   title: string;
   background?: string;
   outline_hint?: string;
+  characters?: string[];
+  character_personality?: Record<string, string>;
+  additional_settings?: Record<string, unknown>;
 }
 
 export interface StoryBranch {
@@ -78,6 +81,16 @@ export interface StoryEnding {
   ending_tag: string;
   message_id?: number;
   created_at?: string;
+}
+
+export interface StoryPdfExport {
+  pdf_base64: string;
+  filename?: string;
+}
+
+export interface ProjectBundleExport {
+  bundle: Record<string, unknown>;
+  filename?: string;
 }
 
 export class ConversationApi extends BaseApiClient {
@@ -541,6 +554,20 @@ export class ConversationApi extends BaseApiClient {
     return response.savepoint;
   }
 
+  async restoreStorySavepoint(
+    conversationId: string,
+    savepointId: string
+  ): Promise<boolean> {
+    const response = await this.post<{ success: boolean }>(
+      '/api/story/savepoint/restore',
+      {
+        conversation_id: conversationId,
+        savepoint_id: savepointId,
+      }
+    );
+    return Boolean(response.success);
+  }
+
   async getStoryEndings(conversationId: string): Promise<StoryEnding[]> {
     const response = await this.get<{ endings: StoryEnding[] }>(
       `/api/story/ending?conversation_id=${conversationId}`
@@ -560,6 +587,45 @@ export class ConversationApi extends BaseApiClient {
       }
     );
     return response.ending;
+  }
+
+  async exportStoryPdf(
+    conversationId: string,
+    title?: string
+  ): Promise<StoryPdfExport> {
+    const response = await this.post<{
+      pdf_base64: string;
+      filename?: string;
+    }>('/api/export/pdf', {
+      conversation_id: conversationId,
+      title,
+    });
+    return {
+      pdf_base64: response.pdf_base64,
+      filename: response.filename,
+    };
+  }
+
+  async exportProjectBundle(
+    conversationId: string,
+    title?: string
+  ): Promise<ProjectBundleExport> {
+    const response = await this.post<{
+      bundle: Record<string, unknown>;
+      filename?: string;
+    }>('/api/export/project-bundle', {
+      conversation_id: conversationId,
+      title,
+    });
+    return { bundle: response.bundle, filename: response.filename };
+  }
+
+  async validateProjectBundle(bundle: Record<string, unknown>): Promise<boolean> {
+    const response = await this.post<{ success: boolean; valid?: boolean }>(
+      '/api/import/project-bundle/validate',
+      { bundle }
+    );
+    return Boolean(response.success && (response.valid ?? true));
   }
 }
 

@@ -179,6 +179,7 @@
   },
   "settingsPanel": {
     "title": "Settings",
+    "activeProfile": "アクティブなプロファイル",
     "tabs": {
       "general": "General",
       "ai": "AI Settings",

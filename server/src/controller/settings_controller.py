@@ -741,6 +741,9 @@ class SettingsController:
                         'title': data.get('title', path.stem),
                         'background': data.get('background', ''),
                         'outline_hint': data.get('outline_hint', ''),
+                        'characters': data.get('characters') or [],
+                        'character_personality': data.get('character_personality') or {},
+                        'additional_settings': data.get('additional_settings') or {},
                     })
                 except Exception:
                     logger.warning('Skip invalid story template file: %s', path)

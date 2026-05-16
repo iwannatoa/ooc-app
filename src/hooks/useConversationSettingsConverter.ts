@@ -63,6 +63,20 @@ export const useConversationSettingsConverter = () => {
           conversationStopWords: normalizeStopWords(
             (formData.conversationStopWords ?? '').trim()
           ),
+          contextRecentMessagesWithSummary:
+            (formData.contextRecentMessagesWithSummary ?? '').trim() || undefined,
+          contextMaxMessageHistory:
+            (formData.contextMaxMessageHistory ?? '').trim() || undefined,
+          contextMaxContextTokens:
+            (formData.contextMaxContextTokens ?? '').trim() || undefined,
+          contextEffectiveBudgetRatio:
+            (formData.contextEffectiveBudgetRatio ?? '').trim() || undefined,
+          contextRecentBudgetRatio:
+            (formData.contextRecentBudgetRatio ?? '').trim() || undefined,
+          contextSummaryBudgetRatio:
+            (formData.contextSummaryBudgetRatio ?? '').trim() || undefined,
+          summaryRefreshDeltaMessages:
+            (formData.summaryRefreshDeltaMessages ?? '').trim() || undefined,
         },
       };
     },
@@ -103,6 +117,25 @@ export const useConversationSettingsConverter = () => {
           ? settings?.additional_settings?.conversationStopWords.join(', ')
           : settings?.additional_settings?.conversationStopWords?.toString() ||
             '',
+        contextRecentMessagesWithSummary:
+          settings?.additional_settings?.contextRecentMessagesWithSummary?.toString() ||
+          '',
+        contextMaxMessageHistory:
+          settings?.additional_settings?.contextMaxMessageHistory?.toString() ||
+          '',
+        contextMaxContextTokens:
+          settings?.additional_settings?.contextMaxContextTokens?.toString() || '',
+        contextEffectiveBudgetRatio:
+          settings?.additional_settings?.contextEffectiveBudgetRatio?.toString() ||
+          '',
+        contextRecentBudgetRatio:
+          settings?.additional_settings?.contextRecentBudgetRatio?.toString() || '',
+        contextSummaryBudgetRatio:
+          settings?.additional_settings?.contextSummaryBudgetRatio?.toString() ||
+          '',
+        summaryRefreshDeltaMessages:
+          settings?.additional_settings?.summaryRefreshDeltaMessages?.toString() ||
+          '',
       };
     },
     []

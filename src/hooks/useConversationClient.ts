@@ -188,6 +188,57 @@ export const useConversationClient = () => {
           messageId
         );
       },
+
+      getStoryBranches: async (conversationId: string) => {
+        return await conversationApi.getStoryBranches(conversationId);
+      },
+
+      createStoryBranch: async (
+        conversationId: string,
+        payload: { parent_message_id?: number; label?: string; branch_id?: string }
+      ) => {
+        return await conversationApi.createStoryBranch(conversationId, payload);
+      },
+
+      getStorySavepoints: async (conversationId: string) => {
+        return await conversationApi.getStorySavepoints(conversationId);
+      },
+
+      createStorySavepoint: async (
+        conversationId: string,
+        payload: { message_id?: number; label?: string; savepoint_id?: string }
+      ) => {
+        return await conversationApi.createStorySavepoint(conversationId, payload);
+      },
+
+      restoreStorySavepoint: async (
+        conversationId: string,
+        savepointId: string
+      ): Promise<boolean> => {
+        return await conversationApi.restoreStorySavepoint(
+          conversationId,
+          savepointId
+        );
+      },
+
+      markStoryEnding: async (
+        conversationId: string,
+        payload: { ending_tag: string; branch_id?: string; message_id?: number }
+      ) => {
+        return await conversationApi.markStoryEnding(conversationId, payload);
+      },
+
+      exportStoryPdf: async (conversationId: string, title?: string) => {
+        return await conversationApi.exportStoryPdf(conversationId, title);
+      },
+
+      exportProjectBundle: async (conversationId: string, title?: string) => {
+        return await conversationApi.exportProjectBundle(conversationId, title);
+      },
+
+      validateProjectBundle: async (bundle: Record<string, unknown>) => {
+        return await conversationApi.validateProjectBundle(bundle);
+      },
     };
   }, [conversationApi]);
 };

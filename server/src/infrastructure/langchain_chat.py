@@ -1,5 +1,5 @@
 """
-LangChain-backed chat invoke and stream (todo.md: provider + LLM request).
+LangChain-backed chat invoke and stream (provider + LLM request).
 
 Uses ``langchain_ollama.ChatOllama`` and ``langchain_openai.ChatOpenAI`` (DeepSeek-compatible).
 """

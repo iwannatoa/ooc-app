@@ -26,6 +26,13 @@ const mockFormData = {
   conversationTemperature: '',
   conversationMaxTokens: '',
   conversationStopWords: '',
+  contextRecentMessagesWithSummary: '',
+  contextMaxMessageHistory: '',
+  contextMaxContextTokens: '',
+  contextEffectiveBudgetRatio: '',
+  contextRecentBudgetRatio: '',
+  contextSummaryBudgetRatio: '',
+  summaryRefreshDeltaMessages: '',
 };
 
 vi.mock('@/hooks/useConversationSettingsForm');

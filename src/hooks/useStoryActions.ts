@@ -5,8 +5,8 @@
  * The actual business logic is in useAppLogic.
  */
 
-import { useCallback } from 'react';
-import { ChatMessage } from '@/types';
+import { useCallback, useState } from 'react';
+import { ChatMessage, StoryContextTrace } from '@/types';
 import { AppSettings } from '@/types';
 import { useStoryClient } from './useStoryClient';
 import { useI18n } from '@/i18n/i18n';
@@ -30,6 +30,7 @@ export interface UseStoryActionsReturn {
   handleConfirmSection: () => Promise<void>;
   handleRewriteSection: (feedback: string) => Promise<void>;
   handleModifySection: (feedback: string) => Promise<void>;
+  latestContextTrace: StoryContextTrace | null;
 }
 
 export const useStoryActions = (
@@ -47,6 +48,8 @@ export const useStoryActions = (
   const { t } = useI18n();
   const { setSending, setStoryOperation, applyStreamingAssistantChunk } =
     useChatState();
+  const [latestContextTrace, setLatestContextTrace] =
+    useState<StoryContextTrace | null>(null);
 
   /** Toast when `<CHARACTERS>` parse was imperfect; copy follows current i18n locale (zh/en). */
   const maybeWarnCharacterParse = useCallback(
@@ -74,6 +77,7 @@ export const useStoryActions = (
         activeConversationId,
         onChunk
       );
+      setLatestContextTrace(result.context_trace || null);
 
       if (result.success && result.response) {
         applyStreamingAssistantChunk(result.response);
@@ -120,6 +124,7 @@ export const useStoryActions = (
     setSending(true);
     try {
       const result = await storyClient.confirmSection(activeConversationId);
+      setLatestContextTrace(result.context_trace || null);
 
       if (result.success && result.response) {
         setMessages((prev) => [
@@ -178,6 +183,7 @@ export const useStoryActions = (
           activeConversationId,
           feedback
         );
+        setLatestContextTrace(result.context_trace || null);
 
         if (result.success && result.response) {
           setMessages((prev) => [
@@ -238,6 +244,7 @@ export const useStoryActions = (
           activeConversationId,
           feedback
         );
+        setLatestContextTrace(result.context_trace || null);
 
         if (result.success && result.response) {
           setMessages((prev) => [
@@ -288,5 +295,6 @@ export const useStoryActions = (
     handleConfirmSection,
     handleRewriteSection,
     handleModifySection,
+    latestContextTrace,
   };
 };

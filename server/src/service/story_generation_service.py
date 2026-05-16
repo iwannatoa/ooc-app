@@ -55,6 +55,77 @@ def merge_story_llm_overrides(api_config: Dict, settings: Optional[Dict]) -> Dic
     return out
 
 
+def _coerce_int(value: Any, fallback: int, *, minimum: int = 1, maximum: int = 100000) -> int:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return fallback
+    return max(minimum, min(maximum, parsed))
+
+
+def _coerce_float(
+    value: Any,
+    fallback: float,
+    *,
+    minimum: float = 0.0,
+    maximum: float = 1.0,
+) -> float:
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError):
+        return fallback
+    return max(minimum, min(maximum, parsed))
+
+
+def _resolve_context_strategy(config: Any, settings: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    additional = settings.get("additional_settings") if isinstance(settings, dict) else None
+    additional = additional if isinstance(additional, dict) else {}
+    return {
+        "recent_messages_with_summary": _coerce_int(
+            additional.get("contextRecentMessagesWithSummary"),
+            int(config.RECENT_MESSAGES_WITH_SUMMARY),
+            minimum=1,
+            maximum=200,
+        ),
+        "max_message_history": _coerce_int(
+            additional.get("contextMaxMessageHistory"),
+            int(config.MAX_MESSAGE_HISTORY),
+            minimum=1,
+            maximum=1000,
+        ),
+        "max_context_tokens": _coerce_int(
+            additional.get("contextMaxContextTokens"),
+            int(config.MAX_CONTEXT_TOKENS),
+            minimum=256,
+            maximum=500000,
+        ),
+        "effective_budget_ratio": _coerce_float(
+            additional.get("contextEffectiveBudgetRatio"),
+            0.8,
+            minimum=0.5,
+            maximum=0.95,
+        ),
+        "recent_budget_ratio": _coerce_float(
+            additional.get("contextRecentBudgetRatio"),
+            0.4,
+            minimum=0.1,
+            maximum=0.9,
+        ),
+        "summary_budget_ratio": _coerce_float(
+            additional.get("contextSummaryBudgetRatio"),
+            0.3,
+            minimum=0.05,
+            maximum=0.8,
+        ),
+        "summary_refresh_delta": _coerce_int(
+            additional.get("summaryRefreshDeltaMessages"),
+            20,
+            minimum=1,
+            maximum=200,
+        ),
+    }
+
+
 def _prepend_task_anchor(
     language: str,
     flow: Literal["generate", "continue"],
@@ -124,6 +195,7 @@ class StoryGenerationService:
         self, conversation_id: str, provider: str, model: Optional[str]
     ) -> Dict:
         settings = self.conversation_service.get_settings(conversation_id)
+        context_strategy = _resolve_context_strategy(self.config, settings)
         api = self.ai_config_service.get_config_for_api(
             provider=provider,
             model=model,
@@ -864,9 +936,12 @@ class StoryGenerationService:
                         summary_text=summary_text,
                         estimated_system_tokens=estimated_system_tokens,
                         estimate_tokens=self.summary_service.estimate_tokens,
-                        recent_messages_with_summary=self.config.RECENT_MESSAGES_WITH_SUMMARY,
-                        max_message_history=self.config.MAX_MESSAGE_HISTORY,
-                        max_context_tokens=self.config.MAX_CONTEXT_TOKENS,
+                        recent_messages_with_summary=context_strategy["recent_messages_with_summary"],
+                        max_message_history=context_strategy["max_message_history"],
+                        max_context_tokens=context_strategy["max_context_tokens"],
+                        effective_budget_ratio=context_strategy["effective_budget_ratio"],
+                        recent_budget_ratio=context_strategy["recent_budget_ratio"],
+                        summary_budget_ratio=context_strategy["summary_budget_ratio"],
                     )
                 )
                 context_trace = {
@@ -893,11 +968,23 @@ class StoryGenerationService:
                         summary_version=summary_version,
                         estimated_system_tokens=estimated_system_tokens,
                         estimate_tokens=self.summary_service.estimate_tokens,
-                        recent_messages_with_summary=self.config.RECENT_MESSAGES_WITH_SUMMARY,
-                        max_message_history=self.config.MAX_MESSAGE_HISTORY,
-                        max_context_tokens=self.config.MAX_CONTEXT_TOKENS,
+                        recent_messages_with_summary=context_strategy["recent_messages_with_summary"],
+                        max_message_history=context_strategy["max_message_history"],
+                        max_context_tokens=context_strategy["max_context_tokens"],
+                        effective_budget_ratio=context_strategy["effective_budget_ratio"],
+                        recent_budget_ratio=context_strategy["recent_budget_ratio"],
+                        summary_budget_ratio=context_strategy["summary_budget_ratio"],
                     )
                 )
+            context_trace["strategy"] = {
+                "recentMessagesWithSummary": context_strategy["recent_messages_with_summary"],
+                "maxMessageHistory": context_strategy["max_message_history"],
+                "maxContextTokens": context_strategy["max_context_tokens"],
+                "effectiveBudgetRatio": context_strategy["effective_budget_ratio"],
+                "recentBudgetRatio": context_strategy["recent_budget_ratio"],
+                "summaryBudgetRatio": context_strategy["summary_budget_ratio"],
+                "summaryRefreshDeltaMessages": context_strategy["summary_refresh_delta"],
+            }
         except Exception:
             # Fallback rule: keep the app available with minimum context when selector fails.
             logger.error("Context selection failed, applying fallback strategy", exc_info=True)
@@ -923,6 +1010,15 @@ class StoryGenerationService:
                 },
                 "trimReasons": ["fallback_context_path"],
                 "summaryVersion": summary_version or "none",
+                "strategy": {
+                    "recentMessagesWithSummary": context_strategy["recent_messages_with_summary"],
+                    "maxMessageHistory": context_strategy["max_message_history"],
+                    "maxContextTokens": context_strategy["max_context_tokens"],
+                    "effectiveBudgetRatio": context_strategy["effective_budget_ratio"],
+                    "recentBudgetRatio": context_strategy["recent_budget_ratio"],
+                    "summaryBudgetRatio": context_strategy["summary_budget_ratio"],
+                    "summaryRefreshDeltaMessages": context_strategy["summary_refresh_delta"],
+                },
             }
         
         system_prompt = build_system_prompt(
@@ -966,7 +1062,9 @@ class StoryGenerationService:
         existing_summary = self.summary_service.get_summary(conversation_id)
         if isinstance(existing_summary, dict):
             previous_summary_count = int(existing_summary.get("message_count") or 0)
-            if message_count - previous_summary_count >= 20:
+            settings = self.conversation_service.get_settings(conversation_id)
+            strategy = _resolve_context_strategy(self.config, settings)
+            if message_count - previous_summary_count >= strategy["summary_refresh_delta"]:
                 should_summarize = True
         if estimated_tokens >= summary_threshold_by_budget:
             should_summarize = True

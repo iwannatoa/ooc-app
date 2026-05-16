@@ -21,6 +21,7 @@ export interface RequestConfig extends RequestInit {
 export interface StreamExtras {
   parseWarningsCollector?: string[];
   capabilityNoticeCollector?: string[];
+  contextTraceCollector?: unknown[];
 }
 
 export interface ApiError extends Error {
@@ -474,6 +475,10 @@ export class BaseApiClient {
                 );
                 continue;
               }
+              if ('context_trace' in data && data.context_trace) {
+                streamExtras?.contextTraceCollector?.push(data.context_trace);
+                continue;
+              }
               if (data.done) {
                 return accumulated;
               }
@@ -605,6 +610,10 @@ export class BaseApiClient {
               streamExtras?.capabilityNoticeCollector?.push(
                 data.provider_capability_notice
               );
+              continue;
+            }
+            if ('context_trace' in data && data.context_trace) {
+              streamExtras?.contextTraceCollector?.push(data.context_trace);
               continue;
             }
             if (data.done) {

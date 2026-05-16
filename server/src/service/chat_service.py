@@ -305,6 +305,20 @@ class ChatService:
     def list_savepoints(self, conversation_id: str) -> List[Dict[str, Any]]:
         return self.repository.list_savepoints(conversation_id)
 
+    def restore_savepoint(
+        self,
+        conversation_id: str,
+        savepoint_id: str,
+    ) -> Optional[Dict[str, Any]]:
+        row = self.repository.get_savepoint(conversation_id, savepoint_id)
+        if not row:
+            return None
+        message_id = row.get("message_id")
+        if message_id is None:
+            return row
+        self.repository.restore_to_message(conversation_id, int(message_id))
+        return row
+
     def mark_ending(
         self,
         conversation_id: str,

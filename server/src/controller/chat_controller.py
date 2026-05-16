@@ -3,6 +3,9 @@ Chat controller
 """
 import json
 import uuid
+import base64
+import hashlib
+from datetime import datetime, timezone
 from typing import Dict, List, Optional
 from flask import Flask, request, jsonify
 from injector import inject
@@ -32,6 +35,53 @@ from utils.think_strip import strip_think_content
 from utils.db_path import get_story_library_dir
 
 logger = get_logger(__name__)
+
+
+def _escape_pdf_text(value: str) -> str:
+    return value.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+
+
+def _build_simple_pdf(lines: List[str]) -> bytes:
+    safe_lines = lines if lines else ["(empty)"]
+    content_parts = ["BT", "/F1 10 Tf", "50 800 Td", "14 TL"]
+    for line in safe_lines:
+        content_parts.append(f"({_escape_pdf_text(line)}) Tj")
+        content_parts.append("T*")
+    content_parts.append("ET")
+    content_stream = "\n".join(content_parts).encode("utf-8")
+
+    objects: List[bytes] = []
+    objects.append(b"<< /Type /Catalog /Pages 2 0 R >>")
+    objects.append(b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>")
+    objects.append(
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources "
+        b"<< /Font << /F1 4 0 R >> >> /Contents 5 0 R >>"
+    )
+    objects.append(b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>")
+    objects.append(
+        f"<< /Length {len(content_stream)} >>\nstream\n".encode("utf-8")
+        + content_stream
+        + b"\nendstream"
+    )
+
+    body = b"%PDF-1.4\n"
+    offsets = [0]
+    for idx, obj in enumerate(objects, start=1):
+        offsets.append(len(body))
+        body += f"{idx} 0 obj\n".encode("utf-8") + obj + b"\nendobj\n"
+
+    xref_start = len(body)
+    xref = f"xref\n0 {len(objects) + 1}\n0000000000 65535 f \n".encode("utf-8")
+    for offset in offsets[1:]:
+        xref += f"{offset:010d} 00000 n \n".encode("utf-8")
+    trailer = (
+        f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\nstartxref\n{xref_start}\n%%EOF\n"
+    ).encode("utf-8")
+    return body + xref + trailer
+
+
+def _canonical_json(value: Dict) -> str:
+    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
 class ChatController:
     """Chat controller"""
@@ -179,6 +229,10 @@ class ChatController:
         def list_story_savepoints():
             return self.list_story_savepoints()
 
+        @app.route('/api/story/savepoint/restore', methods=['POST'])
+        def restore_story_savepoint():
+            return self.restore_story_savepoint()
+
         @app.route('/api/story/ending', methods=['POST'])
         def mark_story_ending():
             return self.mark_story_ending()
@@ -186,6 +240,18 @@ class ChatController:
         @app.route('/api/story/ending', methods=['GET'])
         def list_story_endings():
             return self.list_story_endings()
+
+        @app.route('/api/export/pdf', methods=['POST'])
+        def export_story_pdf():
+            return self.export_story_pdf()
+
+        @app.route('/api/export/project-bundle', methods=['POST'])
+        def export_project_bundle():
+            return self.export_project_bundle()
+
+        @app.route('/api/import/project-bundle/validate', methods=['POST'])
+        def validate_project_bundle():
+            return self.validate_project_bundle()
     
     @handle_errors
     def chat(self):
@@ -531,6 +597,30 @@ class ChatController:
         return jsonify({"success": True, "savepoints": savepoints})
 
     @handle_errors
+    def restore_story_savepoint(self):
+        data = request.json or {}
+        conversation_id = data.get('conversation_id')
+        savepoint_id = data.get('savepoint_id')
+        language = self.app_settings_service.get_language()
+        if not conversation_id:
+            return error_response(language, 'error_messages.conversation_id_required')
+        if not savepoint_id:
+            return jsonify({"success": False, "error": "savepoint_id is required"}), 400
+        restored = self.chat_service.restore_savepoint(
+            conversation_id=conversation_id,
+            savepoint_id=str(savepoint_id),
+        )
+        if not restored:
+            return jsonify({"success": False, "error": "savepoint not found"}), 404
+        message_id = restored.get("message_id")
+        if message_id is not None:
+            self.story_service.update_progress(
+                conversation_id=conversation_id,
+                status='completed',
+            )
+        return jsonify({"success": True, "savepoint": restored})
+
+    @handle_errors
     def mark_story_ending(self):
         data = request.json or {}
         conversation_id = data.get('conversation_id')
@@ -556,6 +646,116 @@ class ChatController:
             return error_response(language, 'error_messages.conversation_id_required')
         endings = self.chat_service.list_endings(conversation_id)
         return jsonify({"success": True, "endings": endings})
+
+    @handle_errors
+    def export_story_pdf(self):
+        data = request.json or {}
+        conversation_id = data.get('conversation_id')
+        title = (data.get('title') or 'Story Export').strip()
+        language = self.app_settings_service.get_language()
+        if not conversation_id:
+            return error_response(language, 'error_messages.conversation_id_required')
+        messages = self.chat_service.get_conversation(conversation_id)
+        assistant_rows = [row for row in messages if row.get('role') == 'assistant']
+
+        lines: List[str] = []
+        lines.append(title)
+        lines.append("=" * max(3, min(40, len(title))))
+        lines.append("")
+        lines.append("Metadata")
+        lines.append(f"- conversation_id: {conversation_id}")
+        lines.append(f"- exported_at: {datetime.now(timezone.utc).isoformat()}")
+        lines.append("")
+        lines.append("Table of Contents")
+        if assistant_rows:
+            for index, _row in enumerate(assistant_rows, start=1):
+                lines.append(f"{index}. Section {index}")
+        else:
+            lines.append("1. (no assistant sections)")
+        lines.append("")
+        lines.append("Content")
+        for index, row in enumerate(assistant_rows, start=1):
+            lines.append("")
+            lines.append(f"## Section {index}")
+            content = str(row.get('content') or '').replace('\r', '')
+            lines.extend(content.split('\n'))
+        pdf_bytes = _build_simple_pdf(lines)
+        return jsonify(
+            {
+                "success": True,
+                "pdf_base64": base64.b64encode(pdf_bytes).decode("ascii"),
+                "filename": f"{title.replace(' ', '_')}.pdf",
+            }
+        )
+
+    @handle_errors
+    def export_project_bundle(self):
+        data = request.json or {}
+        conversation_id = data.get('conversation_id')
+        language = self.app_settings_service.get_language()
+        if not conversation_id:
+            return error_response(language, 'error_messages.conversation_id_required')
+        settings = self.conversation_service.get_settings(conversation_id)
+        progress = self.story_service.get_progress(conversation_id)
+        messages = self.chat_service.get_conversation(conversation_id)
+        payload = {
+            "version": 3,
+            "conversation_id": conversation_id,
+            "settings": settings,
+            "progress": progress,
+            "messages": messages,
+        }
+        checksum = hashlib.sha256(_canonical_json(payload).encode("utf-8")).hexdigest()
+        bundle = {
+            **payload,
+            "integrity": {
+                "sha256": checksum,
+                "message_count": len(messages),
+            },
+        }
+        title = (
+            (settings or {}).get("title")
+            or str(data.get("title") or "story")
+        )
+        filename = f"{title.replace(' ', '_')}.ooc-project.json"
+        return jsonify({"success": True, "bundle": bundle, "filename": filename})
+
+    @handle_errors
+    def validate_project_bundle(self):
+        data = request.json or {}
+        bundle = data.get("bundle")
+        if not isinstance(bundle, dict):
+            return jsonify(
+                {"success": False, "error": "bundle is required", "code": "BUNDLE_ERR_BAD_REQUEST"}
+            ), 400
+        version = int(bundle.get("version") or 0)
+        if version != 3:
+            return jsonify(
+                {
+                    "success": False,
+                    "error": "bundle version mismatch",
+                    "code": "BUNDLE_ERR_VERSION_MISMATCH",
+                }
+            ), 400
+        integrity = bundle.get("integrity") or {}
+        expected = str(integrity.get("sha256") or "")
+        payload = {
+            "version": version,
+            "conversation_id": bundle.get("conversation_id"),
+            "settings": bundle.get("settings"),
+            "progress": bundle.get("progress"),
+            "messages": bundle.get("messages"),
+        }
+        actual = hashlib.sha256(_canonical_json(payload).encode("utf-8")).hexdigest()
+        if not expected or expected != actual:
+            return jsonify(
+                {
+                    "success": False,
+                    "error": "bundle integrity validation failed",
+                    "code": "BUNDLE_ERR_INTEGRITY_FAILED",
+                }
+            ), 400
+        return jsonify({"success": True, "valid": True})
     
     def generate_story_section(self):
         """

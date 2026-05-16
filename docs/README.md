@@ -11,10 +11,6 @@ Use these docs for architecture, local workflows, release flow, and operational 
 - Frontend test notes: [`../src/test/README.md`](../src/test/README.md)
 - Backend test notes: [`../server/tests/README.md`](../server/tests/README.md)
 
-## Product backlog
-
-- Product backlog (**pending REQ-style items only**): [`../todo.md`](../todo.md) (cross-check with **SQLite schema versioning and chat extensions** in [`architecture.md`](./architecture.md)).
-
 ## Handbook pages
 
 - System architecture and runtime boundaries: [`architecture.md`](./architecture.md)
@@ -47,7 +43,7 @@ Use these docs for architecture, local workflows, release flow, and operational 
 
 ## Documentation principles in this folder
 
-- **Language**: keep all prose in this directory in **English** (the root [`todo.md`](../todo.md) may use another language for the pending backlog).
+- **Language**: keep all prose in this directory in **English**.
 - Keep examples aligned with current `package.json` scripts.
 - Link to existing README sections rather than duplicating long command blocks.
 - Explain why a workflow exists, not only the command to run.

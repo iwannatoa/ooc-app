@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { installMockStoryApi } from './helpers/mockStoryApi';
+import { expectNoSeriousOrCriticalViolations } from './axe-helpers';
 
 const clickNewStory = async (page: Page) => {
   await page.getByRole('button', { name: /new story|新建故事|new/i }).first().click();
@@ -186,5 +187,41 @@ test('chat supports attachment send and render card', async ({ page }) => {
   await sendChatMessage(page, 'Message with attachment');
   await expect(page.getByText(/Turn 1:/)).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText('evidence.png')).toBeVisible();
+});
+
+test('chat controls have no serious axe violations', async ({ page }) => {
+  await installMockStoryApi(page);
+  await page.goto('/');
+  await expect(page.locator('#root')).toBeVisible();
+
+  await clickNewStory(page);
+  await saveStorySettings(page, {
+    background: 'Accessibility checks for chat controls',
+  });
+  await sendChatMessage(page, 'Generate one turn for a11y checks.');
+  await expect(page.getByText(/Turn 1:/)).toBeVisible({ timeout: 15_000 });
+
+  await expectNoSeriousOrCriticalViolations(page);
+});
+
+test('branch rollback controls can open variant diff panel', async ({ page }) => {
+  await installMockStoryApi(page);
+  await page.goto('/');
+  await expect(page.locator('#root')).toBeVisible();
+
+  await clickNewStory(page);
+  await saveStorySettings(page, {
+    background: 'Branch and rollback control checks',
+  });
+  await sendChatMessage(page, 'Generate variant baseline.');
+  await expect(page.getByText(/Turn 1:/)).toBeVisible({ timeout: 15_000 });
+
+  await page.getByRole('button', { name: 'Rollback' }).click();
+  await expect(page.getByText('Variant Diff')).toBeVisible();
+  await page
+    .getByRole('dialog', { name: 'variant-diff-panel' })
+    .getByRole('button', { name: 'Close' })
+    .click();
+  await expect(page.getByText('Variant Diff')).not.toBeVisible();
 });
 

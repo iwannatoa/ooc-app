@@ -34,9 +34,9 @@ This document captures operational safety practices for local desktop + sidecar 
 - Correlation headers use `X-OOC-Profile-Id` and `X-OOC-Client-Request-Id`; if you override `CORS_ALLOW_HEADERS`, keep both values.
 - Diagnostic bundles must persist only profile fingerprints (hashed/shortened), never raw profile identifiers.
 
-## Attachments, multimodal, and backups (in progress)
+## Attachments, multimodal, and backups
 
-These areas are still being productized; before changing behavior, align with [`todo.md`](../todo.md) and the HTTP contract notes under [`architecture.md`](./architecture.md).
+Before changing behavior, align with the HTTP contract notes under [`architecture.md`](./architecture.md) and the automated tests referenced in [`testing.md`](./testing.md).
 
 - **Attachments**: define allowlists for MIME types/extensions, per-file size, count per request, and retention; store files under an isolated path under the user data root, not arbitrary filesystem locations.
 - **Diagnostic bundles**: redact or hash filenames, directory paths, and profile identifiers in exports (same spirit as **Logging hygiene** above).

@@ -272,6 +272,10 @@ class TestChatController:
         mock_services['chat_service'].list_savepoints.return_value = [
             {'savepoint_id': 'sp-1'}
         ]
+        mock_services['chat_service'].restore_savepoint.return_value = {
+            'savepoint_id': 'sp-1',
+            'message_id': 12,
+        }
         mock_services['chat_service'].mark_ending.return_value = {
             'ending_tag': 'open_end',
             'conversation_id': 'conv-1',
@@ -297,6 +301,12 @@ class TestChatController:
 
         savepoint_list_resp = client.get('/api/story/savepoint?conversation_id=conv-1')
         assert savepoint_list_resp.status_code == 200
+
+        restore_resp = client.post(
+            '/api/story/savepoint/restore',
+            json={'conversation_id': 'conv-1', 'savepoint_id': 'sp-1'},
+        )
+        assert restore_resp.status_code == 200
 
         ending_resp = client.post(
             '/api/story/ending',
@@ -347,3 +357,70 @@ class TestChatController:
         assert call_kwargs['conversation_id'] == 'conv-1'
         assert isinstance(call_kwargs['message_parts'], list)
         assert any(part.get('asset_ref') == 'att-1' for part in call_kwargs['message_parts'])
+
+    def test_export_story_pdf_success(self, client, mock_services):
+        mock_services['app_settings_service'].get_language.return_value = 'en'
+        mock_services['chat_service'].get_conversation.return_value = [
+            {'role': 'assistant', 'content': 'Section one'},
+            {'role': 'assistant', 'content': 'Section two'},
+        ]
+        response = client.post(
+            '/api/export/pdf',
+            json={'conversation_id': 'conv-1', 'title': 'Story'},
+        )
+        assert response.status_code == 200
+        payload = response.get_json()
+        assert payload['success'] is True
+        assert isinstance(payload.get('pdf_base64'), str)
+        assert payload.get('filename', '').endswith('.pdf')
+
+    def test_export_project_bundle_and_validate(self, client, mock_services):
+        mock_services['app_settings_service'].get_language.return_value = 'en'
+        mock_services['conversation_service'].get_settings.return_value = {
+            'conversation_id': 'conv-1',
+            'title': 'Story',
+        }
+        mock_services['story_service'].get_progress.return_value = {
+            'conversation_id': 'conv-1',
+            'current_section': 1,
+        }
+        mock_services['chat_service'].get_conversation.return_value = [
+            {'role': 'assistant', 'content': 'A'},
+        ]
+        export_resp = client.post(
+            '/api/export/project-bundle',
+            json={'conversation_id': 'conv-1'},
+        )
+        assert export_resp.status_code == 200
+        bundle = export_resp.get_json()['bundle']
+
+        validate_resp = client.post(
+            '/api/import/project-bundle/validate',
+            json={'bundle': bundle},
+        )
+        assert validate_resp.status_code == 200
+        assert validate_resp.get_json()['success'] is True
+
+    def test_validate_project_bundle_version_or_integrity_failure(self, client, mock_services):
+        bad_version = client.post(
+            '/api/import/project-bundle/validate',
+            json={'bundle': {'version': 1, 'integrity': {'sha256': 'x'}}},
+        )
+        assert bad_version.status_code == 400
+        assert bad_version.get_json()['code'] == 'BUNDLE_ERR_VERSION_MISMATCH'
+
+        bad_integrity = client.post(
+            '/api/import/project-bundle/validate',
+            json={
+                'bundle': {
+                    'version': 3,
+                    'conversation_id': 'conv-1',
+                    'settings': {},
+                    'progress': {},
+                    'messages': [],
+                    'integrity': {'sha256': 'bad'},
+                }
+            },
+        )
+        assert bad_integrity.status_code == 400
+        assert bad_integrity.get_json()['code'] == 'BUNDLE_ERR_INTEGRITY_FAILED'

@@ -66,3 +66,26 @@ def test_with_trace_contains_required_fields():
     assert "summaryVersion" in trace
     assert trace["summaryVersion"] == "v1"
 
+
+def test_with_trace_includes_strategy_snapshot_and_budget_ratio():
+    all_msgs = [{"role": "user", "content": f"line-{i}"} for i in range(30)]
+    _sel, _truncated, _older, trace = select_messages_for_ai_context_with_trace(
+        all_msgs,
+        summary_text=None,
+        summary_version="v2",
+        estimated_system_tokens=100,
+        estimate_tokens=lambda s: len(s),
+        recent_messages_with_summary=6,
+        max_message_history=40,
+        max_context_tokens=10000,
+        effective_budget_ratio=0.6,
+        recent_budget_ratio=0.5,
+        summary_budget_ratio=0.2,
+    )
+    strategy = trace.get("strategy") or {}
+    assert strategy.get("recentMessagesWithSummary") == 6
+    assert strategy.get("maxMessageHistory") == 40
+    assert strategy.get("maxContextTokens") == 10000
+    assert strategy.get("effectiveBudgetRatio") == 0.6
+    assert trace["budgetUsed"]["totalBudget"] == 6000
+

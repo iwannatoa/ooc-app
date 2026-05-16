@@ -455,4 +455,58 @@ describe('ConversationApi', () => {
     const messages = await api.getConversationMessages('1');
     expect(messages[0].id).toMatch(/^msg_/);
   });
+
+  it('should restore story savepoint', async () => {
+    vi.mocked(global.fetch).mockResolvedValue(
+      createMockResponse({
+        ok: true,
+        json: async () => createMockSuccessResponse(),
+      })
+    );
+    const result = await api.restoreStorySavepoint('conv-1', 'sp-1');
+    expect(result).toBe(true);
+  });
+
+  it('should export story pdf', async () => {
+    vi.mocked(global.fetch).mockResolvedValue(
+      createMockResponse({
+        ok: true,
+        json: async () => ({
+          success: true,
+          pdf_base64: 'UERG',
+          filename: 'story.pdf',
+        }),
+      })
+    );
+    const result = await api.exportStoryPdf('conv-1', 'Story');
+    expect(result.pdf_base64).toBe('UERG');
+    expect(result.filename).toBe('story.pdf');
+  });
+
+  it('should export project bundle', async () => {
+    vi.mocked(global.fetch).mockResolvedValue(
+      createMockResponse({
+        ok: true,
+        json: async () => ({
+          success: true,
+          bundle: { version: 3, messages: [] },
+          filename: 'bundle.json',
+        }),
+      })
+    );
+    const result = await api.exportProjectBundle('conv-1', 'Story');
+    expect(result.bundle.version).toBe(3);
+    expect(result.filename).toBe('bundle.json');
+  });
+
+  it('should validate project bundle', async () => {
+    vi.mocked(global.fetch).mockResolvedValue(
+      createMockResponse({
+        ok: true,
+        json: async () => ({ success: true, valid: true }),
+      })
+    );
+    const result = await api.validateProjectBundle({ version: 3 });
+    expect(result).toBe(true);
+  });
 });
