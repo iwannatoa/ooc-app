@@ -31,6 +31,8 @@ This document captures operational safety practices for local desktop + sidecar 
 - Log enough context for diagnostics, but never tokens or credentials.
 - Prefer structured, actionable error messages over noisy stack dumps in user flows.
 - Keep debug-level verbosity bounded in production builds.
+- Correlation headers use `X-OOC-Profile-Id` and `X-OOC-Client-Request-Id`; if you override `CORS_ALLOW_HEADERS`, keep both values.
+- Diagnostic bundles must persist only profile fingerprints (hashed/shortened), never raw profile identifiers.
 
 ## Attachments, multimodal, and backups (in progress)
 

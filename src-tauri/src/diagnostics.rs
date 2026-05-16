@@ -33,6 +33,16 @@ fn redact_path(p: &str) -> String {
     s
 }
 
+fn redact_sensitive_text(input: &str) -> String {
+    let mut redacted = redact_path(input);
+    redacted = redacted.replace("C:\\Users\\", "C:\\Users\\<redacted>\\");
+    redacted = redacted.replace("/Users/", "/Users/<redacted>/");
+    redacted = redacted.replace("/home/", "/home/<redacted>/");
+    redacted = redacted.replace("Bearer ", "Bearer <redacted>");
+    redacted = redacted.replace("sk-", "sk-<redacted>");
+    redacted
+}
+
 fn read_tail_bytes(path: &Path, max: usize) -> Option<Vec<u8>> {
     let mut f = File::open(path).ok()?;
     let len = f.metadata().ok()?.len() as usize;
@@ -51,6 +61,7 @@ struct DiagnosticMeta {
     timestamp_unix: u64,
     database_path_redacted: Option<String>,
     port_file_contents: Option<String>,
+    profile_fingerprint: Option<String>,
 }
 
 /// Build `ooc-diagnostics.zip` at `zip_path` (parent must exist).
@@ -58,6 +69,7 @@ struct DiagnosticMeta {
 pub async fn export_diagnostic_bundle(
     app_handle: AppHandle,
     zip_path: String,
+    profile_fingerprint: Option<String>,
 ) -> Result<String, String> {
     let zip_path = PathBuf::from(zip_path);
     if let Some(parent) = zip_path.parent() {
@@ -79,7 +91,9 @@ pub async fn export_diagnostic_bundle(
         .map(|d| d.join("chat.db").to_string_lossy().into_owned());
 
     let port_file = app_data.join("port.txt");
-    let port_contents = std::fs::read_to_string(&port_file).ok();
+    let port_contents = std::fs::read_to_string(&port_file)
+        .ok()
+        .map(|raw| redact_sensitive_text(&raw));
 
     let meta = DiagnosticMeta {
         app_version: env!("CARGO_PKG_VERSION").to_string(),
@@ -91,6 +105,7 @@ pub async fn export_diagnostic_bundle(
             .unwrap_or(0),
         database_path_redacted: db_path.as_ref().map(|p| redact_path(p)),
         port_file_contents: port_contents.clone(),
+        profile_fingerprint,
     };
 
     let json = serde_json::to_string_pretty(&meta).map_err(|e| e.to_string())?;
@@ -105,12 +120,23 @@ pub async fn export_diagnostic_bundle(
     }
 
     let log_dir = app_data.join("logs");
-    let log_file = log_dir.join("rust_error.log");
-    if log_file.is_file() {
-        if let Some(tail) = read_tail_bytes(&log_file, 256 * 1024) {
+    let rust_log_file = log_dir.join("rust_error.log");
+    if rust_log_file.is_file() {
+        if let Some(tail) = read_tail_bytes(&rust_log_file, 256 * 1024) {
             zip.start_file("logs/rust_error.tail.log", opts)
                 .map_err(|e| e.to_string())?;
             zip.write_all(&tail).map_err(|e| e.to_string())?;
+        }
+    }
+
+    let python_log_file = log_dir.join("python_error.log");
+    if python_log_file.is_file() {
+        if let Some(tail) = read_tail_bytes(&python_log_file, 256 * 1024) {
+            let redacted_tail = redact_sensitive_text(&String::from_utf8_lossy(&tail));
+            zip.start_file("logs/python_error.tail.log", opts)
+                .map_err(|e| e.to_string())?;
+            zip.write_all(redacted_tail.as_bytes())
+                .map_err(|e| e.to_string())?;
         }
     }
 

@@ -37,6 +37,18 @@ export class StoryApi extends BaseApiClient {
     this.settings = settings;
   }
 
+  protected getCorrelationHeaders(
+    method: string,
+    endpoint: string
+  ): Record<string, string> {
+    const headers = super.getCorrelationHeaders(method, endpoint);
+    const profileId = this.settings.activeProfileId?.trim();
+    if (profileId) {
+      headers['X-OOC-Profile-Id'] = profileId;
+    }
+    return headers;
+  }
+
   /**
    * Generate story (streaming)
    */

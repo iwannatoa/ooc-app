@@ -12,25 +12,22 @@
 
 以下顺序满足「前置项在序号更靠前」；**同序号内可并行**（无箭头相连即互不阻塞）。最后一条 `REQ-QA-002` 为质量门禁，在各域具备可测功能后持续扩充用例。
 
-| 顺序 | REQ | 状态 | 说明 |
-| ---: | --- | --- | --- |
-| 1 | `REQ-AI-003` | Completed | Provider 能力矩阵接入运行时，为多模态降级与测试分叉打底。 |
-| 1 | `REQ-QA-001` | Completed | 长列表性能与动态高度，可与 `REQ-AI-003` 并行，减轻后续叙事/附件联调成本。 |
-| 2 | `REQ-OBS-001` | Pending | 统一日志字段与诊断脱敏，先于重度数据导出/备份向导落地更安全。 |
-| 3 | `REQ-DAT-001` | Pending | Profile 级数据根路径隔离，为加密包与 bundle 路径语义奠基。 |
-| 4 | `REQ-DAT-002` | Pending | 备份/恢复向导与加密包（依赖稳定路径与脱敏策略）。 |
-| 5 | `REQ-AI-002` | Pending | Multimodal 全链路（依赖能力矩阵已生效）。 |
-| 6 | `REQ-AI-001` | Pending | Context trace 与策略调节（依赖多模态/请求链路上下文已稳定时收益最大）。 |
-| 7 | `REQ-NAR-005` | Pending | Genre presets 一键应用（可与 `REQ-NAR-001` 并行，便于测试分块）。 |
-| 7 | `REQ-NAR-001` | Pending | 分支树与 savepoint 恢复闭环。 |
-| 8 | `REQ-NAR-002` | Pending | 变体 diff 与显式回滚（依赖分支/版本数据模型稳定）。 |
-| 9 | `REQ-NAR-003` | Pending | 服务端 PDF 导出。 |
-| 10 | `REQ-NAR-004` | Pending | 服务端 project bundle 与校验矩阵（依赖 profile 路径与观测脱敏）。 |
-| 11 | `REQ-A11Y-001` | Pending | a11y 与 axe/Playwright 扩面（在主要 UI 变更收敛后集中收口）。 |
-| 12 | `REQ-QA-002` | Pending | 关键路径 E2E + 迁移 dry-run/down 演练，持续集成直至发布门禁。 |
+**执行列表（checkbox；同编号可并行）**
 
-**分组队列（同编号可并行，复制到看板可按组展开）**  
-`[1] REQ-AI-003 + REQ-QA-001` → `[2] REQ-OBS-001` → `[3] REQ-DAT-001` → `[4] REQ-DAT-002` → `[5] REQ-AI-002` → `[6] REQ-AI-001` → `[7] REQ-NAR-005 + REQ-NAR-001` → `[8] REQ-NAR-002` → `[9] REQ-NAR-003` → `[10] REQ-NAR-004` → `[11] REQ-A11Y-001` → `[12] REQ-QA-002`
+- [x] `[1] REQ-AI-003`：Provider 能力矩阵接入运行时，为多模态降级与测试分叉打底。
+- [x] `[1] REQ-QA-001`：长列表性能与动态高度，可与 `REQ-AI-003` 并行，减轻后续叙事/附件联调成本。
+- [x] `[2] REQ-OBS-001`：统一日志字段与诊断脱敏，先于重度数据导出/备份向导落地更安全。
+- [ ] `[3] REQ-DAT-001`：Profile 级数据根路径隔离，为加密包与 bundle 路径语义奠基。
+- [ ] `[4] REQ-DAT-002`：备份/恢复向导与加密包（依赖稳定路径与脱敏策略）。
+- [ ] `[5] REQ-AI-002`：Multimodal 全链路（依赖能力矩阵已生效）。
+- [ ] `[6] REQ-AI-001`：Context trace 与策略调节（依赖多模态/请求链路上下文已稳定时收益最大）。
+- [ ] `[7] REQ-NAR-005`：Genre presets 一键应用（可与 `REQ-NAR-001` 并行，便于测试分块）。
+- [ ] `[7] REQ-NAR-001`：分支树与 savepoint 恢复闭环。
+- [ ] `[8] REQ-NAR-002`：变体 diff 与显式回滚（依赖分支/版本数据模型稳定）。
+- [ ] `[9] REQ-NAR-003`：服务端 PDF 导出。
+- [ ] `[10] REQ-NAR-004`：服务端 project bundle 与校验矩阵（依赖 profile 路径与观测脱敏）。
+- [ ] `[11] REQ-A11Y-001`：a11y 与 axe/Playwright 扩面（在主要 UI 变更收敛后集中收口）。
+- [ ] `[12] REQ-QA-002`：关键路径 E2E + 迁移 dry-run/down 演练，持续集成直至发布门禁。
 
 ## 1. 叙事体验（Narrative）
 

@@ -68,4 +68,32 @@ describe('DataSettings', () => {
 
     confirmSpy.mockRestore();
   });
+
+  it('exports diagnostics with profile fingerprint', async () => {
+    // @ts-expect-error test-only runtime flag
+    window.__TAURI_INTERNALS__ = {};
+    mockSave.mockResolvedValue('C:/tmp/ooc-diagnostics.zip');
+    mockInvoke.mockResolvedValue('ok');
+
+    renderWithProviders(<DataSettings />, {
+      initialState: {
+        settings: {
+          settings: {
+            activeProfileId: 'profile-a',
+          },
+        },
+      },
+    });
+    fireEvent.click(screen.getByText('settingsPanel.dataExportDiagnostics'));
+
+    await waitFor(() => {
+      expect(mockInvoke).toHaveBeenCalledWith(
+        'export_diagnostic_bundle',
+        expect.objectContaining({
+          zipPath: 'C:/tmp/ooc-diagnostics.zip',
+          profileFingerprint: expect.any(String),
+        })
+      );
+    });
+  });
 });

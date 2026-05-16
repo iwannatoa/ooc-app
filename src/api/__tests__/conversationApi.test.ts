@@ -20,6 +20,7 @@ vi.mock('@/mock/routes', () => ({
 }));
 
 import { ConversationApi } from '../conversationApi';
+import { DEFAULT_SETTINGS } from '@/types/constants';
 import {
   createMockResponse,
   createMockReadableStream,
@@ -43,7 +44,11 @@ describe('ConversationApi', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     global.fetch = vi.fn();
-    api = new ConversationApi(mockGetApiUrl, mockT);
+    api = new ConversationApi(
+      mockGetApiUrl,
+      mockT,
+      { ...DEFAULT_SETTINGS, activeProfileId: 'profile-test' }
+    );
   });
 
   it('should get conversations list', async () => {
@@ -57,6 +62,10 @@ describe('ConversationApi', () => {
     const conversations = await api.getConversationsList();
     expect(conversations).toHaveLength(1);
     expect(conversations[0].id).toBe('1');
+    const headers = vi.mocked(global.fetch).mock.calls[0][1]
+      ?.headers as Record<string, string>;
+    expect(headers['X-OOC-Profile-Id']).toBe('profile-test');
+    expect(headers['X-OOC-Client-Request-Id']).toBeTruthy();
   });
 
   it('should get conversation settings', async () => {

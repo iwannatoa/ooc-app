@@ -95,6 +95,23 @@ export const resetRuntimeTokenForTest = (): void => {
   resetRuntimeToken();
 };
 
+const normalizeHeaders = (extra?: HeadersInit): Record<string, string> => {
+  if (!extra) {
+    return {};
+  }
+  if (extra instanceof Headers) {
+    const normalized: Record<string, string> = {};
+    extra.forEach((v, k) => {
+      normalized[k] = v;
+    });
+    return normalized;
+  }
+  if (Array.isArray(extra)) {
+    return Object.fromEntries(extra);
+  }
+  return { ...(extra as Record<string, string>) };
+};
+
 async function buildAuthHeaders(
   extra?: HeadersInit
 ): Promise<Record<string, string>> {
@@ -103,22 +120,7 @@ async function buildAuthHeaders(
   if (token) {
     base.Authorization = `Bearer ${token}`;
   }
-  if (!extra) {
-    return base;
-  }
-  if (extra instanceof Headers) {
-    extra.forEach((v, k) => {
-      base[k] = v;
-    });
-    return base;
-  }
-  if (Array.isArray(extra)) {
-    for (const [k, v] of extra) {
-      base[k] = v;
-    }
-    return base;
-  }
-  return { ...base, ...(extra as Record<string, string>) };
+  return { ...base, ...normalizeHeaders(extra) };
 }
 
 /**
@@ -134,6 +136,18 @@ export class BaseApiClient {
   ) {
     this.getApiUrl = getApiUrl;
     this.defaultTimeout = defaultTimeout;
+  }
+
+  protected getCorrelationHeaders(
+    _method: string,
+    _endpoint: string
+  ): Record<string, string> {
+    const clientRequestId =
+      globalThis.crypto?.randomUUID?.() ??
+      `req-${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
+    return {
+      'X-OOC-Client-Request-Id': clientRequestId,
+    };
   }
 
   /**
@@ -166,6 +180,12 @@ export class BaseApiClient {
     const baseUrl = await this.getApiUrl();
     const url = `${baseUrl}${endpoint}`;
     const method = (fetchConfig.method || 'GET').toUpperCase();
+    const requestHeaders = normalizeHeaders(fetchConfig.headers);
+    const correlationHeaders = this.getCorrelationHeaders(method, endpoint);
+    const mergedHeaders = {
+      ...correlationHeaders,
+      ...requestHeaders,
+    };
 
     // Create abort controller for timeout
     const controller = new AbortController();
@@ -174,7 +194,7 @@ export class BaseApiClient {
     try {
       let response = await fetch(url, {
         ...fetchConfig,
-        headers: await buildAuthHeaders(fetchConfig.headers),
+        headers: await buildAuthHeaders(mergedHeaders),
         signal: controller.signal,
       });
 
@@ -182,7 +202,7 @@ export class BaseApiClient {
         resetRuntimeToken();
         response = await fetch(url, {
           ...fetchConfig,
-          headers: await buildAuthHeaders(fetchConfig.headers),
+          headers: await buildAuthHeaders(mergedHeaders),
           signal: controller.signal,
         });
       }
@@ -348,13 +368,17 @@ export class BaseApiClient {
     // Get base URL
     const baseUrl = await this.getApiUrl();
     const url = `${baseUrl}${endpoint}`;
+    const requestHeaders = normalizeHeaders(config.headers);
+    const correlationHeaders = this.getCorrelationHeaders('POST', endpoint);
+    const mergedHeaders = {
+      'Content-Type': 'application/json',
+      ...correlationHeaders,
+      ...requestHeaders,
+    };
 
     let response = await fetch(url, {
       method: 'POST',
-      headers: await buildAuthHeaders({
-        'Content-Type': 'application/json',
-        ...((config.headers as Record<string, string>) || {}),
-      }),
+      headers: await buildAuthHeaders(mergedHeaders),
       body: JSON.stringify(body),
     });
 
@@ -362,10 +386,7 @@ export class BaseApiClient {
       resetRuntimeToken();
       response = await fetch(url, {
         method: 'POST',
-        headers: await buildAuthHeaders({
-          'Content-Type': 'application/json',
-          ...((config.headers as Record<string, string>) || {}),
-        }),
+        headers: await buildAuthHeaders(mergedHeaders),
         body: JSON.stringify(body),
       });
     }

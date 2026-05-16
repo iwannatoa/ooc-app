@@ -14,6 +14,7 @@
 import { BaseApiClient } from './base';
 import type { GetApiUrlFn } from './base';
 import {
+  AppSettings,
   ConversationWithSettings,
   ConversationSettings,
   ConversationSummary,
@@ -76,10 +77,24 @@ export interface StoryEnding {
 
 export class ConversationApi extends BaseApiClient {
   private t: TranslationFn;
+  private settings: AppSettings;
 
-  constructor(getApiUrl: GetApiUrlFn, t: TranslationFn) {
+  constructor(getApiUrl: GetApiUrlFn, t: TranslationFn, settings: AppSettings) {
     super(getApiUrl);
     this.t = t;
+    this.settings = settings;
+  }
+
+  protected getCorrelationHeaders(
+    method: string,
+    endpoint: string
+  ): Record<string, string> {
+    const headers = super.getCorrelationHeaders(method, endpoint);
+    const profileId = this.settings.activeProfileId?.trim();
+    if (profileId) {
+      headers['X-OOC-Profile-Id'] = profileId;
+    }
+    return headers;
   }
 
   /**

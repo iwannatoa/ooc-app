@@ -55,6 +55,7 @@ from infrastructure.schema_migrations import apply_schema_migrations
 from repository.character_record_repository import apply_character_record_migrations
 from repository.conversation_repository import apply_conversation_settings_migrations
 from middleware.api_auth import register_api_auth
+from middleware.request_context import register_request_context
 from utils.db_path import get_database_path
 from utils.logger import setup_logger
 from di.module import AppModule
@@ -102,6 +103,7 @@ if config.CORS_ENABLED and config.CORS_ORIGINS:
                 'origins': list(config.CORS_ORIGINS),
                 'methods': list(config.CORS_ALLOW_METHODS),
                 'allow_headers': list(config.CORS_ALLOW_HEADERS),
+                'expose_headers': list(config.CORS_EXPOSE_HEADERS),
                 'supports_credentials': True,
             }
         },
@@ -113,6 +115,7 @@ elif config.CORS_ENABLED:
 app.config['MAX_CONTENT_LENGTH'] = config.MAX_CONTENT_LENGTH
 
 register_api_auth(app)
+register_request_context(app)
 
 injector = FlaskInjector(app=app, modules=[AppModule()])
 

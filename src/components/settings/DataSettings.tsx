@@ -5,14 +5,43 @@ import React, { useCallback, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { open, save } from '@tauri-apps/plugin-dialog';
 import { useI18n } from '@/i18n/i18n';
+import { useSettingsState } from '@/hooks/useSettingsState';
 import styles from './SettingsPanel.module.scss';
 
 function isTauriRuntime(): boolean {
   return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 }
 
+const hashProfileId = async (profileId?: string): Promise<string | undefined> => {
+  if (!profileId) {
+    return undefined;
+  }
+  const normalized = profileId.trim();
+  if (!normalized) {
+    return undefined;
+  }
+  const subtle = globalThis.crypto?.subtle;
+  if (subtle) {
+    const payload = new TextEncoder().encode(normalized);
+    const digest = await subtle.digest('SHA-256', payload);
+    const hex = Array.from(new Uint8Array(digest))
+      .map((byte) => byte.toString(16).padStart(2, '0'))
+      .join('');
+    return hex.slice(0, 12);
+  }
+
+  let hash = 2166136261;
+  for (const char of normalized) {
+    hash ^= char.charCodeAt(0);
+    hash +=
+      (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);
+  }
+  return (hash >>> 0).toString(16).padStart(8, '0');
+};
+
 export const DataSettings: React.FC = () => {
   const { t } = useI18n();
+  const { settings } = useSettingsState();
   const [busy, setBusy] = useState(false);
   const [hint, setHint] = useState<string | null>(null);
   const [releaseNotes, setReleaseNotes] = useState<string | null>(null);
@@ -30,14 +59,18 @@ export const DataSettings: React.FC = () => {
     if (!path) return;
     setBusy(true);
     try {
-      await invoke<string>('export_diagnostic_bundle', { zipPath: path });
+      const profileFingerprint = await hashProfileId(settings.activeProfileId);
+      await invoke<string>('export_diagnostic_bundle', {
+        zipPath: path,
+        profileFingerprint,
+      });
       setHint(t('settingsPanel.dataDiagnosticsSaved'));
     } catch (e) {
       setHint(String(e));
     } finally {
       setBusy(false);
     }
-  }, [t]);
+  }, [settings.activeProfileId, t]);
 
   const onBackupDb = useCallback(async () => {
     setHint(null);

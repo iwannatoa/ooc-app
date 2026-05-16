@@ -26,7 +26,13 @@ class Config:
         os.getenv('CORS_ALLOW_METHODS', 'GET,POST,PUT,PATCH,DELETE,OPTIONS')
     )
     CORS_ALLOW_HEADERS: Tuple[str, ...] = _parse_csv(
-        os.getenv('CORS_ALLOW_HEADERS', 'Content-Type,Authorization')
+        os.getenv(
+            'CORS_ALLOW_HEADERS',
+            'Content-Type,Authorization,X-OOC-Profile-Id,X-OOC-Client-Request-Id',
+        )
+    )
+    CORS_EXPOSE_HEADERS: Tuple[str, ...] = _parse_csv(
+        os.getenv('CORS_EXPOSE_HEADERS', 'X-OOC-Request-Id')
     )
 
     # API Bearer token (optional). If set, all /api/* except exempt paths require
@@ -72,7 +78,11 @@ class Config:
     
     # Logging configuration
     LOG_LEVEL: str = os.getenv('LOG_LEVEL', 'INFO')
-    LOG_FORMAT: str = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    LOG_FORMAT: str = (
+        '%(asctime)s - %(name)s - %(levelname)s - '
+        'rid=%(request_id)s cid=%(conversation_id)s '
+        'pid=%(profile_id)s crid=%(client_request_id)s - %(message)s'
+    )
     
     # API configuration
     API_PREFIX: str = '/api'

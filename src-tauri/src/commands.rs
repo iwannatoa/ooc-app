@@ -8,6 +8,15 @@ use crate::python_lifecycle::run_start_python_server;
 pub use crate::python_lifecycle::stop_python_server_internal;
 pub use crate::python_server::PythonServer;
 
+fn redact_frontend_message(message: &str) -> String {
+    let mut redacted = message.replace("Bearer ", "Bearer <redacted>");
+    redacted = redacted.replace("sk-", "sk-<redacted>");
+    redacted = redacted.replace("C:\\Users\\", "C:\\Users\\<redacted>\\");
+    redacted = redacted.replace("/Users/", "/Users/<redacted>/");
+    redacted = redacted.replace("/home/", "/home/<redacted>/");
+    redacted
+}
+
 fn read_port_from_file(app_handle: &AppHandle) -> Option<u16> {
     let port_file = app_handle.path().app_data_dir().ok()?.join("port.txt");
     let port_str = std::fs::read_to_string(port_file).ok()?;
@@ -256,7 +265,8 @@ pub async fn check_python_server_status(
 pub fn frontend_log(level: String, message: String) -> Result<ApiResponse<String>, String> {
     let normalized_level = level.trim().to_ascii_lowercase();
     let bounded_message: String = message.chars().take(12000).collect();
-    let formatted = format!("[FRONTEND_{}] {}", normalized_level, bounded_message);
+    let redacted_message = redact_frontend_message(&bounded_message);
+    let formatted = format!("[FRONTEND_{}] {}", normalized_level, redacted_message);
 
     if normalized_level == "error" {
         eprintln!("{}", formatted);

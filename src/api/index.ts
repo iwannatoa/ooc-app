@@ -47,7 +47,7 @@ export class ApiClientFactory {
    * Create conversation API client
    */
   createConversationApi(): ConversationApi {
-    return new ConversationApi(this.getApiUrl, this.t);
+    return new ConversationApi(this.getApiUrl, this.t, this.settings);
   }
 
   /**
