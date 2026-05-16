@@ -15,6 +15,7 @@ import { BaseApiClient } from './base';
 import type { GetApiUrlFn } from './base';
 import {
   AppSettings,
+  ChatAttachment,
   ConversationWithSettings,
   ConversationSettings,
   ConversationSummary,
@@ -40,6 +41,10 @@ interface ConversationMessageRow {
   content: string;
   created_at?: string;
   id?: string | number;
+  content_type?: 'text' | 'multimodal';
+  attachments?: ChatAttachment[];
+  parts?: ChatMessage['parts'];
+  provider_capability_notice?: string;
 }
 
 export type TranslationFn = (
@@ -198,6 +203,10 @@ export class ConversationApi extends BaseApiClient {
         ? new Date(msg.created_at).getTime()
         : Date.now(),
       id: msg.id?.toString() || `msg_${Date.now()}_${Math.random()}`,
+      contentType: msg.content_type,
+      attachments: msg.attachments,
+      parts: msg.parts,
+      providerCapabilityNotice: msg.provider_capability_notice,
     }));
   }
 

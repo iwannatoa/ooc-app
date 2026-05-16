@@ -104,3 +104,21 @@ def get_story_library_dir(
     _ = profile_id or get_active_profile_id()
     return get_app_data_dir() / 'story-library'
 
+
+def get_attachment_dir(
+    profile_id: Optional[str] = None,
+    attachment_path: Optional[str] = None,
+) -> Path:
+    """
+    Get attachment directory for active profile.
+    """
+    configured = (attachment_path or os.getenv('ATTACHMENT_PATH', '')).strip()
+    if configured:
+        configured_path = Path(configured)
+        if configured_path.is_absolute():
+            return configured_path
+        return get_app_data_dir() / configured_path
+
+    _ = profile_id or get_active_profile_id()
+    return get_app_data_dir() / 'attachments'
+

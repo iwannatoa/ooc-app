@@ -7,6 +7,13 @@ interface MockMessage {
   role: Role;
   content: string;
   created_at: string;
+  attachments?: Array<{
+    type: 'image' | 'file';
+    name: string;
+    mimeType?: string;
+    sizeBytes?: number;
+    status?: string;
+  }>;
 }
 
 interface MockConversation {
@@ -62,7 +69,24 @@ const readBody = (route: Route): Record<string, unknown> => {
   try {
     return route.request().postDataJSON() as Record<string, unknown>;
   } catch {
-    return {};
+    const raw = route.request().postData() || '';
+    if (!raw) {
+      return {};
+    }
+    const fields = ['conversation_id', 'message', 'provider', 'model', 'input_mode'];
+    const parsed: Record<string, unknown> = {};
+    for (const field of fields) {
+      const regex = new RegExp(`name="${field}"\\r\\n\\r\\n([\\s\\S]*?)\\r\\n`, 'm');
+      const match = raw.match(regex);
+      if (match && match[1] !== undefined) {
+        parsed[field] = match[1];
+      }
+    }
+    const fileNames = [...raw.matchAll(/filename="([^"]+)"/g)].map((m) => m[1]);
+    if (fileNames.length > 0) {
+      parsed._file_names = fileNames;
+    }
+    return parsed;
   }
 };
 
@@ -258,6 +282,7 @@ export const installMockStoryApi = async (page: Page): Promise<MockApiState> => 
           role: msg.role,
           content: msg.content,
           created_at: msg.created_at,
+          attachments: msg.attachments,
         })),
       });
       return;
@@ -288,6 +313,15 @@ export const installMockStoryApi = async (page: Page): Promise<MockApiState> => 
         role: 'user',
         content: userText,
         created_at: nowIso(),
+        attachments: Array.isArray(body._file_names)
+          ? (body._file_names as string[]).map((name) => ({
+              type: name.toLowerCase().match(/\.(png|jpg|jpeg|gif|webp)$/)
+                ? 'image'
+                : 'file',
+              name,
+              status: 'uploaded',
+            }))
+          : undefined,
       };
       const assistantMessage: MockMessage = {
         id: `a-${Date.now()}-${turn}`,

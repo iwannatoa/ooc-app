@@ -1,11 +1,13 @@
 """
 Chat orchestration service layer
 """
-from typing import Optional, Dict
+from typing import Optional, Dict, List
 import uuid
+import json
 
 from infrastructure.database import unit_of_work
 from service.ai_service import AIService
+from service.attachment_storage_service import AttachmentStorageService
 from service.chat_service import ChatService
 from service.ai_config_service import AIConfigService
 from service.conversation_service import ConversationService
@@ -22,6 +24,7 @@ class ChatOrchestrationService:
     def __init__(
         self,
         ai_service: AIService,
+        attachment_storage_service: AttachmentStorageService,
         chat_service: ChatService,
         ai_config_service: AIConfigService,
         conversation_service: ConversationService,
@@ -35,6 +38,7 @@ class ChatOrchestrationService:
             ai_config_service: AI config service instance
         """
         self.ai_service = ai_service
+        self.attachment_storage_service = attachment_storage_service
         self.chat_service = chat_service
         self.ai_config_service = ai_config_service
         self.conversation_service = conversation_service
@@ -81,6 +85,7 @@ class ChatOrchestrationService:
         model: Optional[str] = None,
         content_type: str = 'text',
         attachment_ref: Optional[str] = None,
+        message_parts: Optional[List[Dict]] = None,
         language: str = 'en',
     ) -> Dict:
         """
@@ -119,6 +124,7 @@ class ChatOrchestrationService:
             max_tokens=api_config['max_tokens'],
             temperature=api_config['temperature'],
             stop_words=api_config.get('stop_words'),
+            message_parts=message_parts,
         )
         
         if result.get('success'):
@@ -127,13 +133,21 @@ class ChatOrchestrationService:
                 clean_content = strip_think_content(response_content)
 
                 with unit_of_work() as session:
-                    self.chat_service.save_user_message(
+                    user_message = self.chat_service.save_user_message(
                         conversation_id=conversation_id,
                         message=message,
                         content_type=content_type,
                         attachment_ref=attachment_ref,
                         session=session,
                     )
+                    asset_refs = _extract_asset_refs(attachment_ref)
+                    if asset_refs:
+                        self.attachment_storage_service.attach_to_message(
+                            asset_refs=asset_refs,
+                            message_id=int(user_message['id']),
+                            conversation_id=conversation_id,
+                            session=session,
+                        )
                     self.chat_service.save_assistant_message(
                         conversation_id=conversation_id,
                         content=clean_content,
@@ -159,4 +173,23 @@ class ChatOrchestrationService:
                 )
 
         return result
+
+
+def _extract_asset_refs(attachment_ref: Optional[str]) -> List[str]:
+    if not attachment_ref:
+        return []
+    try:
+        payload = json.loads(attachment_ref)
+    except Exception:
+        return []
+    if not isinstance(payload, list):
+        return []
+    refs: List[str] = []
+    for item in payload:
+        if not isinstance(item, dict):
+            continue
+        asset_ref = str(item.get('asset_ref') or '').strip()
+        if asset_ref:
+            refs.append(asset_ref)
+    return refs
 

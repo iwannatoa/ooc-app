@@ -44,4 +44,33 @@ describe('ChatInput', () => {
     });
     expect((input as HTMLInputElement).value).toBe('');
   });
+
+  it('includes selected files in message parts', async () => {
+    handleSendMessage.mockResolvedValueOnce(undefined);
+    render(<ChatInput />);
+    const input = screen.getByPlaceholderText('Type message');
+    const fileInput = screen.getByLabelText('chat-attachments');
+    const file = new File(['binary'], 'photo.png', { type: 'image/png' });
+
+    fireEvent.change(fileInput, { target: { files: [file] } });
+    fireEvent.change(input, { target: { value: 'with file' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+
+    await waitFor(() => {
+      expect(handleSendMessage).toHaveBeenCalledWith(
+        'with file',
+        expect.objectContaining({
+          messageParts: expect.arrayContaining([
+            expect.objectContaining({ type: 'text', content: 'with file' }),
+            expect.objectContaining({
+              type: 'image',
+              name: 'photo.png',
+              mimeType: 'image/png',
+              localFile: file,
+            }),
+          ]),
+        })
+      );
+    });
+  });
 });

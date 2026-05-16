@@ -20,7 +20,7 @@ from utils.logger import get_logger
 logger = get_logger(__name__)
 
 # Application code: increment when you add a new tuple to SCHEMA_MIGRATIONS.
-SCHEMA_USER_VERSION: int = 3
+SCHEMA_USER_VERSION: int = 4
 
 
 def get_schema_user_version(engine: Engine) -> int:
@@ -95,6 +95,7 @@ SCHEMA_MIGRATIONS: List[Tuple[int, Callable[[Engine], None]]] = [
     (1, apply_legacy_sqlite_index_migrations),
     (2, apply_chat_record_lineage_columns),
     (3, lambda engine: apply_phase_a_contract_migrations(engine)),
+    (4, lambda engine: apply_chat_attachment_migrations(engine)),
 ]
 
 
@@ -240,3 +241,37 @@ def apply_schema_migrations(engine: Optional[Engine] = None) -> None:
             migrate_fn(engine)
             set_schema_user_version(engine, target_ver)
             current = target_ver
+
+
+def apply_chat_attachment_migrations(engine: Engine) -> None:
+    """Add chat_attachments table and indexes."""
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "CREATE TABLE IF NOT EXISTS chat_attachments ("
+                "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                "conversation_id TEXT NOT NULL,"
+                "message_id INTEGER,"
+                "profile_id TEXT NOT NULL DEFAULT 'default',"
+                "asset_ref TEXT NOT NULL UNIQUE,"
+                "filename TEXT NOT NULL,"
+                "mime_type TEXT NOT NULL,"
+                "size_bytes INTEGER NOT NULL DEFAULT 0,"
+                "storage_path TEXT NOT NULL,"
+                "status TEXT NOT NULL DEFAULT 'uploaded',"
+                "created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP"
+                ")"
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS idx_chat_attachments_conv_msg_created "
+                "ON chat_attachments (conversation_id, message_id, created_at)"
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS idx_chat_attachments_asset_ref "
+                "ON chat_attachments (asset_ref)"
+            )
+        )

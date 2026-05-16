@@ -43,6 +43,7 @@ class AIService:
         system_prompt: Optional[str] = None,
         messages: Optional[list] = None,
         stop_words: Optional[List[str]] = None,
+        message_parts: Optional[List[dict]] = None,
     ) -> Dict:
         """
         Send chat request
@@ -82,6 +83,7 @@ class AIService:
                     system_prompt=system_prompt,
                     messages=messages,
                     stop_words=stop_words,
+                    message_parts=message_parts,
                     ollama_base_url=self.ollama_service.base_url
                     if provider == "ollama"
                     else None,

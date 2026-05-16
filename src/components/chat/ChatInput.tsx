@@ -29,6 +29,7 @@ const ChatInput: React.FC = () => {
         name: file.name,
         mimeType,
         sizeBytes: file.size,
+        localFile: file,
       });
     });
     await handleSendMessage(content, {
@@ -81,6 +82,11 @@ const ChatInput: React.FC = () => {
         disabled={isSending}
         aria-label='chat-attachments'
       />
+      {selectedFiles.length > 0 ? (
+        <span aria-label='attachment-selection'>
+          {selectedFiles.map((file) => file.name).join(', ')}
+        </span>
+      ) : null}
       <button
         type='button'
         onClick={() => void onSubmit()}

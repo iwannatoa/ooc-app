@@ -3,6 +3,7 @@ Unit tests for ChatController.
 """
 import json
 import sys
+import io
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -25,6 +26,7 @@ from service.ai_config_service import AIConfigService
 from service.app_settings_service import AppSettingsService
 from service.conversation_service import ConversationService
 from service.story_service import StoryService
+from service.attachment_storage_service import AttachmentStorageService
 
 
 class TestChatController:
@@ -51,6 +53,7 @@ class TestChatController:
             'app_settings_service': Mock(spec=AppSettingsService),
             'conversation_service': Mock(spec=ConversationService),
             'story_service': Mock(spec=StoryService),
+            'attachment_storage_service': Mock(spec=AttachmentStorageService),
         }
 
     @pytest.fixture
@@ -68,6 +71,7 @@ class TestChatController:
             app_settings_service=mock_services['app_settings_service'],
             conversation_service=mock_services['conversation_service'],
             story_service=mock_services['story_service'],
+            attachment_storage_service=mock_services['attachment_storage_service'],
         )
 
     @pytest.fixture
@@ -302,3 +306,44 @@ class TestChatController:
 
         ending_list_resp = client.get('/api/story/ending?conversation_id=conv-1')
         assert ending_list_resp.status_code == 200
+
+    def test_chat_accepts_multipart_with_uploads(
+        self,
+        client,
+        mock_services,
+    ):
+        mock_services['app_settings_service'].get_language.return_value = 'en'
+        mock_services['attachment_storage_service'].save_uploads.return_value = [
+            {
+                'asset_ref': 'att-1',
+                'filename': 'a.png',
+                'mime_type': 'image/png',
+                'size_bytes': 12,
+                'storage_path': '/tmp/a.png',
+            }
+        ]
+        mock_services['chat_orchestration_service'].process_chat.return_value = {
+            'success': True,
+            'response': 'ok',
+            'model': 'deepseek-chat',
+        }
+
+        response = client.post(
+            '/api/chat',
+            data={
+                'provider': 'deepseek',
+                'model': 'deepseek-chat',
+                'message': 'hello',
+                'conversation_id': 'conv-1',
+                'message_parts': json.dumps([{'type': 'text', 'content': 'hello'}]),
+                'files': (io.BytesIO(b'img'), 'a.png'),
+            },
+            content_type='multipart/form-data',
+        )
+
+        assert response.status_code == 200
+        mock_services['attachment_storage_service'].save_uploads.assert_called_once()
+        call_kwargs = mock_services['chat_orchestration_service'].process_chat.call_args.kwargs
+        assert call_kwargs['conversation_id'] == 'conv-1'
+        assert isinstance(call_kwargs['message_parts'], list)
+        assert any(part.get('asset_ref') == 'att-1' for part in call_kwargs['message_parts'])

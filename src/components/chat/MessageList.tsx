@@ -29,29 +29,29 @@ const MessageList: React.FC = () => {
     Map<string, (element: HTMLDivElement | null) => void>
   >(new Map());
 
-  const aiMessages = useMemo(
-    () =>
-      messages.filter(
-        (msg) => msg.role === 'assistant' || msg.role === 'ai'
-      ),
-    [messages]
-  );
-  const hasMoreHistory = aiMessages.length > visibleCount;
+  const hasMoreHistory = messages.length > visibleCount;
   const visibleMessages = hasMoreHistory
-    ? aiMessages.slice(aiMessages.length - visibleCount)
-    : aiMessages;
+    ? messages.slice(messages.length - visibleCount)
+    : messages;
   const visibleMessageKeys = useMemo(
     () => visibleMessages.map((msg, index) => getMessageKey(index, msg)),
     [visibleMessages]
   );
 
   const lastAssistantScrollKey = useMemo(() => {
+    for (let i = visibleMessages.length - 1; i >= 0; i--) {
+      const m = visibleMessages[i];
+      const len = m.content?.length ?? 0;
+      return `${m.id ?? `i-${i}`}-${len}`;
+    }
+    return '';
+  }, [visibleMessages]);
+
+  const lastMessageKey = useMemo(() => {
     for (let i = messages.length - 1; i >= 0; i--) {
       const m = messages[i];
-      if (m.role === 'assistant' || m.role === 'ai') {
-        const len = m.content?.length ?? 0;
-        return `${m.id ?? `i-${i}`}-${len}`;
-      }
+      const len = m.content?.length ?? 0;
+      return `${m.id ?? `i-${i}`}-${len}`;
     }
     return '';
   }, [messages]);
@@ -64,7 +64,7 @@ const MessageList: React.FC = () => {
       container.scrollTop = container.scrollHeight;
     });
     return () => window.cancelAnimationFrame(rafId);
-  }, [lastAssistantScrollKey, loading, storyOperation]);
+  }, [lastAssistantScrollKey, lastMessageKey, loading, storyOperation]);
 
   useEffect(() => {
     const container = messageListRef.current;

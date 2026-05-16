@@ -31,6 +31,7 @@ class MultimodalNormalizationResult:
     content_type: str
     attachment_ref: str | None
     provider_capability_notice: str | None
+    normalized_parts: list[dict[str, Any]]
 
 
 PROVIDER_CAPABILITIES: Dict[str, ProviderCapability] = {
@@ -168,6 +169,8 @@ def parse_message_parts(
             "name": filename,
             "mime_type": mime_type,
             "size_bytes": part.get('size_bytes') or part.get('size'),
+            "asset_ref": part.get('asset_ref') or part.get('assetRef'),
+            "storage_path": part.get('storage_path') or part.get('storagePath'),
         })
     normalized_text = "\n\n".join(text_parts).strip() or str(message or '').strip()
     return normalized_text, attachment_meta
@@ -198,6 +201,7 @@ def apply_provider_multimodal_policy(
             content_type='text',
             attachment_ref=attachment_ref,
             provider_capability_notice=None,
+            normalized_parts=[],
         )
 
     capability = get_provider_capability(provider or '')
@@ -219,6 +223,15 @@ def apply_provider_multimodal_policy(
             continue
         supported_count += 1
 
+    supported_parts: list[dict[str, Any]] = []
+    for attachment in attachment_meta:
+        modality = _to_modality(str(attachment.get('type') or 'file').strip().lower())
+        if not supports_multimodal or modality not in supported_modalities:
+            continue
+        if max_attachments >= 0 and len(supported_parts) >= max_attachments:
+            continue
+        supported_parts.append(dict(attachment))
+
     if supported_count == len(attachment_meta):
         with_marker = (
             f"{normalized_message}\n\n[Multimodal attachments: {supported_count}]"
@@ -230,6 +243,7 @@ def apply_provider_multimodal_policy(
             content_type='multimodal',
             attachment_ref=attachment_ref,
             provider_capability_notice=None,
+            normalized_parts=supported_parts,
         )
 
     if not supports_multimodal:
@@ -257,5 +271,6 @@ def apply_provider_multimodal_policy(
         content_type='multimodal' if supported_count > 0 else 'text',
         attachment_ref=attachment_ref,
         provider_capability_notice=notice,
+        normalized_parts=supported_parts,
     )
 

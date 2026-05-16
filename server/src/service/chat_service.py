@@ -3,10 +3,12 @@ Chat record service layer
 """
 from typing import List, Optional, Dict, Any
 from uuid import uuid4
+import json
 
 from sqlalchemy.orm import Session
 
 from repository.chat_repository import ChatRepository
+from service.attachment_storage_service import AttachmentStorageService
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -15,7 +17,11 @@ logger = get_logger(__name__)
 class ChatService:
     """Chat record service class"""
     
-    def __init__(self, chat_repository: ChatRepository):
+    def __init__(
+        self,
+        chat_repository: ChatRepository,
+        attachment_storage_service: AttachmentStorageService,
+    ):
         """
         Initialize service
         
@@ -23,6 +29,7 @@ class ChatService:
             chat_repository: Chat record repository instance
         """
         self.repository = chat_repository
+        self.attachment_storage_service = attachment_storage_service
     
     def save_user_message(
         self,
@@ -122,7 +129,50 @@ class ChatService:
             limit=limit,
             offset=offset
         )
-        return [record.to_dict() for record in records]
+        rows = [record.to_dict() for record in records]
+        message_ids = [int(row['id']) for row in rows if row.get('id') is not None]
+        attachments_by_message = self.attachment_storage_service.list_by_message_ids(
+            message_ids
+        )
+        for row in rows:
+            message_id = row.get('id')
+            attachment_items = []
+            if message_id is not None:
+                attachment_rows = attachments_by_message.get(int(message_id), [])
+                attachment_items = [
+                    {
+                        'type': 'image'
+                        if str(att.get('mime_type', '')).startswith('image/')
+                        else 'file',
+                        'name': att.get('filename'),
+                        'mimeType': att.get('mime_type'),
+                        'sizeBytes': att.get('size_bytes'),
+                        'assetRef': att.get('asset_ref'),
+                        'status': att.get('status'),
+                        'storagePath': att.get('storage_path'),
+                    }
+                    for att in attachment_rows
+                ]
+            if not attachment_items:
+                attachment_items = _parse_attachment_ref(row.get('attachment_ref'))
+            if attachment_items:
+                row['attachments'] = attachment_items
+                parts = []
+                if row.get('content'):
+                    parts.append({'type': 'text', 'content': row.get('content')})
+                for item in attachment_items:
+                    parts.append(
+                        {
+                            'type': item.get('type', 'file'),
+                            'name': item.get('name'),
+                            'mimeType': item.get('mimeType'),
+                            'sizeBytes': item.get('sizeBytes'),
+                            'assetRef': item.get('assetRef'),
+                            'storagePath': item.get('storagePath'),
+                        }
+                    )
+                row['parts'] = parts
+        return rows
     
     def get_all_conversations(self) -> List[str]:
         """
@@ -273,4 +323,32 @@ class ChatService:
 
     def list_endings(self, conversation_id: str) -> List[Dict[str, Any]]:
         return self.repository.list_endings(conversation_id)
+
+
+def _parse_attachment_ref(raw_ref: Optional[str]) -> List[Dict[str, Any]]:
+    if not raw_ref:
+        return []
+    try:
+        payload = json.loads(raw_ref)
+    except Exception:
+        return []
+    if not isinstance(payload, list):
+        return []
+    output: List[Dict[str, Any]] = []
+    for item in payload:
+        if not isinstance(item, dict):
+            continue
+        mime_type = str(item.get('mime_type') or item.get('mimeType') or '')
+        output.append(
+            {
+                'type': 'image' if mime_type.startswith('image/') else 'file',
+                'name': item.get('name'),
+                'mimeType': mime_type,
+                'sizeBytes': item.get('size_bytes') or item.get('sizeBytes'),
+                'assetRef': item.get('asset_ref') or item.get('assetRef'),
+                'storagePath': item.get('storage_path') or item.get('storagePath'),
+                'status': item.get('status') or 'uploaded',
+            }
+        )
+    return output
 

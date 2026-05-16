@@ -11,6 +11,9 @@ export interface ChatAttachment {
   name: string;
   mimeType?: string;
   sizeBytes?: number;
+  assetRef?: string;
+  status?: string;
+  storagePath?: string;
 }
 
 export interface ChatMessagePart {
@@ -19,6 +22,9 @@ export interface ChatMessagePart {
   name?: string;
   mimeType?: string;
   sizeBytes?: number;
+  assetRef?: string;
+  storagePath?: string;
+  localFile?: File;
 }
 
 /**

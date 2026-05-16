@@ -165,3 +165,26 @@ test('health and message loading requests remain bounded', async ({ page }) => {
   expect(mockApi.counters.conversationMessages).toBeLessThanOrEqual(6);
 });
 
+test('chat supports attachment send and render card', async ({ page }) => {
+  await installMockStoryApi(page);
+  await page.goto('/');
+  await expect(page.locator('#root')).toBeVisible();
+
+  await clickNewStory(page);
+  await saveStorySettings(page, {
+    background: 'Attachment flow validation background',
+  });
+
+  const fileInput = page.locator('input[aria-label="chat-attachments"]');
+  await fileInput.setInputFiles({
+    name: 'evidence.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from('fake-image-content'),
+  });
+  await expect(page.getByLabel('attachment-selection')).toContainText('evidence.png');
+
+  await sendChatMessage(page, 'Message with attachment');
+  await expect(page.getByText(/Turn 1:/)).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText('evidence.png')).toBeVisible();
+});
+

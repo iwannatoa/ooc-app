@@ -2,6 +2,8 @@
 Chat controller
 """
 import json
+import uuid
+from typing import Dict, List, Optional
 from flask import Flask, request, jsonify
 from injector import inject
 from service.chat_orchestration_service import ChatOrchestrationService
@@ -16,6 +18,7 @@ from service.ai_config_service import AIConfigService
 from service.app_settings_service import AppSettingsService
 from service.conversation_service import ConversationService
 from service.story_service import StoryService
+from service.attachment_storage_service import AttachmentStorageService
 from infrastructure.provider_capabilities import (
     get_provider_capability,
     apply_provider_multimodal_policy,
@@ -47,7 +50,8 @@ class ChatController:
         ai_config_service: AIConfigService,
         app_settings_service: AppSettingsService,
         conversation_service: ConversationService,
-        story_service: StoryService
+        story_service: StoryService,
+        attachment_storage_service: AttachmentStorageService,
     ):
         """
         Initialize controller
@@ -78,6 +82,7 @@ class ChatController:
         self.app_settings_service = app_settings_service
         self.conversation_service = conversation_service
         self.story_service = story_service
+        self.attachment_storage_service = attachment_storage_service
     
     def register_routes(self, app: Flask):
         """
@@ -198,13 +203,15 @@ class ChatController:
             - response: AI response content
             - conversation_id: Conversation ID
         """
-        data = request.json or {}
-        message = data.get('message', '')
-        provider = data.get('provider')
+        payload = self._parse_chat_payload()
+        data = payload['data']
+        message = payload['message']
+        provider = payload['provider']
+        conversation_id = payload['conversation_id']
         normalized = apply_provider_multimodal_policy(
             provider=provider,
             message=message,
-            message_parts=data.get('message_parts'),
+            message_parts=payload['message_parts'],
         )
         normalized_message = normalized.normalized_message
         content_type = normalized.content_type
@@ -234,10 +241,11 @@ class ChatController:
         result = self.chat_orchestration_service.process_chat(
             message=normalized_message,
             provider=provider,
-            conversation_id=data.get('conversation_id'),
+            conversation_id=conversation_id,
             model=data.get('model'),
             content_type=content_type,
             attachment_ref=attachment_ref,
+            message_parts=normalized.normalized_parts,
             language=language,
         )
         if normalized.provider_capability_notice:
@@ -263,18 +271,19 @@ class ChatController:
             SSE stream with chunks of AI response
         """
         try:
-            data = request.json or {}
-            message = data.get('message', '')
-            provider = data.get('provider')
+            payload = self._parse_chat_payload()
+            data = payload['data']
+            message = payload['message']
+            provider = payload['provider']
             normalized = apply_provider_multimodal_policy(
                 provider=provider,
                 message=message,
-                message_parts=data.get('message_parts'),
+                message_parts=payload['message_parts'],
             )
             normalized_message = normalized.normalized_message
             content_type = normalized.content_type
             attachment_ref = normalized.attachment_ref
-            conversation_id = data.get('conversation_id')
+            conversation_id = payload['conversation_id']
             
             language = self.app_settings_service.get_language()
             if not normalized_message:
@@ -290,10 +299,6 @@ class ChatController:
                     "success": False,
                     "error": error_msg
                 }), 400
-            
-            if not conversation_id:
-                import uuid
-                conversation_id = str(uuid.uuid4())
             
             api_config = self.ai_config_service.get_config_for_api(
                 provider=provider,
@@ -314,7 +319,11 @@ class ChatController:
             if conversation_id:
                 history = self.chat_service.get_conversation(conversation_id, limit=10)
                 messages = [
-                    {"role": msg['role'], "content": msg['content']}
+                    {
+                        "role": msg['role'],
+                        "content": msg['content'],
+                        "parts": msg.get('parts'),
+                    }
                     for msg in history
                 ]
             
@@ -334,6 +343,7 @@ class ChatController:
                     temperature=api_config['temperature'],
                     messages=messages if messages else None,
                     stop_words=api_config.get('stop_words'),
+                    message_parts=normalized.normalized_parts,
                 )
             
             persist_metadata: dict = {}
@@ -341,12 +351,13 @@ class ChatController:
             def on_complete(accumulated_content: str):
                 final_content = self._strip_think_content(accumulated_content)
                 try:
-                    self.chat_service.save_user_message(
+                    user_message = self.chat_service.save_user_message(
                         conversation_id=conversation_id,
                         message=normalized_message,
                         content_type=content_type,
                         attachment_ref=attachment_ref,
                     )
+                    self._attach_refs_to_message(attachment_ref, conversation_id, user_message)
                     self.chat_service.save_assistant_message(
                         conversation_id=conversation_id,
                         content=final_content,
@@ -386,6 +397,90 @@ class ChatController:
                 status_code=500
             )
             return jsonify(error.to_dict()), 500
+
+    def _parse_chat_payload(self) -> Dict:
+        content_type = (request.content_type or '').lower()
+        data: Dict = {}
+        message_parts: List[Dict] = []
+        uploads = []
+        if content_type.startswith('multipart/form-data'):
+            data = request.form.to_dict(flat=True)
+            raw_parts = data.get('message_parts') or data.get('message_parts_json')
+            if raw_parts:
+                try:
+                    parsed = json.loads(raw_parts)
+                    if isinstance(parsed, list):
+                        message_parts = [item for item in parsed if isinstance(item, dict)]
+                except json.JSONDecodeError:
+                    message_parts = []
+            uploads = request.files.getlist('files')
+        else:
+            data = request.json or {}
+            raw_parts = data.get('message_parts')
+            if isinstance(raw_parts, list):
+                message_parts = [item for item in raw_parts if isinstance(item, dict)]
+
+        conversation_id = str(data.get('conversation_id') or '').strip() or str(uuid.uuid4())
+        provider = str(data.get('provider') or '').strip()
+        message = str(data.get('message') or '').strip()
+
+        if uploads:
+            saved = self.attachment_storage_service.save_uploads(
+                conversation_id=conversation_id,
+                uploads=uploads,
+            )
+            for item in saved:
+                message_parts.append(
+                    {
+                        'type': 'image'
+                        if str(item.get('mime_type', '')).startswith('image/')
+                        else 'file',
+                        'name': item.get('filename'),
+                        'mime_type': item.get('mime_type'),
+                        'size_bytes': item.get('size_bytes'),
+                        'asset_ref': item.get('asset_ref'),
+                        'storage_path': item.get('storage_path'),
+                    }
+                )
+        return {
+            'data': data,
+            'message': message,
+            'provider': provider,
+            'conversation_id': conversation_id,
+            'message_parts': message_parts,
+        }
+
+    def _attach_refs_to_message(
+        self,
+        attachment_ref: Optional[str],
+        conversation_id: str,
+        user_message: Dict,
+    ) -> None:
+        if not attachment_ref:
+            return
+        try:
+            payload = json.loads(attachment_ref)
+        except Exception:
+            return
+        if not isinstance(payload, list):
+            return
+        refs: List[str] = []
+        for item in payload:
+            if not isinstance(item, dict):
+                continue
+            asset_ref = str(item.get('asset_ref') or '').strip()
+            if asset_ref:
+                refs.append(asset_ref)
+        if not refs:
+            return
+        message_id = user_message.get('id')
+        if message_id is None:
+            return
+        self.attachment_storage_service.attach_to_message(
+            asset_refs=refs,
+            message_id=int(message_id),
+            conversation_id=conversation_id,
+        )
 
     @handle_errors
     def create_story_branch(self):

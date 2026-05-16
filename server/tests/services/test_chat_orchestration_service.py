@@ -34,6 +34,13 @@ def mock_chat_service():
 
 
 @pytest.fixture
+def mock_attachment_storage_service():
+    svc = Mock()
+    svc.attach_to_message.return_value = None
+    return svc
+
+
+@pytest.fixture
 def mock_ai_config_service():
     svc = Mock()
     svc.get_config_for_api.return_value = {
@@ -57,12 +64,14 @@ def mock_conversation_service():
 @pytest.fixture
 def orchestration(
     mock_ai_service,
+    mock_attachment_storage_service,
     mock_chat_service,
     mock_ai_config_service,
     mock_conversation_service,
 ):
     return ChatOrchestrationService(
         mock_ai_service,
+        mock_attachment_storage_service,
         mock_chat_service,
         mock_ai_config_service,
         mock_conversation_service,

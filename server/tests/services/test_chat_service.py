@@ -10,6 +10,7 @@ from unittest.mock import Mock
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'src'))
 
 from service.chat_service import ChatService
+from service.attachment_storage_service import AttachmentStorageService
 from repository.chat_repository import ChatRepository
 from model.chat_record import ChatRecord
 
@@ -25,7 +26,9 @@ class TestChatService:
     @pytest.fixture
     def service(self, mock_repo):
         """Create ChatService instance"""
-        return ChatService(mock_repo)
+        mock_attachment_service = Mock(spec=AttachmentStorageService)
+        mock_attachment_service.list_by_message_ids.return_value = {}
+        return ChatService(mock_repo, mock_attachment_service)
     
     def test_save_user_message(self, service, mock_repo):
         """Test saving user message"""

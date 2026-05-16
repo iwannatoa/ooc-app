@@ -143,10 +143,16 @@ def invoke_langchain_chat(
     system_prompt: Optional[str] = None,
     messages: Optional[List[Dict]] = None,
     stop_words: Optional[List[str]] = None,
+    message_parts: Optional[List[Dict]] = None,
     ollama_base_url: Optional[str] = None,
 ) -> str:
     """Non-streaming completion; returns assistant text."""
-    lc_messages = dict_messages_to_base_messages(system_prompt, messages, message)
+    lc_messages = dict_messages_to_base_messages(
+        system_prompt,
+        messages,
+        message,
+        message_parts,
+    )
     chat = get_chat_model(
         provider,
         model,
@@ -185,10 +191,16 @@ def stream_langchain_chat(
     system_prompt: Optional[str] = None,
     messages: Optional[List[Dict]] = None,
     stop_words: Optional[List[str]] = None,
+    message_parts: Optional[List[Dict]] = None,
     ollama_base_url: Optional[str] = None,
 ) -> Generator[str, None, None]:
     """Yield text chunks (sync stream)."""
-    lc_messages = dict_messages_to_base_messages(system_prompt, messages, message)
+    lc_messages = dict_messages_to_base_messages(
+        system_prompt,
+        messages,
+        message,
+        message_parts,
+    )
     chat = get_chat_model(
         provider,
         model,

@@ -162,7 +162,10 @@ export class BaseApiClient {
       config.method || 'GET',
       endpoint,
       {
-        body: config.body ? JSON.parse(config.body as string) : undefined,
+        body:
+          typeof config.body === 'string'
+            ? JSON.parse(config.body)
+            : undefined,
       }
     );
 
@@ -298,6 +301,22 @@ export class BaseApiClient {
         ...config.headers,
       },
       body: body ? JSON.stringify(body) : undefined,
+    });
+  }
+
+  protected async postForm<T>(
+    endpoint: string,
+    formData: FormData,
+    config: RequestConfig = {}
+  ): Promise<T> {
+    const headers = normalizeHeaders(config.headers);
+    delete headers['Content-Type'];
+    delete headers['content-type'];
+    return this.request<T>(endpoint, {
+      ...config,
+      method: 'POST',
+      headers,
+      body: formData,
     });
   }
 
@@ -477,6 +496,133 @@ export class BaseApiClient {
         }
       }
 
+      return accumulated;
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown stream error';
+      await reportFrontendApiLog(
+        'error',
+        `[STREAM_EXCEPTION] POST ${endpoint} url=${url} message=${errorMessage}`
+      );
+      throw error;
+    } finally {
+      reader.releaseLock();
+    }
+  }
+
+  protected async streamFormData(
+    endpoint: string,
+    formData: FormData,
+    onChunk: (chunk: string, accumulated: string) => void,
+    config: RequestConfig = {},
+    streamExtras?: StreamExtras
+  ): Promise<string> {
+    const baseUrl = await this.getApiUrl();
+    const url = `${baseUrl}${endpoint}`;
+    const requestHeaders = normalizeHeaders(config.headers);
+    const correlationHeaders = this.getCorrelationHeaders('POST', endpoint);
+    const mergedHeaders = {
+      ...correlationHeaders,
+      ...requestHeaders,
+    };
+    delete mergedHeaders['Content-Type'];
+    delete mergedHeaders['content-type'];
+
+    let response = await fetch(url, {
+      method: 'POST',
+      headers: await buildAuthHeaders(mergedHeaders),
+      body: formData,
+    });
+
+    if (response.status === 401 || response.status === 403) {
+      resetRuntimeToken();
+      response = await fetch(url, {
+        method: 'POST',
+        headers: await buildAuthHeaders(mergedHeaders),
+        body: formData,
+      });
+    }
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({
+        error: 'Failed to start stream',
+      }));
+      await reportFrontendApiLog(
+        'error',
+        `[STREAM_FAIL] POST ${endpoint} -> ${response.status} (${response.statusText}) payload=${JSON.stringify(errorData)}`
+      );
+      throw createApiError(
+        errorData.error || 'Failed to start stream',
+        response.status
+      );
+    }
+
+    const reader = response.body?.getReader();
+    const decoder = new TextDecoder();
+    let accumulated = '';
+
+    if (!reader) {
+      throw createApiError('Stream reader not available');
+    }
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n');
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) {
+            continue;
+          }
+          const dataStr = line.slice(6);
+          try {
+            const data = JSON.parse(dataStr);
+            if (data.error) {
+              throw createApiError(data.error);
+            }
+            if (data.persist_failed) {
+              const err = createApiError(
+                data.error || 'Failed to save chat messages'
+              ) as ApiError;
+              err.persistFailed = true;
+              throw err;
+            }
+            if ('parse_warnings' in data && Array.isArray(data.parse_warnings)) {
+              if (streamExtras?.parseWarningsCollector) {
+                for (const w of data.parse_warnings) {
+                  if (typeof w === 'string') {
+                    streamExtras.parseWarningsCollector.push(w);
+                  }
+                }
+              }
+              continue;
+            }
+            if (
+              typeof data.provider_capability_notice === 'string' &&
+              data.provider_capability_notice.trim()
+            ) {
+              streamExtras?.capabilityNoticeCollector?.push(
+                data.provider_capability_notice
+              );
+              continue;
+            }
+            if (data.done) {
+              return accumulated;
+            }
+            continue;
+          } catch (e) {
+            if (!(e instanceof SyntaxError)) {
+              throw e;
+            }
+            if (!dataStr || !dataStr.trim()) {
+              continue;
+            }
+            accumulated += dataStr;
+            onChunk(dataStr, accumulated);
+          }
+        }
+      }
       return accumulated;
     } catch (error) {
       const errorMessage =
