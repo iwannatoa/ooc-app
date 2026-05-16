@@ -7,6 +7,10 @@ This directory contains GitHub Actions workflows for CI/CD.
 ### `ci.yml` - Continuous Integration
 Runs on every push and pull request to `main` and `develop` branches.
 
+Frontend jobs use **Node.js 20** (see `package.json` `engines` for the Vite 7 minimum; currently **20.19+** or **22.12+**).
+
+Backend jobs use **Python 3.11**. Do not downgrade (e.g. to 3.9): `server/requirements.txt` pins `langchain-core` 1.x, which requires **Python 3.10+**.
+
 **Jobs:**
 - **type-check**: TypeScript type checking
 - **frontend-test**: Frontend unit tests (Vitest)

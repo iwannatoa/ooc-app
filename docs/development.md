@@ -4,8 +4,8 @@ This guide explains how to work locally in web-only, backend-only, and full desk
 
 ## Prerequisites
 
-- Node.js 18+ (aligned with CI setup).
-- Python 3.9+ for backend scripts.
+- Node.js 20.19+ (aligns with CI and Vite 7; 22.12+ is also supported).
+- Python 3.10+ for backend (matches `langchain-core` 1.x and CI).
 - Rust stable toolchain for Tauri builds.
 
 See baseline setup in [`../README.md`](../README.md).

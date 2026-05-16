@@ -32,6 +32,7 @@ export default defineConfig({
         'node_modules/',
         'src/test/',
         'src-tauri/**',
+        'e2e/**',
         '**/__tests__/',
         '**/*.d.ts',
         '**/*.config.*',

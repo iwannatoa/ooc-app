@@ -161,8 +161,8 @@ The Flask backend follows a layered architecture similar to Spring MVC:
 
 ### Prerequisites
 
-- **Node.js** (v18 or higher)
-- **Python** (v3.9 or higher)
+- **Node.js** (20.19+; Vite 7 also supports 22.12+)
+- **Python** (v3.10 or higher; `langchain-core` 1.x requires Python 3.10+)
 - **Rust** (latest stable version)
 - **Ollama** (optional, for local AI models)
 - **DeepSeek API Key** (optional, for cloud AI)

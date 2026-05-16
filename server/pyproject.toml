@@ -1,0 +1,9 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ooc-server"
+version = "0.0.0"
+description = "OOC Flask API backend (local use; not published to PyPI)"
+requires-python = ">=3.10"

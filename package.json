@@ -28,7 +28,7 @@
     "env:example": "cp .env.example .env",
     "setup:dev": "npm run env:dev && npm install",
     "setup:prod": "npm run env:prod && npm install",
-    "test": "vitest run --coverage",
+    "test": "node scripts/run-frontend-tests.mjs",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage:watch": "vitest --coverage",
@@ -46,6 +46,9 @@
   ],
   "author": "Patrick Zhang",
   "license": "MIT",
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
   "overrides": {
     "esbuild": "^0.25.11",
     "rollup": "^4.59.0",
