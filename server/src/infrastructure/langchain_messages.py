@@ -1,5 +1,5 @@
 """
-LangChain message builders (todo.txt: prompt / history bridge).
+LangChain message builders (todo.md: prompt / history bridge).
 
 Converts the app's ``{"role","content"}`` history plus system and final user text
 into ``langchain_core`` BaseMessage lists for invoke/stream.

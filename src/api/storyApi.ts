@@ -10,14 +10,14 @@
 
 import { BaseApiClient } from './base';
 import type { GetApiUrlFn } from './base';
-import { AppSettings } from '@/types';
+import { AppSettings, StoryProgress } from '@/types';
 import { stripThinkContent } from '@/utils/parseThinkContent';
 
 export interface StoryActionResponse {
   success: boolean;
   response?: string;
   error?: string;
-  story_progress?: any;
+  story_progress?: StoryProgress;
   /** Server-side `<CHARACTERS>` parse anomaly codes (optional, backward compatible). */
   parse_warnings?: string[];
 }

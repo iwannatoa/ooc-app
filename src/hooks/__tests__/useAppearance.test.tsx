@@ -1,3 +1,4 @@
+import { mockFn } from '@/test/mockFn';
 import { renderHook } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { useAppearance } from '../useAppearance';
@@ -28,7 +29,7 @@ describe('useAppearance', () => {
     document.body.style.fontSize = '';
     document.documentElement.style.fontFamily = '';
     document.body.style.fontFamily = '';
-    (getEffectiveTheme as any).mockReturnValue('dark');
+    mockFn(getEffectiveTheme).mockReturnValue('dark');
   });
 
   afterEach(() => {
@@ -232,7 +233,7 @@ describe('useAppearance', () => {
     });
     window.matchMedia = mockMatchMedia;
 
-    (getEffectiveTheme as any).mockReturnValue('light');
+    mockFn(getEffectiveTheme).mockReturnValue('light');
 
     const store = createTestStore({
       settings: {
@@ -269,7 +270,7 @@ describe('useAppearance', () => {
     });
     window.matchMedia = mockMatchMedia;
 
-    (getEffectiveTheme as any).mockReturnValue('light');
+    mockFn(getEffectiveTheme).mockReturnValue('light');
 
     const store = createTestStore({
       settings: {
@@ -310,7 +311,7 @@ describe('useAppearance', () => {
       },
     });
 
-    (getEffectiveTheme as any).mockReturnValue('light');
+    mockFn(getEffectiveTheme).mockReturnValue('light');
 
     const { rerender } = renderHook(() => useAppearance(), {
       wrapper: createWrapper(store),
@@ -333,7 +334,7 @@ describe('useAppearance', () => {
       },
     });
 
-    (getEffectiveTheme as any).mockReturnValue('dark');
+    mockFn(getEffectiveTheme).mockReturnValue('dark');
     rerender();
 
     expect(document.documentElement.classList.contains('theme-dark')).toBe(

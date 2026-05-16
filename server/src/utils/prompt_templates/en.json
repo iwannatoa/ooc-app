@@ -174,7 +174,7 @@
   "error_messages": {
     "outline_required": "Please set the story outline first",
     "message_required": "message is required",
-    "provider_required": "provider is required (ollama or deepseek)",
+    "provider_required": "provider is required",
     "conversation_id_required": "conversation_id is required",
     "background_required": "background is required",
     "background_required_detailed": "Background is required. Please provide background in request or save it in settings first.",
@@ -187,6 +187,7 @@
     "feedback_required": "feedback is required",
     "summary_required": "summary is required",
     "deepseek_api_key_required": "DeepSeek API key is required. Please configure it in Settings > AI Settings.",
+    "provider_api_key_required": "{provider} API key is required. Please configure it in Settings > AI Settings.",
     "persist_chat_messages_failed": "Failed to save chat messages to the database. The reply was generated but may not appear in history."
   },
   "feedback_prompt": {

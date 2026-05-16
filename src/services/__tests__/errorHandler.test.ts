@@ -150,7 +150,7 @@ describe('ErrorHandlerService', () => {
       timestamp: Date.now(),
     };
 
-    const mockT = vi.fn((key: string, options?: any) => {
+    const mockT = vi.fn((key: string, options?: Record<string, unknown>) => {
       if (options?.defaultValue) return options.defaultValue;
       return key;
     });

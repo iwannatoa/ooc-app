@@ -8,6 +8,7 @@ from infrastructure.database import unit_of_work
 from service.ai_service import AIService
 from service.chat_service import ChatService
 from service.ai_config_service import AIConfigService
+from service.conversation_service import ConversationService
 from utils.logger import get_logger
 from utils.i18n import get_i18n_text
 from utils.think_strip import strip_think_content
@@ -22,7 +23,8 @@ class ChatOrchestrationService:
         self,
         ai_service: AIService,
         chat_service: ChatService,
-        ai_config_service: AIConfigService
+        ai_config_service: AIConfigService,
+        conversation_service: ConversationService,
     ):
         """
         Initialize service
@@ -35,6 +37,41 @@ class ChatOrchestrationService:
         self.ai_service = ai_service
         self.chat_service = chat_service
         self.ai_config_service = ai_config_service
+        self.conversation_service = conversation_service
+
+    @staticmethod
+    def _merge_conversation_llm_overrides(
+        api_config: Dict,
+        settings: Optional[Dict],
+    ) -> Dict:
+        if not settings:
+            return api_config
+        additional = settings.get('additional_settings')
+        if not isinstance(additional, dict):
+            return api_config
+        out = dict(api_config)
+        conversation_temp = additional.get('conversationTemperature')
+        conversation_max_tokens = additional.get('conversationMaxTokens')
+        conversation_stop_words = additional.get('conversationStopWords')
+        try:
+            if conversation_temp is not None and str(conversation_temp).strip() != '':
+                out['temperature'] = float(conversation_temp)
+        except (TypeError, ValueError):
+            pass
+        try:
+            if conversation_max_tokens is not None and str(conversation_max_tokens).strip() != '':
+                out['max_tokens'] = int(conversation_max_tokens)
+        except (TypeError, ValueError):
+            pass
+        if isinstance(conversation_stop_words, list):
+            sanitized = [
+                str(word).strip()
+                for word in conversation_stop_words
+                if str(word).strip()
+            ]
+            if sanitized:
+                out['stop_words'] = sanitized
+        return out
     
     def process_chat(
         self,
@@ -64,6 +101,12 @@ class ChatOrchestrationService:
             provider=provider,
             model=model
         )
+        settings = (
+            self.conversation_service.get_settings(conversation_id)
+            if conversation_id
+            else None
+        )
+        api_config = self._merge_conversation_llm_overrides(api_config, settings)
         
         result = self.ai_service.chat(
             provider=api_config['provider'],
@@ -72,7 +115,8 @@ class ChatOrchestrationService:
             api_key=api_config['api_key'],
             base_url=api_config['base_url'],
             max_tokens=api_config['max_tokens'],
-            temperature=api_config['temperature']
+            temperature=api_config['temperature'],
+            stop_words=api_config.get('stop_words'),
         )
         
         if result.get('success'):
@@ -93,7 +137,7 @@ class ChatOrchestrationService:
                     )
                 result['conversation_id'] = conversation_id
                 result['persisted'] = True
-            except Exception as e:
+            except Exception:
                 logger.error(
                     "Failed to persist chat messages after successful AI call",
                     exc_info=True,

@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { createApiError } from '../base';
+import { invoke } from '@tauri-apps/api/core';
+import { createApiError, resetRuntimeTokenForTest } from '../base';
 import {
   createTestableBaseApiClient,
   TestableBaseApiClient,
@@ -16,6 +17,9 @@ vi.mock('@/mock/router', () => {
     },
   };
 });
+vi.mock('@tauri-apps/api/core', () => ({
+  invoke: vi.fn(),
+}));
 
 // Import mockRouter after mocking
 import { mockRouter } from '@/mock/router';
@@ -26,6 +30,9 @@ describe('BaseApiClient', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.unstubAllEnvs();
+    resetRuntimeTokenForTest();
+    vi.mocked(invoke).mockResolvedValue({ success: false });
     global.fetch = vi.fn();
     client = createTestableBaseApiClient(mockGetApiUrl);
     vi.mocked(mockRouter.match).mockResolvedValue(null);
@@ -98,6 +105,135 @@ describe('BaseApiClient', () => {
       expect(result.success).toBe(true);
       expect(result.data).toBe('mock');
       expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    it('should refresh token and retry once on 401 response', async () => {
+      vi.mocked(invoke)
+        .mockResolvedValueOnce({ success: true, data: 'token-old' })
+        .mockResolvedValueOnce({ success: true, data: 'token-new' });
+
+      vi.mocked(global.fetch)
+        .mockResolvedValueOnce(
+          createMockResponse({
+            ok: false,
+            status: 401,
+            statusText: 'Unauthorized',
+            json: async () => ({ error: 'Unauthorized' }),
+          })
+        )
+        .mockResolvedValueOnce(
+          createMockResponse({
+            ok: true,
+            status: 200,
+            json: async () => ({ success: true, data: 'ok' }),
+          })
+        );
+
+      const result = await client.testGet<{ success: boolean; data: string }>(
+        '/api/test'
+      );
+
+      expect(result.data).toBe('ok');
+      expect(global.fetch).toHaveBeenCalledTimes(2);
+
+      const firstHeaders = vi.mocked(global.fetch).mock.calls[0][1]
+        ?.headers as Record<string, string>;
+      const secondHeaders = vi.mocked(global.fetch).mock.calls[1][1]
+        ?.headers as Record<string, string>;
+
+      expect(firstHeaders.Authorization).toBe('Bearer token-old');
+      expect(secondHeaders.Authorization).toBe('Bearer token-new');
+      expect(
+        vi.mocked(invoke).mock.calls.filter(
+          ([command]) => command === 'get_flask_api_token'
+        )
+      ).toHaveLength(2);
+    });
+
+    it('should refresh token and retry once on 403 response', async () => {
+      vi.mocked(invoke)
+        .mockResolvedValueOnce({ success: true, data: 'token-old' })
+        .mockResolvedValueOnce({ success: true, data: 'token-new' });
+
+      vi.mocked(global.fetch)
+        .mockResolvedValueOnce(
+          createMockResponse({
+            ok: false,
+            status: 403,
+            statusText: 'Forbidden',
+            json: async () => ({ error: 'Forbidden' }),
+          })
+        )
+        .mockResolvedValueOnce(
+          createMockResponse({
+            ok: true,
+            status: 200,
+            json: async () => ({ success: true, data: 'ok403' }),
+          })
+        );
+
+      const result = await client.testGet<{ success: boolean; data: string }>(
+        '/api/test'
+      );
+
+      expect(result.data).toBe('ok403');
+      expect(global.fetch).toHaveBeenCalledTimes(2);
+
+      const firstHeaders = vi.mocked(global.fetch).mock.calls[0][1]
+        ?.headers as Record<string, string>;
+      const secondHeaders = vi.mocked(global.fetch).mock.calls[1][1]
+        ?.headers as Record<string, string>;
+
+      expect(firstHeaders.Authorization).toBe('Bearer token-old');
+      expect(secondHeaders.Authorization).toBe('Bearer token-new');
+    });
+
+    it('should stop retrying after second 401 failure', async () => {
+      vi.mocked(invoke)
+        .mockResolvedValueOnce({ success: true, data: 'token-old' })
+        .mockResolvedValueOnce({ success: true, data: 'token-new' });
+
+      vi.mocked(global.fetch)
+        .mockResolvedValueOnce(
+          createMockResponse({
+            ok: false,
+            status: 401,
+            statusText: 'Unauthorized',
+            json: async () => ({ error: 'Unauthorized once' }),
+          })
+        )
+        .mockResolvedValueOnce(
+          createMockResponse({
+            ok: false,
+            status: 401,
+            statusText: 'Unauthorized',
+            json: async () => ({ error: 'Unauthorized twice' }),
+          })
+        );
+
+      await expect(client.testGet('/api/test')).rejects.toThrow('Unauthorized twice');
+      expect(global.fetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('should use env token fallback when runtime token command fails', async () => {
+      vi.stubEnv('VITE_FLASK_API_TOKEN', 'env-fallback-token');
+      vi.mocked(invoke).mockRejectedValueOnce(new Error('invoke unavailable'));
+      vi.mocked(global.fetch).mockResolvedValueOnce(
+        createMockResponse({
+          ok: true,
+          status: 200,
+          json: async () => ({ success: true, data: 'env-ok' }),
+        })
+      );
+
+      const result = await client.testGet<{ success: boolean; data: string }>(
+        '/api/test'
+      );
+      expect(result.data).toBe('env-ok');
+      const headers = vi.mocked(global.fetch).mock.calls[0][1]
+        ?.headers as Record<string, string>;
+      expect(headers.Authorization).toBe('Bearer env-fallback-token');
+      vi.unstubAllEnvs();
     });
   });
 
@@ -250,8 +386,7 @@ describe('BaseApiClient', () => {
       vi.mocked(global.fetch).mockResolvedValue(
         createMockResponse({
           ok: true,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          body: createMockReadableStream(() => mockReader) as any,
+          body: createMockReadableStream(() => mockReader) as ReadableStream<Uint8Array>,
         })
       );
 
@@ -264,6 +399,78 @@ describe('BaseApiClient', () => {
       expect(result).toBe('');
       expect(mockReader.read).toHaveBeenCalled();
       expect(mockReader.releaseLock).toHaveBeenCalled();
+    });
+
+    it('should refresh token and retry stream once on 403 response', async () => {
+      const mockOnChunk = vi.fn();
+      const mockReader = {
+        read: vi.fn().mockResolvedValue({ done: true, value: undefined }),
+        releaseLock: vi.fn(),
+      };
+
+      vi.mocked(invoke)
+        .mockResolvedValueOnce({ success: true, data: 'token-old' })
+        .mockResolvedValueOnce({ success: true, data: 'token-new' });
+
+      vi.mocked(global.fetch)
+        .mockResolvedValueOnce(
+          createMockResponse({
+            ok: false,
+            status: 403,
+            statusText: 'Forbidden',
+            json: async () => ({ error: 'Forbidden' }),
+          })
+        )
+        .mockResolvedValueOnce(
+          createMockResponse({
+            ok: true,
+            status: 200,
+            body: createMockReadableStream(
+              () => mockReader
+            ) as ReadableStream<Uint8Array>,
+          })
+        );
+
+      const result = await client.testStream('/api/stream', {}, mockOnChunk);
+      expect(result).toBe('');
+      expect(global.fetch).toHaveBeenCalledTimes(2);
+
+      const firstHeaders = vi.mocked(global.fetch).mock.calls[0][1]
+        ?.headers as Record<string, string>;
+      const secondHeaders = vi.mocked(global.fetch).mock.calls[1][1]
+        ?.headers as Record<string, string>;
+      expect(firstHeaders.Authorization).toBe('Bearer token-old');
+      expect(secondHeaders.Authorization).toBe('Bearer token-new');
+    });
+
+    it('should stop retrying stream after second 403 failure', async () => {
+      const mockOnChunk = vi.fn();
+      vi.mocked(invoke)
+        .mockResolvedValueOnce({ success: true, data: 'token-old' })
+        .mockResolvedValueOnce({ success: true, data: 'token-new' });
+
+      vi.mocked(global.fetch)
+        .mockResolvedValueOnce(
+          createMockResponse({
+            ok: false,
+            status: 403,
+            statusText: 'Forbidden',
+            json: async () => ({ error: 'Forbidden once' }),
+          })
+        )
+        .mockResolvedValueOnce(
+          createMockResponse({
+            ok: false,
+            status: 403,
+            statusText: 'Forbidden',
+            json: async () => ({ error: 'Forbidden twice' }),
+          })
+        );
+
+      await expect(client.testStream('/api/stream', {}, mockOnChunk)).rejects.toThrow(
+        'Forbidden twice'
+      );
+      expect(global.fetch).toHaveBeenCalledTimes(2);
     });
 
     it('should handle streaming chunks', async () => {
@@ -292,8 +499,7 @@ describe('BaseApiClient', () => {
       vi.mocked(global.fetch).mockResolvedValue(
         createMockResponse({
           ok: true,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          body: createMockReadableStream(() => mockReader) as any,
+          body: createMockReadableStream(() => mockReader) as ReadableStream<Uint8Array>,
         })
       );
 
@@ -318,8 +524,7 @@ describe('BaseApiClient', () => {
       vi.mocked(global.fetch).mockResolvedValue(
         createMockResponse({
           ok: true,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          body: createMockReadableStream(() => mockReader) as any,
+          body: createMockReadableStream(() => mockReader) as ReadableStream<Uint8Array>,
         })
       );
 
@@ -376,8 +581,7 @@ describe('BaseApiClient', () => {
       vi.mocked(global.fetch).mockResolvedValue(
         createMockResponse({
           ok: true,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          body: createMockReadableStream(() => mockReader) as any,
+          body: createMockReadableStream(() => mockReader) as ReadableStream<Uint8Array>,
         })
       );
 
@@ -406,8 +610,7 @@ describe('BaseApiClient', () => {
       vi.mocked(global.fetch).mockResolvedValue(
         createMockResponse({
           ok: true,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          body: createMockReadableStream(() => mockReader) as any,
+          body: createMockReadableStream(() => mockReader) as ReadableStream<Uint8Array>,
         })
       );
 

@@ -1,3 +1,4 @@
+import { mockFn } from '@/test/mockFn';
 import { fireEvent, screen } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import StorySettingsSidebar from '../StorySettingsSidebar';
@@ -34,15 +35,15 @@ describe('StorySettingsSidebar', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    (useConversationSettingsDialog as any).mockReturnValue({
+    mockFn(useConversationSettingsDialog).mockReturnValue({
       open: mockOpenSettingsDialog,
     });
 
-    (useStorySettingsViewDialog as any).mockReturnValue({
+    mockFn(useStorySettingsViewDialog).mockReturnValue({
       open: mockOpenViewDialog,
     });
 
-    (useConversationManagement as any).mockReturnValue({
+    mockFn(useConversationManagement).mockReturnValue({
       activeConversationId: 'conv1',
       conversationSettings: {
         title: 'Test Story',
@@ -354,7 +355,7 @@ describe('StorySettingsSidebar', () => {
   });
 
   it('should not show view button when no active conversation', () => {
-    (useConversationManagement as any).mockReturnValue({
+    mockFn(useConversationManagement).mockReturnValue({
       activeConversationId: null,
       conversationSettings: null,
     });

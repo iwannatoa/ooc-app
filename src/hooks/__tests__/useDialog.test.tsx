@@ -1,3 +1,4 @@
+import { mockFn } from '@/test/mockFn';
 import React from 'react';
 import { renderHook, act } from '@testing-library/react';
 import { Provider } from 'react-redux';
@@ -11,6 +12,7 @@ import {
 } from '../useDialog';
 import { createTestStore } from '@/test/utils';
 import * as useSettingsState from '../useSettingsState';
+import type { Dialog } from '@/store/slices/dialogSlice';
 
 // Mock dependencies
 vi.mock('../useSettingsState');
@@ -92,7 +94,10 @@ describe('useDialog', () => {
       });
 
       expect(result.current.dialogs[0].type).toBe('conversationSettings');
-      const dialog = result.current.dialogs[0] as any;
+      const dialog = result.current.dialogs[0] as Extract<
+        Dialog,
+        { type: 'conversationSettings' }
+      >;
       expect(dialog.payload.conversationId).toBe('conv_001');
     });
 
@@ -221,7 +226,7 @@ describe('useDialog', () => {
 
       const dialog = result.current.dialogs.find(
         (d) => d.id === dialogId
-      ) as any;
+      ) as Extract<Dialog, { type: 'conversationSettings' }>;
       expect(dialog.payload.settings.title).toBe('New Title');
     });
 
@@ -542,7 +547,7 @@ describe('useDialog', () => {
 
   describe('useSettingsPanelDialog', () => {
     beforeEach(() => {
-      (useSettingsState.useSettingsState as any).mockReturnValue({
+      mockFn(useSettingsState.useSettingsState).mockReturnValue({
         isSettingsOpen: false,
         setSettingsOpen: vi.fn(),
       });
@@ -550,7 +555,7 @@ describe('useDialog', () => {
 
     it('should open settings panel dialog', () => {
       const mockSetSettingsOpen = vi.fn();
-      (useSettingsState.useSettingsState as any).mockReturnValue({
+      mockFn(useSettingsState.useSettingsState).mockReturnValue({
         isSettingsOpen: false,
         setSettingsOpen: mockSetSettingsOpen,
       });
@@ -574,7 +579,7 @@ describe('useDialog', () => {
 
     it('should close settings panel dialog', () => {
       const mockSetSettingsOpen = vi.fn();
-      (useSettingsState.useSettingsState as any).mockReturnValue({
+      mockFn(useSettingsState.useSettingsState).mockReturnValue({
         isSettingsOpen: true,
         setSettingsOpen: mockSetSettingsOpen,
       });
@@ -601,7 +606,7 @@ describe('useDialog', () => {
     });
 
     it('should return isOpen from settings state', () => {
-      (useSettingsState.useSettingsState as any).mockReturnValue({
+      mockFn(useSettingsState.useSettingsState).mockReturnValue({
         isSettingsOpen: true,
         setSettingsOpen: vi.fn(),
       });

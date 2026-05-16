@@ -10,6 +10,7 @@
 
 import { API_CONSTANTS } from '@/constants';
 import { mockRouter } from '@/mock/router';
+import { invoke } from '@tauri-apps/api/core';
 
 export interface RequestConfig extends RequestInit {
   timeout?: number;
@@ -24,7 +25,7 @@ export interface StreamExtras {
 export interface ApiError extends Error {
   code?: number;
   status?: number;
-  response?: any;
+  response?: unknown;
   /** Stream ended with persist_failed SSE frame (chat saved to UI but not DB). */
   persistFailed?: boolean;
 }
@@ -36,7 +37,7 @@ export function createApiError(
   message: string,
   status?: number,
   code?: number,
-  response?: any
+  response?: unknown
 ): ApiError {
   const error = new Error(message) as ApiError;
   error.status = status;
@@ -52,10 +53,51 @@ export function createApiError(
  */
 export type GetApiUrlFn = () => Promise<string>;
 
-function buildAuthHeaders(
+interface ApiResponse<T> {
+  success: boolean;
+  data?: T;
+}
+
+let runtimeTokenPromise: Promise<string | null> | null = null;
+
+const reportFrontendApiLog = async (
+  level: 'error' | 'warn',
+  message: string
+): Promise<void> => {
+  try {
+    await invoke<ApiResponse<string>>('frontend_log', { level, message });
+  } catch {
+    // Best-effort diagnostics only.
+  }
+};
+
+const getRuntimeToken = async (): Promise<string | null> => {
+  if (!runtimeTokenPromise) {
+    runtimeTokenPromise = invoke<ApiResponse<string>>('get_flask_api_token')
+      .then((resp) => {
+        if (resp.success && resp.data && resp.data.trim()) {
+          return resp.data.trim();
+        }
+        return import.meta.env.VITE_FLASK_API_TOKEN?.trim() || null;
+      })
+      .catch(() => import.meta.env.VITE_FLASK_API_TOKEN?.trim() || null);
+  }
+
+  return runtimeTokenPromise;
+};
+
+const resetRuntimeToken = (): void => {
+  runtimeTokenPromise = null;
+};
+
+export const resetRuntimeTokenForTest = (): void => {
+  resetRuntimeToken();
+};
+
+async function buildAuthHeaders(
   extra?: HeadersInit
-): Record<string, string> {
-  const token = import.meta.env.VITE_FLASK_API_TOKEN?.trim();
+): Promise<Record<string, string>> {
+  const token = await getRuntimeToken();
   const base: Record<string, string> = {};
   if (token) {
     base.Authorization = `Bearer ${token}`;
@@ -122,17 +164,27 @@ export class BaseApiClient {
     // Get base URL
     const baseUrl = await this.getApiUrl();
     const url = `${baseUrl}${endpoint}`;
+    const method = (fetchConfig.method || 'GET').toUpperCase();
 
     // Create abort controller for timeout
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeout);
 
     try {
-      const response = await fetch(url, {
+      let response = await fetch(url, {
         ...fetchConfig,
-        headers: buildAuthHeaders(fetchConfig.headers),
+        headers: await buildAuthHeaders(fetchConfig.headers),
         signal: controller.signal,
       });
+
+      if (response.status === 401 || response.status === 403) {
+        resetRuntimeToken();
+        response = await fetch(url, {
+          ...fetchConfig,
+          headers: await buildAuthHeaders(fetchConfig.headers),
+          signal: controller.signal,
+        });
+      }
 
       clearTimeout(timeoutId);
 
@@ -141,6 +193,10 @@ export class BaseApiClient {
         const errorData = await response.json().catch(() => ({
           error: `HTTP ${response.status}: ${response.statusText}`,
         }));
+        await reportFrontendApiLog(
+          'error',
+          `[API_FAIL] ${method} ${endpoint} -> ${response.status} (${response.statusText}) payload=${JSON.stringify(errorData)}`
+        );
 
         if (skipErrorHandling) {
           throw createApiError(
@@ -159,9 +215,16 @@ export class BaseApiClient {
       }
 
       // Parse JSON response
-      const data: any = await response.json();
+      const data = (await response.json()) as {
+        success: boolean;
+        error?: string;
+        code?: number;
+        [key: string]: unknown;
+      };
 
-      if (!data.success) {
+      // Some endpoints (e.g. /api/health) intentionally return plain payload
+      // without a `success` wrapper. Only enforce this contract when provided.
+      if ('success' in data && !data.success) {
         throw createApiError(
           data.error || 'Request failed',
           response.status,
@@ -175,6 +238,12 @@ export class BaseApiClient {
       return data as T;
     } catch (error) {
       clearTimeout(timeoutId);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error occurred';
+      await reportFrontendApiLog(
+        'error',
+        `[API_EXCEPTION] ${method} ${endpoint} url=${url} message=${errorMessage}`
+      );
 
       if (error instanceof Error) {
         if (error.name === 'AbortError') {
@@ -197,7 +266,7 @@ export class BaseApiClient {
    */
   protected async post<T>(
     endpoint: string,
-    body?: any,
+    body?: unknown,
     config: RequestConfig = {}
   ): Promise<T> {
     return this.request<T>(endpoint, {
@@ -232,7 +301,7 @@ export class BaseApiClient {
    */
   protected async delete<T>(
     endpoint: string,
-    body?: any,
+    body?: unknown,
     config: RequestConfig = {}
   ): Promise<T> {
     return this.request<T>(endpoint, {
@@ -251,7 +320,7 @@ export class BaseApiClient {
    */
   protected async stream(
     endpoint: string,
-    body: any,
+    body: unknown,
     onChunk: (chunk: string, accumulated: string) => void,
     config: RequestConfig = {},
     streamExtras?: StreamExtras
@@ -279,19 +348,35 @@ export class BaseApiClient {
     const baseUrl = await this.getApiUrl();
     const url = `${baseUrl}${endpoint}`;
 
-    const response = await fetch(url, {
+    let response = await fetch(url, {
       method: 'POST',
-      headers: buildAuthHeaders({
+      headers: await buildAuthHeaders({
         'Content-Type': 'application/json',
         ...((config.headers as Record<string, string>) || {}),
       }),
       body: JSON.stringify(body),
     });
 
+    if (response.status === 401 || response.status === 403) {
+      resetRuntimeToken();
+      response = await fetch(url, {
+        method: 'POST',
+        headers: await buildAuthHeaders({
+          'Content-Type': 'application/json',
+          ...((config.headers as Record<string, string>) || {}),
+        }),
+        body: JSON.stringify(body),
+      });
+    }
+
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({
         error: 'Failed to start stream',
       }));
+      await reportFrontendApiLog(
+        'error',
+        `[STREAM_FAIL] POST ${endpoint} -> ${response.status} (${response.statusText}) payload=${JSON.stringify(errorData)}`
+      );
       throw createApiError(
         errorData.error || 'Failed to start stream',
         response.status
@@ -362,6 +447,14 @@ export class BaseApiClient {
       }
 
       return accumulated;
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown stream error';
+      await reportFrontendApiLog(
+        'error',
+        `[STREAM_EXCEPTION] POST ${endpoint} url=${url} message=${errorMessage}`
+      );
+      throw error;
     } finally {
       reader.releaseLock();
     }

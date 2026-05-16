@@ -90,9 +90,19 @@ const ConversationList: React.FC = () => {
                 className={`${styles.item} ${
                   activeConversationId === conv.id ? styles.active : ''
                 }`}
-                onClick={() => handleSelectConversation(conv.id)}
               >
-                <div className={styles.itemContent}>
+                <div
+                  role="button"
+                  tabIndex={0}
+                  className={styles.itemContent}
+                  onClick={() => handleSelectConversation(conv.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      handleSelectConversation(conv.id);
+                    }
+                  }}
+                >
                   <div className={styles.title}>
                     {conv.settings?.title ||
                       conv.title ||

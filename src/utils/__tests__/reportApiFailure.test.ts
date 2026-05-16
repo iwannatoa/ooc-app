@@ -55,4 +55,21 @@ describe('reportApiFailureToToast', () => {
     expect(arg).toContain('storyErrors.confirmFailedDetail');
     expect(arg).toContain('storyErrors.hint_auth');
   });
+
+  it('maps backend error_code to actionable hint', () => {
+    const err = makeApiError('provider config invalid', 400);
+    (
+      err as Error & {
+        response?: { error_code: string };
+      }
+    ).response = { error_code: 'PROVIDER_CONFIG_ERROR' };
+    reportApiFailureToToast(err, {
+      t,
+      showError,
+      detailKey: 'storyErrors.generateFailedDetail',
+      hintNamespace: 'storyErrors',
+    });
+    const arg = showError.mock.calls[showError.mock.calls.length - 1][0] as string;
+    expect(arg).toContain('storyErrors.hint_provider_config');
+  });
 });

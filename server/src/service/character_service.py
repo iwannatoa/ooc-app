@@ -3,6 +3,7 @@ Character service layer
 """
 import re
 from typing import List, Optional, Dict, Generator, Tuple, TYPE_CHECKING, Any
+from infrastructure.provider_capabilities import get_provider_capability
 from repository.character_record_repository import CharacterRecordRepository
 from repository.chat_repository import ChatRepository
 from utils.logger import get_logger
@@ -765,12 +766,19 @@ class CharacterService:
             model=model
         )
         
+        capability = get_provider_capability(provider)
         # Check if API key is required and available
-        if provider == 'deepseek' and not api_config.get('api_key'):
+        if capability and capability.requires_api_key and not api_config.get('api_key'):
             from utils.i18n import get_i18n_text
-            error_msg = get_i18n_text(language, 'error_messages.deepseek_api_key_required')
+            error_msg = get_i18n_text(
+                language,
+                'error_messages.provider_api_key_required'
+            ).replace('{provider}', provider)
             if not error_msg:
-                error_msg = "DeepSeek API key is required. Please configure it in Settings > AI Settings."
+                error_msg = (
+                    f"{provider} API key is required. "
+                    "Please configure it in Settings > AI Settings."
+                )
             return {
                 "success": False,
                 "error": error_msg
@@ -897,13 +905,20 @@ class CharacterService:
             model=model
         )
         
+        capability = get_provider_capability(provider)
         # Check if API key is required and available
-        if provider == 'deepseek' and not api_config.get('api_key'):
+        if capability and capability.requires_api_key and not api_config.get('api_key'):
             import json
             from utils.i18n import get_i18n_text
-            error_msg = get_i18n_text(language, 'error_messages.deepseek_api_key_required')
+            error_msg = get_i18n_text(
+                language,
+                'error_messages.provider_api_key_required'
+            ).replace('{provider}', provider)
             if not error_msg:
-                error_msg = "DeepSeek API key is required. Please configure it in Settings > AI Settings."
+                error_msg = (
+                    f"{provider} API key is required. "
+                    "Please configure it in Settings > AI Settings."
+                )
             yield json.dumps({"error": error_msg}) + "\n"
             return
         

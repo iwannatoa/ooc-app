@@ -21,9 +21,9 @@ export interface AISettingsRef {
 }
 
 type FieldType = 'text' | 'number' | 'password';
+type ProviderConfigKey = Exclude<keyof AISettingsType, 'provider'>;
 type FieldKey =
-  | keyof AISettingsType['ollama']
-  | keyof AISettingsType['deepseek']
+  | keyof AISettingsType[ProviderConfigKey]
   | 'apiKey';
 
 interface FieldConfig {
@@ -41,6 +41,29 @@ interface FieldConfig {
   validate?: (value: string | number | boolean) => boolean;
 }
 
+const providerOptions: Array<{ value: AIProvider; labelKey: string }> = [
+  { value: 'ollama', labelKey: 'settingsPanel.providerOllama' },
+  { value: 'deepseek', labelKey: 'settingsPanel.providerDeepSeek' },
+  { value: 'openai_compatible', labelKey: 'settingsPanel.providerOpenAICompatible' },
+  { value: 'openai', labelKey: 'settingsPanel.providerOpenAI' },
+  { value: 'azure', labelKey: 'settingsPanel.providerAzure' },
+  { value: 'anthropic', labelKey: 'settingsPanel.providerAnthropic' },
+  { value: 'glm', labelKey: 'settingsPanel.providerGLM' },
+  { value: 'kimi', labelKey: 'settingsPanel.providerKimi' },
+  { value: 'minimax', labelKey: 'settingsPanel.providerMiniMax' },
+];
+
+const providersWithApiKey: AIProvider[] = [
+  'deepseek',
+  'openai_compatible',
+  'openai',
+  'azure',
+  'anthropic',
+  'glm',
+  'kimi',
+  'minimax',
+];
+
 /**
  * AI settings section component
  * Handles AI provider selection and configuration
@@ -53,7 +76,7 @@ export const AISettings = forwardRef<AISettingsRef, AISettingsProps>(
     // Merge with default values to ensure all fields are always present
     // Filter out undefined values to preserve defaults
     const initialSettings = useMemo<AISettingsType>(() => {
-      const filterUndefined = <T extends Record<string, any>>(
+      const filterUndefined = <T extends Record<string, unknown>>(
         obj: T
       ): Partial<T> => {
         return Object.fromEntries(
@@ -77,12 +100,42 @@ export const AISettings = forwardRef<AISettingsRef, AISettingsProps>(
             ? filterUndefined(settings.openai_compatible)
             : {}),
         },
+        openai: {
+          ...DEFAULT_SETTINGS.ai.openai,
+          ...(settings?.openai ? filterUndefined(settings.openai) : {}),
+        },
+        azure: {
+          ...DEFAULT_SETTINGS.ai.azure,
+          ...(settings?.azure ? filterUndefined(settings.azure) : {}),
+        },
+        anthropic: {
+          ...DEFAULT_SETTINGS.ai.anthropic,
+          ...(settings?.anthropic ? filterUndefined(settings.anthropic) : {}),
+        },
+        glm: {
+          ...DEFAULT_SETTINGS.ai.glm,
+          ...(settings?.glm ? filterUndefined(settings.glm) : {}),
+        },
+        kimi: {
+          ...DEFAULT_SETTINGS.ai.kimi,
+          ...(settings?.kimi ? filterUndefined(settings.kimi) : {}),
+        },
+        minimax: {
+          ...DEFAULT_SETTINGS.ai.minimax,
+          ...(settings?.minimax ? filterUndefined(settings.minimax) : {}),
+        },
       };
     }, [
       settings?.provider,
       settings?.ollama,
       settings?.deepseek,
       settings?.openai_compatible,
+      settings?.openai,
+      settings?.azure,
+      settings?.anthropic,
+      settings?.glm,
+      settings?.kimi,
+      settings?.minimax,
     ]);
 
     // Local state for AI settings
@@ -101,12 +154,10 @@ export const AISettings = forwardRef<AISettingsRef, AISettingsProps>(
 
     const currentProvider = localSettings.provider;
     const currentConfig = localSettings[currentProvider];
-    const providerDisplayName =
-      currentProvider === 'ollama'
-        ? t('settingsPanel.providerOllama')
-        : currentProvider === 'deepseek'
-          ? t('settingsPanel.providerDeepSeek')
-          : t('settingsPanel.providerOpenAICompatible');
+    const providerDisplayName = t(
+      providerOptions.find((option) => option.value === currentProvider)
+        ?.labelKey ?? 'settingsPanel.provider'
+    );
 
     const handleProviderChange = (provider: AIProvider) => {
       setLocalSettings((prev) => ({
@@ -124,30 +175,24 @@ export const AISettings = forwardRef<AISettingsRef, AISettingsProps>(
       if (typeof value === 'boolean') return;
 
       setLocalSettings((prev) => {
+        const typedValue = value as string | number;
+        if (currentProvider === 'ollama' && fieldKey === 'apiKey') {
+          return prev;
+        }
         if (currentProvider === 'ollama') {
-          if (fieldKey === 'apiKey') return prev; // apiKey doesn't exist for ollama
           return {
             ...prev,
             ollama: {
               ...prev.ollama,
-              [fieldKey]: value as string | number,
-            },
-          };
-        }
-        if (currentProvider === 'deepseek') {
-          return {
-            ...prev,
-            deepseek: {
-              ...prev.deepseek,
-              [fieldKey]: value as string | number,
+              [fieldKey]: typedValue,
             },
           };
         }
         return {
           ...prev,
-          openai_compatible: {
-            ...prev.openai_compatible,
-            [fieldKey]: value as string | number,
+          [currentProvider]: {
+            ...prev[currentProvider],
+            [fieldKey]: typedValue,
           },
         };
       });
@@ -161,7 +206,7 @@ export const AISettings = forwardRef<AISettingsRef, AISettingsProps>(
           type: 'password',
           labelKey: 'settingsPanel.apiKey',
           placeholderKey: 'settingsPanel.apiKeyPlaceholder',
-          providers: ['deepseek', 'openai_compatible'],
+          providers: providersWithApiKey,
           required: true,
           validate: (value) =>
             currentProvider === 'openai_compatible' ||
@@ -255,13 +300,14 @@ export const AISettings = forwardRef<AISettingsRef, AISettingsProps>(
             value={currentProvider}
             onChange={(e) => handleProviderChange(e.target.value as AIProvider)}
           >
-            <option value='ollama'>{t('settingsPanel.providerOllama')}</option>
-            <option value='deepseek'>
-              {t('settingsPanel.providerDeepSeek')}
-            </option>
-            <option value='openai_compatible'>
-              {t('settingsPanel.providerOpenAICompatible')}
-            </option>
+            {providerOptions.map((option) => (
+              <option
+                key={option.value}
+                value={option.value}
+              >
+                {t(option.labelKey)}
+              </option>
+            ))}
           </select>
         </div>
 
@@ -274,8 +320,7 @@ export const AISettings = forwardRef<AISettingsRef, AISettingsProps>(
             // Get value directly from config (initialSettings ensures defaults are present)
             const value =
               field.key === 'apiKey'
-                ? currentProvider === 'deepseek' ||
-                    currentProvider === 'openai_compatible'
+                ? currentProvider !== 'ollama'
                   ? (localSettings[currentProvider] as { apiKey?: string })
                       .apiKey ?? ''
                   : ''

@@ -13,9 +13,13 @@ import conversationSettingsFormReducer from '@/store/slices/conversationSettings
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import type { RootState } from '@/store';
+import { discoverFlaskPortBrowser } from '@/utils/discoverFlaskPortBrowser';
 
 vi.mock('@tauri-apps/api/core');
 vi.mock('@tauri-apps/api/event');
+vi.mock('@/utils/discoverFlaskPortBrowser', () => ({
+  discoverFlaskPortBrowser: vi.fn(),
+}));
 
 const createTestStore = (initialState: Partial<RootState> = {}) => {
   return configureStore({
@@ -127,9 +131,18 @@ const createWrapper = (store: ReturnType<typeof createTestStore>) => {
 describe('useFlaskPort', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.unstubAllEnvs();
     resetFlaskPortManager(); // Reset module state between tests
     vi.mocked(invoke).mockResolvedValue({ success: true, data: 5000 });
     vi.mocked(listen).mockResolvedValue(() => {});
+    vi.mocked(discoverFlaskPortBrowser).mockResolvedValue(5000);
+    if (typeof window !== 'undefined') {
+      (
+        window as typeof window & {
+          __TAURI__?: unknown;
+        }
+      ).__TAURI__ = {};
+    }
   });
 
   it('should get Flask port', async () => {
@@ -288,7 +301,7 @@ describe('useFlaskPort', () => {
         await new Promise((resolve) => setTimeout(resolve, 50));
       });
 
-      const apiUrl = await waitPromise;
+      const apiUrl = await act(async () => await waitPromise);
       expect(apiUrl).toBe('http://localhost:5000');
     }
   );
@@ -543,5 +556,54 @@ describe('useFlaskPort', () => {
     // Should not have called invoke since port was already set
     expect(invoke).not.toHaveBeenCalled();
     vi.useRealTimers();
+  });
+
+  it('should use VITE_FLASK_BASE_URL directly in browser mode', async () => {
+    vi.stubEnv('VITE_FLASK_BASE_URL', 'http://127.0.0.1:6001');
+    if (typeof window !== 'undefined') {
+      (
+        window as typeof window & {
+          __TAURI__?: unknown;
+        }
+      ).__TAURI__ = undefined;
+    }
+
+    const store = createTestStore();
+    const { result } = renderHook(() => useFlaskPort(), {
+      wrapper: createWrapper(store),
+    });
+
+    await act(async () => {
+      await result.current.refetch();
+    });
+
+    const apiUrl = await act(async () => result.current.waitForPort());
+    expect(apiUrl).toBe('http://127.0.0.1:6001');
+    expect(invoke).not.toHaveBeenCalled();
+  });
+
+  it('should discover browser Flask port when Tauri runtime unavailable', async () => {
+    if (typeof window !== 'undefined') {
+      (
+        window as typeof window & {
+          __TAURI__?: unknown;
+        }
+      ).__TAURI__ = undefined;
+    }
+
+    vi.mocked(discoverFlaskPortBrowser).mockResolvedValue(5033);
+
+    const store = createTestStore();
+    const { result } = renderHook(() => useFlaskPort(), {
+      wrapper: createWrapper(store),
+    });
+
+    await act(async () => {
+      await result.current.refetch();
+    });
+
+    expect(result.current.port).toBe(5033);
+    expect(invoke).not.toHaveBeenCalled();
+    expect(discoverFlaskPortBrowser).toHaveBeenCalled();
   });
 });

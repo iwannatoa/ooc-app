@@ -13,6 +13,13 @@ import type { ConversationSettingsFormData } from '@/store/slices/conversationSe
  * Hook for converting conversation settings data formats
  */
 export const useConversationSettingsConverter = () => {
+  const normalizeStopWords = (raw: string): string[] | undefined => {
+    const values = raw
+      .split(/[\n,]/g)
+      .map((value) => value.trim())
+      .filter(Boolean);
+    return values.length > 0 ? values : undefined;
+  };
   /**
    * Convert form data to API format
    */
@@ -49,6 +56,13 @@ export const useConversationSettingsConverter = () => {
           allow_auto_generate_main_characters:
             formData.allowAutoGenerateMainCharacters,
           supplement: formData.supplement.trim() || undefined,
+          conversationTemperature:
+            (formData.conversationTemperature ?? '').trim() || undefined,
+          conversationMaxTokens:
+            (formData.conversationMaxTokens ?? '').trim() || undefined,
+          conversationStopWords: normalizeStopWords(
+            (formData.conversationStopWords ?? '').trim()
+          ),
         },
       };
     },
@@ -78,6 +92,17 @@ export const useConversationSettingsConverter = () => {
           false,
         serializationOpenEnded: true,
         finiteTotalSections: 10,
+        conversationTemperature:
+          settings?.additional_settings?.conversationTemperature?.toString() ||
+          '',
+        conversationMaxTokens:
+          settings?.additional_settings?.conversationMaxTokens?.toString() || '',
+        conversationStopWords: Array.isArray(
+          settings?.additional_settings?.conversationStopWords
+        )
+          ? settings?.additional_settings?.conversationStopWords.join(', ')
+          : settings?.additional_settings?.conversationStopWords?.toString() ||
+            '',
       };
     },
     []

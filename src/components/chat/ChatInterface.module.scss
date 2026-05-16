@@ -10,7 +10,8 @@
   overflow: hidden;
 }
 
-.narrationBar {
+.narrationBar,
+.freeChatBar {
   display: flex;
   gap: $spacing-sm;
   padding: $spacing-sm $spacing-md;

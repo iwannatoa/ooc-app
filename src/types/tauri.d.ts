@@ -4,7 +4,7 @@
  */
 declare module '@tauri-apps/api/core' {
   export interface InvokeArgs {
-    [key: string]: any;
+    [key: string]: unknown;
   }
 
   export function invoke<T>(cmd: string, args?: InvokeArgs): Promise<T>;
@@ -12,7 +12,7 @@ declare module '@tauri-apps/api/core' {
 
 interface Window {
   __TAURI__?: {
-    invoke: <T>(cmd: string, args?: any) => Promise<T>;
+    invoke: <T>(cmd: string, args?: InvokeArgs) => Promise<T>;
     event: {
       listen: <T>(event: string, handler: (event: { payload: T }) => void) => Promise<() => void>;
     };

@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import type { UnknownAction } from '@reduxjs/toolkit';
 import conversationSettingsFormReducer, {
   initializeForm,
   updateFormField,
@@ -42,7 +43,9 @@ describe('conversationSettingsFormSlice', () => {
 
   it('should remove character', () => {
     // Initial state already has one empty string
-    const initialState = conversationSettingsFormReducer(undefined, { type: 'unknown' } as any);
+    const initialState = conversationSettingsFormReducer(undefined, {
+      type: '@@test/unknown',
+    } as UnknownAction);
     const stateWithChar = conversationSettingsFormReducer(
       initialState,
       addCharacter()

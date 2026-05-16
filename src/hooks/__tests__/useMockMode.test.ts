@@ -81,8 +81,6 @@ describe('useMockMode', () => {
     });
 
     const { result } = renderHook(() => useMockMode());
-    const initialValue = result.current.mockModeEnabled;
-    const initialLocalStorage = localStorage.getItem('dev_mock_mode_enabled');
 
     act(() => {
       result.current.toggleMockMode();
@@ -93,7 +91,6 @@ describe('useMockMode', () => {
     // that the behavior is consistent
     expect(typeof result.current.mockModeEnabled).toBe('boolean');
     // If toggle worked, localStorage would change; if not, it stays the same
-    const afterLocalStorage = localStorage.getItem('dev_mock_mode_enabled');
     // The test verifies the hook's structure and that toggle doesn't break
     expect(result.current).toHaveProperty('toggleMockMode');
   });

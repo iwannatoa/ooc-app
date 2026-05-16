@@ -14,7 +14,8 @@
     "expand": "Expand",
     "collapse": "Collapse",
     "refresh": "Refresh",
-    "requestFailed": "Request failed"
+    "requestFailed": "Request failed",
+    "loadMore": "Load older messages"
   },
   "app": {
     "title": "AI Story Generator",
@@ -150,7 +151,8 @@
     "hint_auth": "Open Settings and verify the API token matches the desktop app.",
     "hint_timeout": "The request timed out. Try again or use a smaller model context.",
     "hint_ollama": "Start Ollama or switch provider in AI Settings.",
-    "hint_api_key": "Configure your API key in Settings > AI Settings."
+    "hint_api_key": "Configure your API key in Settings > AI Settings.",
+    "hint_provider_config": "Check provider/model/base URL in Settings > AI Settings and retry."
   },
   "serverStatus": {
     "pythonServer": "Python Server",
@@ -192,6 +194,12 @@
     "providerOllama": "Ollama (Local)",
     "providerDeepSeek": "DeepSeek",
     "providerOpenAICompatible": "OpenAI-compatible API",
+    "providerOpenAI": "OpenAI",
+    "providerAzure": "Azure OpenAI",
+    "providerAnthropic": "Anthropic",
+    "providerGLM": "GLM",
+    "providerKimi": "Kimi",
+    "providerMiniMax": "MiniMax",
     "apiUrlOpenAICompatiblePlaceholder": "e.g. http://127.0.0.1:1234 (v1 is appended if missing)",
     "config": "Configuration",
     "model": "Model",
@@ -224,9 +232,16 @@
     "logLevelInfo": "Info",
     "logLevelDebug": "Debug",
     "enableDiagnostics": "Enable Diagnostics",
+    "enableAnonymousTelemetry": "Enable anonymous telemetry (usage + crash counters)",
     "enableFreeformNote": "Show narration / user note bar in chat (appends a user message)",
     "fieldRequired": "This field is required",
     "dataIntro": "Export a local diagnostic ZIP (no API keys), copy your SQLite database, or restore from a backup. Restore stops the local API briefly; avoid running during generation.",
+    "dataCheckUpdate": "Check for updates…",
+    "dataUpdaterNoUpdate": "You are already on the latest version.",
+    "dataUpdaterAvailable": "Update {version} is available.",
+    "dataUpdaterInstallConfirm": "Install update {version} now?",
+    "dataUpdaterInstalled": "Update downloaded. Restart the app to finish installation.",
+    "dataUpdaterFailed": "Failed to check/install update: {error}",
     "dataExportDiagnostics": "Export diagnostic ZIP…",
     "dataBackupDb": "Backup database…",
     "dataRestoreDb": "Restore database…",

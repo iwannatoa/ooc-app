@@ -33,6 +33,7 @@ const ServerStatus: React.FC = () => {
   const { serverApi } = useApiClients();
   const intervalId = useRef<number | null>(null);
   const hasGetModels = useRef<boolean>(false);
+  const isFetchingModels = useRef<boolean>(false);
   const isServerHealthy = useRef<boolean>(false);
   const lastReloadedConversationId = useRef<string | null>(null);
 
@@ -119,6 +120,8 @@ const ServerStatus: React.FC = () => {
         const wasHealthy = isServerHealthy.current;
         setPythonServerStatus('error');
         isServerHealthy.current = false;
+        hasGetModels.current = false;
+        isFetchingModels.current = false;
         // If changed from healthy to unhealthy, switch to short interval
         if (wasHealthy) {
           startHealthCheckInterval();
@@ -130,6 +133,8 @@ const ServerStatus: React.FC = () => {
       setPythonServerStatus('error');
       setOllamaStatus('disconnected');
       isServerHealthy.current = false;
+      hasGetModels.current = false;
+      isFetchingModels.current = false;
       if (wasHealthy) {
         startHealthCheckInterval();
         lastReloadedConversationId.current = null;
@@ -151,8 +156,14 @@ const ServerStatus: React.FC = () => {
   };
 
   const fetchModels = async (): Promise<void> => {
-    if (settings.ai.provider !== 'ollama') return;
+    if (
+      settings.ai.provider !== 'ollama' ||
+      hasGetModels.current ||
+      isFetchingModels.current
+    )
+      return;
 
+    isFetchingModels.current = true;
     try {
       const data = await serverApi.getModels('ollama');
 
@@ -169,6 +180,8 @@ const ServerStatus: React.FC = () => {
       }
     } catch (error) {
       console.error(t('serverStatus.fetchModelsFailed'), error);
+    } finally {
+      isFetchingModels.current = false;
     }
   };
 

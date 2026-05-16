@@ -58,8 +58,10 @@ jobs:
           pip install -r requirements.txt
 
       - name: Build Python backend
-        working-directory: server
-        run: npm run build:python
+        run: python server/build.py --current-platform-only
+
+      - name: Verify sidecar artifact exists
+        run: npm run check:desktop-ga
 
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0

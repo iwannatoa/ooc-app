@@ -58,6 +58,9 @@ export const AdvancedSettings = forwardRef<
       enableDiagnostics:
         settings?.enableDiagnostics ??
         DEFAULT_SETTINGS.advanced.enableDiagnostics,
+      enableAnonymousTelemetry:
+        settings?.enableAnonymousTelemetry ??
+        DEFAULT_SETTINGS.advanced.enableAnonymousTelemetry,
       enableFreeformNote:
         settings?.enableFreeformNote ??
         DEFAULT_SETTINGS.advanced.enableFreeformNote,
@@ -68,6 +71,7 @@ export const AdvancedSettings = forwardRef<
       settings?.maxRetries,
       settings?.logLevel,
       settings?.enableDiagnostics,
+      settings?.enableAnonymousTelemetry,
       settings?.enableFreeformNote,
     ]
   );
@@ -164,6 +168,14 @@ export const AdvancedSettings = forwardRef<
       type: 'checkbox',
       labelKey: 'settingsPanel.enableDiagnostics',
       getValue: (settings) => settings.enableDiagnostics ?? false,
+      parseValue: (value) => value === 'true',
+      validate: () => true,
+    },
+    {
+      key: 'enableAnonymousTelemetry',
+      type: 'checkbox',
+      labelKey: 'settingsPanel.enableAnonymousTelemetry',
+      getValue: (settings) => settings.enableAnonymousTelemetry ?? false,
       parseValue: (value) => value === 'true',
       validate: () => true,
     },

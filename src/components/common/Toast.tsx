@@ -31,9 +31,19 @@ const ToastItem: React.FC<ToastProps> = ({ toast, onClose }) => {
   return (
     <div
       className={`${styles.toast} ${styles[toast.type]} ${isVisible ? styles.visible : ''}`}
+      role="button"
+      tabIndex={0}
+      aria-label="Dismiss notification"
       onClick={() => {
         setIsVisible(false);
         setTimeout(() => onClose(toast.id), 300);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          setIsVisible(false);
+          setTimeout(() => onClose(toast.id), 300);
+        }
       }}
     >
       <div className={styles.content}>

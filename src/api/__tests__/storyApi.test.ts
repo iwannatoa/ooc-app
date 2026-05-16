@@ -1,3 +1,4 @@
+import { mockFn } from '@/test/mockFn';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { StoryApi } from '../storyApi';
 import { DEFAULT_SETTINGS } from '@/types/constants';
@@ -26,7 +27,7 @@ describe('StoryApi', () => {
   });
 
   it('should confirm section', async () => {
-    (global.fetch as any).mockResolvedValue({
+    mockFn(global.fetch).mockResolvedValue({
       ok: true,
       json: async () => ({
         success: true,
@@ -39,7 +40,7 @@ describe('StoryApi', () => {
   });
 
   it('should rewrite section', async () => {
-    (global.fetch as any).mockResolvedValue({
+    mockFn(global.fetch).mockResolvedValue({
       ok: true,
       json: async () => ({
         success: true,
@@ -50,13 +51,13 @@ describe('StoryApi', () => {
     const result = await api.rewriteSection('conv-1', 'Make it longer');
     expect(result.success).toBe(true);
     expect(global.fetch).toHaveBeenCalled();
-    const init = (global.fetch as any).mock.calls[0][1];
+    const init = mockFn(global.fetch).mock.calls[0][1];
     const body = JSON.parse(init.body as string);
     expect(body.feedback_operation).toBe('rewrite');
   });
 
   it('should modify section', async () => {
-    (global.fetch as any).mockResolvedValue({
+    mockFn(global.fetch).mockResolvedValue({
       ok: true,
       json: async () => ({
         success: true,

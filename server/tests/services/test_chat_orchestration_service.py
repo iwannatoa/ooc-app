@@ -48,11 +48,24 @@ def mock_ai_config_service():
 
 
 @pytest.fixture
-def orchestration(mock_ai_service, mock_chat_service, mock_ai_config_service):
+def mock_conversation_service():
+    svc = Mock()
+    svc.get_settings.return_value = None
+    return svc
+
+
+@pytest.fixture
+def orchestration(
+    mock_ai_service,
+    mock_chat_service,
+    mock_ai_config_service,
+    mock_conversation_service,
+):
     return ChatOrchestrationService(
         mock_ai_service,
         mock_chat_service,
         mock_ai_config_service,
+        mock_conversation_service,
     )
 
 
@@ -106,4 +119,39 @@ def test_process_chat_success_sets_persisted(
     mock_chat_service.save_assistant_message.assert_called_once()
     call_kw = mock_chat_service.save_assistant_message.call_args[1]
     assert call_kw.get('session') is mock_sess
+
+
+def test_process_chat_applies_conversation_overrides(
+    patch_uow,
+    orchestration,
+    mock_ai_service,
+    mock_ai_config_service,
+    mock_conversation_service,
+):
+    _mock_uow, _mock_sess = patch_uow
+    mock_ai_service.chat.return_value = {
+        'success': True,
+        'response': 'Reply',
+        'model': 'llama',
+    }
+    mock_conversation_service.get_settings.return_value = {
+        'additional_settings': {
+            'conversationTemperature': '0.2',
+            'conversationMaxTokens': '333',
+            'conversationStopWords': ['END', 'STOP'],
+        }
+    }
+
+    orchestration.process_chat(
+        message='hi',
+        provider='ollama',
+        conversation_id='conv-3',
+        language='en',
+    )
+
+    chat_kwargs = mock_ai_service.chat.call_args[1]
+    assert chat_kwargs['temperature'] == 0.2
+    assert chat_kwargs['max_tokens'] == 333
+    assert chat_kwargs['stop_words'] == ['END', 'STOP']
+    mock_ai_config_service.get_config_for_api.assert_called_once()
 

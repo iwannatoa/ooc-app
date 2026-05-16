@@ -1,3 +1,4 @@
+import { mockFn } from '@/test/mockFn';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import StorySettingsView from '../StorySettingsView';
@@ -27,7 +28,7 @@ describe('StorySettingsView', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    (useConversationClient as any).mockReturnValue({
+    mockFn(useConversationClient).mockReturnValue({
       getCharacters: mockGetCharacters,
     });
   });

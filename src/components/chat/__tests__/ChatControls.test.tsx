@@ -1,3 +1,4 @@
+import { mockFn } from '@/test/mockFn';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ChatControls } from '../ChatControls';
@@ -47,14 +48,24 @@ vi.mock('@/hooks/useToast', () => ({
 }));
 
 vi.mock('../ModelSelector', () => ({
-  default: ({ models, selectedModel, onModelChange, disabled }: any) => (
+  default: ({
+    models,
+    selectedModel,
+    onModelChange,
+    disabled,
+  }: {
+    models: { model: string; name: string }[];
+    selectedModel: string;
+    onModelChange: (model: string) => void;
+    disabled?: boolean;
+  }) => (
     <div data-testid='model-selector'>
       <select
         value={selectedModel}
         onChange={(e) => onModelChange(e.target.value)}
         disabled={disabled}
       >
-        {models.map((m: any) => (
+        {models.map((m) => (
           <option
             key={m.model}
             value={m.model}
@@ -90,8 +101,8 @@ describe('ChatControls', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    (useI18n as any).mockReturnValue({
-      t: (key: string, params?: any) => {
+    mockFn(useI18n).mockReturnValue({
+      t: (key: string, params?: Record<string, string | number>) => {
         if (key === 'chat.chapter' && params) {
           return `Chapter ${params.number}`;
         }
@@ -99,7 +110,7 @@ describe('ChatControls', () => {
       },
     });
 
-    (useConversationManagement as any).mockReturnValue({
+    mockFn(useConversationManagement).mockReturnValue({
       activeConversationId: 'conv1',
       conversationSettings: {
         title: 'Test Story',
@@ -107,17 +118,17 @@ describe('ChatControls', () => {
       handleNewConversation: mockHandleNewConversation,
     });
 
-    (useChatState as any).mockReturnValue({
+    mockFn(useChatState).mockReturnValue({
       models: [{ name: 'Model 1', model: 'model1' }],
       messages: [],
     });
 
-    (useChatActions as any).mockReturnValue({
+    mockFn(useChatActions).mockReturnValue({
       handleModelChange: mockHandleModelChange,
       getCurrentModel: mockGetCurrentModel.mockReturnValue('model1'),
     });
 
-    (useSettingsState as any).mockReturnValue({
+    mockFn(useSettingsState).mockReturnValue({
       settings: {
         ai: {
           provider: 'ollama',
@@ -125,18 +136,18 @@ describe('ChatControls', () => {
       },
     });
 
-    (useUIState as any).mockReturnValue({
+    mockFn(useUIState).mockReturnValue({
       conversationListCollapsed: false,
       settingsSidebarCollapsed: false,
       setConversationListCollapsed: mockSetConversationListCollapsed,
       setSettingsSidebarCollapsed: mockSetSettingsSidebarCollapsed,
     });
 
-    (useStoryProgress as any).mockReturnValue({
+    mockFn(useStoryProgress).mockReturnValue({
       progress: null,
     });
 
-    (useToast as any).mockReturnValue({
+    mockFn(useToast).mockReturnValue({
       showError: mockShowError,
       showSuccess: mockShowSuccess,
     });
@@ -149,7 +160,7 @@ describe('ChatControls', () => {
   });
 
   it('should render model info for non-ollama provider', () => {
-    (useSettingsState as any).mockReturnValue({
+    mockFn(useSettingsState).mockReturnValue({
       settings: {
         ai: {
           provider: 'deepseek',
@@ -164,7 +175,7 @@ describe('ChatControls', () => {
   });
 
   it('should show expand button when conversation list is collapsed', () => {
-    (useUIState as any).mockReturnValue({
+    mockFn(useUIState).mockReturnValue({
       conversationListCollapsed: true,
       settingsSidebarCollapsed: false,
       setConversationListCollapsed: mockSetConversationListCollapsed,
@@ -187,7 +198,7 @@ describe('ChatControls', () => {
   });
 
   it('should show chapter info when progress is available', () => {
-    (useStoryProgress as any).mockReturnValue({
+    mockFn(useStoryProgress).mockReturnValue({
       progress: {
         current_section: 2,
         total_sections: 5,
@@ -201,7 +212,7 @@ describe('ChatControls', () => {
   });
 
   it('should show export button when messages exist', () => {
-    (useChatState as any).mockReturnValue({
+    mockFn(useChatState).mockReturnValue({
       models: [],
       messages: [
         { id: '1', role: 'user', content: 'Hello' },
@@ -221,14 +232,14 @@ describe('ChatControls', () => {
   });
 
   it('should show new button when list is collapsed and no active conversation', () => {
-    (useUIState as any).mockReturnValue({
+    mockFn(useUIState).mockReturnValue({
       conversationListCollapsed: true,
       settingsSidebarCollapsed: false,
       setConversationListCollapsed: mockSetConversationListCollapsed,
       setSettingsSidebarCollapsed: mockSetSettingsSidebarCollapsed,
     });
 
-    (useConversationManagement as any).mockReturnValue({
+    mockFn(useConversationManagement).mockReturnValue({
       activeConversationId: null,
       conversationSettings: null,
       handleNewConversation: mockHandleNewConversation,
@@ -244,7 +255,7 @@ describe('ChatControls', () => {
   });
 
   it('should show expand settings sidebar button when collapsed', () => {
-    (useUIState as any).mockReturnValue({
+    mockFn(useUIState).mockReturnValue({
       conversationListCollapsed: false,
       settingsSidebarCollapsed: true,
       setConversationListCollapsed: mockSetConversationListCollapsed,
@@ -261,10 +272,10 @@ describe('ChatControls', () => {
   });
 
   it('should export story successfully', async () => {
-    (save as any).mockResolvedValue('/path/to/file.txt');
-    (writeTextFile as any).mockResolvedValue(undefined);
+    mockFn(save).mockResolvedValue('/path/to/file.txt');
+    mockFn(writeTextFile).mockResolvedValue(undefined);
 
-    (useChatState as any).mockReturnValue({
+    mockFn(useChatState).mockReturnValue({
       models: [],
       messages: [
         { id: '1', role: 'assistant', content: 'Story content 1' },
@@ -272,7 +283,7 @@ describe('ChatControls', () => {
       ],
     });
 
-    (useStoryProgress as any).mockReturnValue({
+    mockFn(useStoryProgress).mockReturnValue({
       progress: {
         current_section: 0,
         total_sections: 10,
@@ -302,9 +313,9 @@ describe('ChatControls', () => {
   });
 
   it('should handle export cancellation', async () => {
-    (save as any).mockResolvedValue(null);
+    mockFn(save).mockResolvedValue(null);
 
-    (useChatState as any).mockReturnValue({
+    mockFn(useChatState).mockReturnValue({
       models: [],
       messages: [{ id: '1', role: 'assistant', content: 'Story content' }],
     });
@@ -326,10 +337,10 @@ describe('ChatControls', () => {
   });
 
   it('should handle export error', async () => {
-    (save as any).mockResolvedValue('/path/to/file.txt');
-    (writeTextFile as any).mockRejectedValue(new Error('Write failed'));
+    mockFn(save).mockResolvedValue('/path/to/file.txt');
+    mockFn(writeTextFile).mockRejectedValue(new Error('Write failed'));
 
-    (useChatState as any).mockReturnValue({
+    mockFn(useChatState).mockReturnValue({
       models: [],
       messages: [{ id: '1', role: 'assistant', content: 'Story content' }],
     });
@@ -348,13 +359,13 @@ describe('ChatControls', () => {
   });
 
   it('should not export when no active conversation', () => {
-    (useConversationManagement as any).mockReturnValue({
+    mockFn(useConversationManagement).mockReturnValue({
       activeConversationId: null,
       conversationSettings: null,
       handleNewConversation: mockHandleNewConversation,
     });
 
-    (useChatState as any).mockReturnValue({
+    mockFn(useChatState).mockReturnValue({
       models: [],
       messages: [{ id: '1', role: 'assistant', content: 'Story content' }],
     });
@@ -365,10 +376,10 @@ describe('ChatControls', () => {
   });
 
   it('should sanitize filename when exporting', async () => {
-    (save as any).mockResolvedValue('/path/to/file.txt');
-    (writeTextFile as any).mockResolvedValue(undefined);
+    mockFn(save).mockResolvedValue('/path/to/file.txt');
+    mockFn(writeTextFile).mockResolvedValue(undefined);
 
-    (useConversationManagement as any).mockReturnValue({
+    mockFn(useConversationManagement).mockReturnValue({
       activeConversationId: 'conv1',
       conversationSettings: {
         title: 'Test<>Story',
@@ -376,7 +387,7 @@ describe('ChatControls', () => {
       handleNewConversation: mockHandleNewConversation,
     });
 
-    (useChatState as any).mockReturnValue({
+    mockFn(useChatState).mockReturnValue({
       models: [],
       messages: [{ id: '1', role: 'assistant', content: 'Story content' }],
     });
@@ -389,7 +400,7 @@ describe('ChatControls', () => {
     await waitFor(
       () => {
         expect(save).toHaveBeenCalled();
-        const callArgs = (save as any).mock.calls[0][0];
+        const callArgs = mockFn(save).mock.calls[0][0];
         expect(callArgs.defaultPath).toContain('Test__Story_Chapter 1.txt');
       },
       { container }

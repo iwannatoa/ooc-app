@@ -228,7 +228,8 @@ class AppModule(Module):
         self,
         ai_service: AIService,
         chat_service: ChatService,
-        ai_config_service: AIConfigService
+        ai_config_service: AIConfigService,
+        conversation_service: ConversationService,
     ) -> ChatOrchestrationService:
         """
         Create chat orchestration service
@@ -239,7 +240,8 @@ class AppModule(Module):
         return ChatOrchestrationService(
             ai_service=ai_service,
             chat_service=chat_service,
-            ai_config_service=ai_config_service
+            ai_config_service=ai_config_service,
+            conversation_service=conversation_service,
         )
     
     @provider

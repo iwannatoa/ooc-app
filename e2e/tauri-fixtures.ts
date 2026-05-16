@@ -1,8 +1,5 @@
 import { createTauriTest } from '@srsholmes/tauri-playwright';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-const repoRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
+const repoRoot = process.cwd();
 
 export const { test, expect } = createTauriTest({
   devUrl: 'http://localhost:1420/',

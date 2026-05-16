@@ -14,7 +14,8 @@
     "expand": "展开",
     "collapse": "折叠",
     "refresh": "刷新",
-    "requestFailed": "请求失败"
+    "requestFailed": "请求失败",
+    "loadMore": "加载更早消息"
   },
   "app": {
     "title": "AI 故事生成器",
@@ -150,7 +151,8 @@
     "hint_auth": "请在设置中核对 API Token 与桌面端一致。",
     "hint_timeout": "请求超时，请重试或缩小上下文。",
     "hint_ollama": "请启动 Ollama，或在 AI 设置中更换提供商。",
-    "hint_api_key": "请在 设置 > AI设置 中配置 API Key。"
+    "hint_api_key": "请在 设置 > AI设置 中配置 API Key。",
+    "hint_provider_config": "请在 设置 > AI设置 中检查提供商、模型与 API URL 配置后重试。"
   },
   "serverStatus": {
     "pythonServer": "Python 服务器",
@@ -192,6 +194,12 @@
     "providerOllama": "Ollama (本地)",
     "providerDeepSeek": "DeepSeek",
     "providerOpenAICompatible": "OpenAI 兼容 API",
+    "providerOpenAI": "OpenAI",
+    "providerAzure": "Azure OpenAI",
+    "providerAnthropic": "Anthropic",
+    "providerGLM": "GLM",
+    "providerKimi": "Kimi",
+    "providerMiniMax": "MiniMax",
     "apiUrlOpenAICompatiblePlaceholder": "例如 http://127.0.0.1:1234（若未含 /v1 将自动补全）",
     "config": "配置",
     "model": "模型",
@@ -224,9 +232,16 @@
     "logLevelInfo": "信息",
     "logLevelDebug": "调试",
     "enableDiagnostics": "启用诊断信息",
+    "enableAnonymousTelemetry": "启用匿名 telemetry（使用量与崩溃计数）",
     "enableFreeformNote": "在聊天区显示旁白/用户备注栏（追加为一条用户消息）",
     "fieldRequired": "此字段为必填项",
     "dataIntro": "导出本地诊断 ZIP（不含 API Key）、复制 SQLite 数据库，或从备份恢复。恢复时会短暂停止本地 API；请勿在生成过程中操作。",
+    "dataCheckUpdate": "检查更新…",
+    "dataUpdaterNoUpdate": "当前已是最新版本。",
+    "dataUpdaterAvailable": "发现可用更新 {version}。",
+    "dataUpdaterInstallConfirm": "是否立即安装更新 {version}？",
+    "dataUpdaterInstalled": "更新已下载，请重启应用完成安装。",
+    "dataUpdaterFailed": "检查或安装更新失败：{error}",
     "dataExportDiagnostics": "导出诊断 ZIP…",
     "dataBackupDb": "备份数据库…",
     "dataRestoreDb": "恢复数据库…",

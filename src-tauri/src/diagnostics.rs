@@ -12,8 +12,8 @@ use zip::write::{SimpleFileOptions, ZipWriter};
 use zip::CompressionMethod;
 
 use crate::python_lifecycle::run_start_python_server;
-use crate::python_server::PythonServer;
 use crate::python_lifecycle::stop_python_server_internal;
+use crate::python_server::PythonServer;
 
 fn redact_path(p: &str) -> String {
     let mut s = p.to_string();
@@ -124,7 +124,10 @@ pub async fn backup_chat_database(
     app_handle: AppHandle,
     dest_path: String,
 ) -> Result<String, String> {
-    let app_data = app_handle.path().app_data_dir().map_err(|e| e.to_string())?;
+    let app_data = app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?;
     let src = app_data.join("chat.db");
     if !src.is_file() {
         return Err("chat.db not found in app data directory".to_string());
@@ -148,7 +151,10 @@ pub async fn restore_chat_database(
     if !src.is_file() {
         return Err("Source backup file does not exist".to_string());
     }
-    let app_data = app_handle.path().app_data_dir().map_err(|e| e.to_string())?;
+    let app_data = app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?;
     std::fs::create_dir_all(&app_data).map_err(|e| e.to_string())?;
     let dest = app_data.join("chat.db");
 
@@ -167,11 +173,9 @@ pub async fn restore_chat_database(
 
     let start = run_start_python_server(app_handle.clone(), server_state).await?;
     if !start.success {
-        return Err(
-            start
-                .error
-                .unwrap_or_else(|| "Flask failed to restart after restore".to_string()),
-        );
+        return Err(start
+            .error
+            .unwrap_or_else(|| "Flask failed to restart after restore".to_string()));
     }
 
     Ok(dest.to_string_lossy().into_owned())

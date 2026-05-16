@@ -73,6 +73,25 @@ class TestAIService:
         assert result['success'] is True
         assert result['response'] == 'DeepSeek response'
         mock_deepseek_service.chat_completion.assert_called_once()
+
+    def test_chat_with_deepseek_forwards_stop_words(
+        self, service, mock_deepseek_service
+    ):
+        """Should forward optional stop_words to deepseek chat_completion"""
+        mock_deepseek_service.chat_completion.return_value = {
+            'choices': [{'message': {'content': 'DeepSeek response'}}]
+        }
+
+        service.chat(
+            provider='deepseek',
+            message='Test message',
+            model='deepseek-chat',
+            api_key='test_key',
+            stop_words=['END', 'STOP'],
+        )
+
+        call_kwargs = mock_deepseek_service.chat_completion.call_args.kwargs
+        assert call_kwargs['stop_words'] == ['END', 'STOP']
     
     def test_chat_invalid_provider(self, service):
         """Test chat with invalid provider"""

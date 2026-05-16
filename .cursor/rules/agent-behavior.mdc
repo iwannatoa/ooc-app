@@ -1,0 +1,32 @@
+---
+description: Implementation guardrails for maintainable, minimal diffs
+alwaysApply: true
+---
+
+# Agent Behavior Expectations
+
+## Diff quality
+
+- Keep diffs focused: only modify files required by the request.
+- Avoid drive-by refactors unless explicitly requested.
+- Match existing naming, architecture, and error-handling conventions.
+- Prefer extending current modules over adding parallel implementations.
+
+## Validation strategy
+
+- For TypeScript/UI changes, run relevant checks (for example `npm run lint:eslint`, `npm run test`).
+- For Python changes, run relevant checks (for example `npm run lint:python`, `npm run test:python`).
+- For cross-layer changes, run `npm run check` when feasible.
+- If full validation is too expensive, run targeted checks and state what was not run.
+
+## Safety constraints
+
+- Never commit secrets, tokens, or machine-specific absolute paths.
+- Do not rely on generated artifacts under `server/build`, `server/dist`, or `src-tauri/target`.
+- Do not alter bundling identifiers or updater behavior without clear requirement.
+
+## Documentation and tests
+
+- Update docs when behavior or contributor workflow changes.
+- Add or adjust tests in the nearest existing test area.
+- Keep comments concise and useful; avoid obvious narration.

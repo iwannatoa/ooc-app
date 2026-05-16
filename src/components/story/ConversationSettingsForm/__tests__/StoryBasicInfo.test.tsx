@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { mockFn } from '@/test/mockFn';
 import { fireEvent, screen } from '@testing-library/react';
 import { renderWithProviders } from '@/test/utils';
 import { StoryBasicInfo } from '../StoryBasicInfo';
@@ -22,6 +23,9 @@ const mockFormData = {
   outlineConfirmed: false,
   allowAutoGenerateCharacters: false,
   allowAutoGenerateMainCharacters: false,
+  conversationTemperature: '',
+  conversationMaxTokens: '',
+  conversationStopWords: '',
 };
 
 vi.mock('@/hooks/useConversationSettingsForm');
@@ -40,7 +44,7 @@ describe('StoryBasicInfo', () => {
     mockFormData.supplement = '';
 
     (
-      useConversationSettingsForm.useConversationSettingsForm as any
+      mockFn(useConversationSettingsForm.useConversationSettingsForm)
     ).mockReturnValue({
       formData: mockFormData,
       updateFields: mockUpdateFields,
@@ -92,7 +96,7 @@ describe('StoryBasicInfo', () => {
     mockFormData.supplement = 'Test Supplement';
 
     (
-      useConversationSettingsForm.useConversationSettingsForm as any
+      mockFn(useConversationSettingsForm.useConversationSettingsForm)
     ).mockReturnValue({
       formData: mockFormData,
       updateFields: mockUpdateFields,

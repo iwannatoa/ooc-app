@@ -1,19 +1,14 @@
+import { mockFn } from '@/test/mockFn';
 import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useStoryProgress } from '../useStoryProgress';
 import * as useConversationClient from '../useConversationClient';
 import * as useChatState from '../useChatState';
+import type { StoryProgress } from '@/types';
 
 // Mock dependencies
 vi.mock('../useConversationClient');
 vi.mock('../useChatState');
-
-// Access the cache to clear it between tests
-const getProgressCache = () => {
-  // The cache is module-level, so we need to access it through the module
-  // Since we can't directly access it, we'll use unique conversation IDs per test
-  return null;
-};
 
 describe('useStoryProgress', () => {
   const mockGetProgress = vi.fn();
@@ -21,20 +16,22 @@ describe('useStoryProgress', () => {
     getProgress: mockGetProgress,
   };
 
-  const mockProgress: any = {
-    currentChapter: 1,
-    totalChapters: 10,
-    progress: 0.1,
+  const mockProgress: StoryProgress = {
+    conversation_id: 'conv_001',
+    current_section: 1,
+    total_sections: 10,
+    status: 'generating',
+    outline_confirmed: false,
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
 
-    (useChatState.useChatState as any).mockReturnValue({
+    mockFn(useChatState.useChatState).mockReturnValue({
       activeConversationId: 'conv_001',
     });
 
-    (useConversationClient.useConversationClient as any).mockReturnValue(
+    mockFn(useConversationClient.useConversationClient).mockReturnValue(
       mockConversationClient
     );
 
@@ -54,7 +51,7 @@ describe('useStoryProgress', () => {
   });
 
   it('should set progress to null when activeConversationId is null', async () => {
-    (useChatState.useChatState as any).mockReturnValue({
+    mockFn(useChatState.useChatState).mockReturnValue({
       activeConversationId: null,
     });
 
@@ -69,7 +66,7 @@ describe('useStoryProgress', () => {
   });
 
   it('should set loading state during progress fetch', async () => {
-    let resolveProgress: (value: any) => void;
+    let resolveProgress: (value: StoryProgress | null) => void;
     const progressPromise = new Promise((resolve) => {
       resolveProgress = resolve;
     });
@@ -115,7 +112,7 @@ describe('useStoryProgress', () => {
 
   it('should fetch new progress if cache is expired', async () => {
     // Use a unique conversation ID to avoid cache conflicts
-    (useChatState.useChatState as any).mockReturnValue({
+    mockFn(useChatState.useChatState).mockReturnValue({
       activeConversationId: 'conv_cache_test',
     });
 
@@ -143,13 +140,14 @@ describe('useStoryProgress', () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
+    expect(result2.current.progress).toEqual(mockProgress);
     // Should fetch new data since cache expired
     expect(mockGetProgress).toHaveBeenCalledWith('conv_cache_test');
   });
 
   it('should handle progress fetch error gracefully', async () => {
     // Use a unique conversation ID to avoid cache conflicts
-    (useChatState.useChatState as any).mockReturnValue({
+    mockFn(useChatState.useChatState).mockReturnValue({
       activeConversationId: 'conv_error_test',
     });
 
@@ -176,7 +174,7 @@ describe('useStoryProgress', () => {
 
   it('should handle cached progress fetch error', async () => {
     // Use a unique conversation ID to avoid cache conflicts
-    (useChatState.useChatState as any).mockReturnValue({
+    mockFn(useChatState.useChatState).mockReturnValue({
       activeConversationId: 'conv_cache_error_test',
     });
 
@@ -186,7 +184,7 @@ describe('useStoryProgress', () => {
     const error = new Error('Cache error');
     mockGetProgress.mockRejectedValueOnce(error);
 
-    const { result: result1 } = renderHook(() => useStoryProgress());
+    renderHook(() => useStoryProgress());
 
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
@@ -212,11 +210,11 @@ describe('useStoryProgress', () => {
 
   it('should not update state if component is unmounted', async () => {
     // Use a unique conversation ID to avoid cache conflicts
-    (useChatState.useChatState as any).mockReturnValue({
+    mockFn(useChatState.useChatState).mockReturnValue({
       activeConversationId: 'conv_unmount_test',
     });
 
-    let resolveProgress: (value: any) => void;
+    let resolveProgress: (value: StoryProgress | null) => void;
     const progressPromise = new Promise((resolve) => {
       resolveProgress = resolve;
     });
@@ -239,7 +237,7 @@ describe('useStoryProgress', () => {
 
   it('should refresh progress when refresh is called', async () => {
     // Use a unique conversation ID to avoid cache conflicts
-    (useChatState.useChatState as any).mockReturnValue({
+    mockFn(useChatState.useChatState).mockReturnValue({
       activeConversationId: 'conv_refresh_test',
     });
 
@@ -257,7 +255,7 @@ describe('useStoryProgress', () => {
       await new Promise((resolve) => setTimeout(resolve, 1100));
     });
 
-    const newProgress = { ...mockProgress, currentChapter: 2 };
+    const newProgress: StoryProgress = { ...mockProgress, current_section: 2 };
     mockGetProgress.mockResolvedValue(newProgress);
 
     await act(async () => {
@@ -271,7 +269,7 @@ describe('useStoryProgress', () => {
   });
 
   it('should update progress when activeConversationId changes', async () => {
-    (useChatState.useChatState as any).mockReturnValue({
+    mockFn(useChatState.useChatState).mockReturnValue({
       activeConversationId: 'conv_change_001',
     });
 
@@ -283,10 +281,10 @@ describe('useStoryProgress', () => {
 
     expect(mockGetProgress).toHaveBeenCalledWith('conv_change_001');
 
-    const newProgress = { ...mockProgress, currentChapter: 3 };
+    const newProgress: StoryProgress = { ...mockProgress, current_section: 3 };
     mockGetProgress.mockResolvedValue(newProgress);
 
-    (useChatState.useChatState as any).mockReturnValue({
+    mockFn(useChatState.useChatState).mockReturnValue({
       activeConversationId: 'conv_change_002',
     });
 

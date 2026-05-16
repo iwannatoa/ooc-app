@@ -65,6 +65,39 @@ class ChatRepository:
                 query = query.limit(limit)
             return query.all()
 
+    def get_assistant_messages(
+        self,
+        conversation_id: str,
+        limit: int = 30,
+    ) -> List[ChatRecord]:
+        with repository_session(self._session_factory, None) as sess:
+            query = (
+                sess.query(ChatRecord)
+                .filter(
+                    ChatRecord.conversation_id == conversation_id,
+                    ChatRecord.role == 'assistant',
+                )
+                .order_by(desc(ChatRecord.created_at))
+                .limit(limit)
+            )
+            return query.all()
+
+    def get_message_by_id(
+        self,
+        conversation_id: str,
+        message_id: int,
+        session: Optional[Session] = None,
+    ) -> Optional[ChatRecord]:
+        with repository_session(self._session_factory, session) as sess:
+            return (
+                sess.query(ChatRecord)
+                .filter(
+                    ChatRecord.conversation_id == conversation_id,
+                    ChatRecord.id == message_id,
+                )
+                .first()
+            )
+
     def get_all_conversations(self) -> List[str]:
         with repository_session(self._session_factory, None) as sess:
             result = sess.query(ChatRecord.conversation_id).distinct().all()

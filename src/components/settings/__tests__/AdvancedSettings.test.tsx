@@ -35,6 +35,7 @@ describe('AdvancedSettings', () => {
     maxRetries: 3,
     logLevel: 'info' as const,
     enableDiagnostics: false,
+    enableAnonymousTelemetry: false,
   };
 
   beforeEach(() => {
@@ -178,6 +179,21 @@ describe('AdvancedSettings', () => {
     const checkbox = screen.getByLabelText('settingsPanel.enableDiagnostics');
     await user.click(checkbox);
     expect(ref.current?.getCurrentSettings().enableDiagnostics).toBe(true);
+  });
+
+  it('should update local state when enableAnonymousTelemetry is toggled', async () => {
+    const ref = React.createRef<AdvancedSettingsRef>();
+    renderWithProviders(
+      <AdvancedSettings
+        ref={ref}
+        settings={defaultSettings}
+      />
+    );
+    const checkbox = screen.getByLabelText(
+      'settingsPanel.enableAnonymousTelemetry'
+    );
+    await user.click(checkbox);
+    expect(ref.current?.getCurrentSettings().enableAnonymousTelemetry).toBe(true);
   });
 
   it('should use default value for enableDiagnostics when undefined', () => {

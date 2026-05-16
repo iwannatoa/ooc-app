@@ -23,6 +23,7 @@ import {
 import styles from './styles.module.scss';
 import { useEffect } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import { trackTelemetryEvent } from './services/telemetryService';
 
 /**
  * Main application component
@@ -62,6 +63,10 @@ function App() {
   ]);
 
   // Show window after content is loaded
+  useEffect(() => {
+    void trackTelemetryEvent('app_started');
+  }, []);
+
   useEffect(() => {
     const showWindow = async () => {
       try {

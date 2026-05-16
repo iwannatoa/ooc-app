@@ -91,6 +91,19 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, open }) => {
     try {
       // Collect current settings from all child components
       const settingsToSave = collectCurrentSettings();
+      if (settingsToSave.profiles && settingsToSave.profiles.length > 0) {
+        const activeProfileId =
+          settingsToSave.activeProfileId ?? settingsToSave.profiles[0].id;
+        settingsToSave.activeProfileId = activeProfileId;
+        settingsToSave.profiles = settingsToSave.profiles.map((profile) =>
+          profile.id === activeProfileId
+            ? {
+                ...profile,
+                ai: settingsToSave.ai,
+              }
+            : profile
+        );
+      }
       console.log('settingsToSave', settingsToSave);
 
       // Remove compactMode from appearance settings before saving
@@ -151,10 +164,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, open }) => {
 
   return (
     <div className={styles.settingsPanelOverlay}>
-      <div
-        className={styles.settingsPanel}
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className={styles.settingsPanel}>
         <div className={styles.settingsHeader}>
           <h2>{t('settingsPanel.title')}</h2>
           <button

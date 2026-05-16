@@ -1,0 +1,31 @@
+---
+description: Tauri Rust host and Python sidecar lifecycle constraints
+globs: src-tauri/**/*.rs
+alwaysApply: false
+---
+
+# Tauri Rust Rules
+
+## Module responsibilities
+
+- Keep command entry points in `commands.rs`.
+- Keep Python HTTP interactions in `python_http.rs`.
+- Keep process lifecycle logic in `python_lifecycle.rs` and `python_server.rs`.
+- Keep diagnostics/export logic in `diagnostics.rs`.
+
+## Lifecycle and shutdown safety
+
+- Preserve graceful Python server shutdown behavior on app exit.
+- Avoid introducing duplicate shutdown flows that race with existing `RunEvent::ExitRequested` logic.
+- Keep background process ownership explicit and auditable.
+
+## Configuration-sensitive behavior
+
+- Respect feature-gated behavior (for example `e2e-testing` plugin wiring).
+- Avoid changing tray/shortcut/updater defaults without product requirement.
+- Do not change bundle identity or sidecar naming assumptions casually.
+
+## Observability
+
+- Keep error logs actionable and avoid leaking credentials.
+- Reuse existing logger utilities where available instead of ad-hoc formats.

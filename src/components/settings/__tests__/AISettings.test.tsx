@@ -9,7 +9,7 @@ import { renderWithProviders } from '@/test/utils';
 // Mock i18n
 vi.mock('@/i18n/i18n', () => ({
   useI18n: vi.fn(() => ({
-    t: (key: string, params?: any) => {
+    t: (key: string, params?: Record<string, string | number>) => {
       if (params) {
         return `${key} ${JSON.stringify(params)}`;
       }
@@ -48,6 +48,60 @@ describe('AISettings', () => {
       provider: 'deepseek',
       baseUrl: 'https://api.deepseek.com',
       model: 'deepseek-chat',
+      apiKey: '',
+      timeout: 60,
+      maxTokens: 2000,
+      temperature: 0.7,
+    },
+    openai_compatible: {
+      provider: 'openai_compatible',
+      baseUrl: 'http://127.0.0.1:1234/v1',
+      model: 'gpt-4o-mini',
+      apiKey: '',
+      timeout: 60,
+      maxTokens: 2000,
+      temperature: 0.7,
+    },
+    openai: {
+      provider: 'openai',
+      baseUrl: 'https://api.openai.com',
+      model: 'gpt-4o-mini',
+      apiKey: '',
+      timeout: 60,
+      maxTokens: 2000,
+      temperature: 0.7,
+    },
+    anthropic: {
+      provider: 'anthropic',
+      baseUrl: 'https://api.anthropic.com',
+      model: 'claude-3-5-sonnet-latest',
+      apiKey: '',
+      timeout: 60,
+      maxTokens: 2000,
+      temperature: 0.7,
+    },
+    glm: {
+      provider: 'glm',
+      baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
+      model: 'glm-4-flash',
+      apiKey: '',
+      timeout: 60,
+      maxTokens: 2000,
+      temperature: 0.7,
+    },
+    kimi: {
+      provider: 'kimi',
+      baseUrl: 'https://api.moonshot.cn',
+      model: 'moonshot-v1-8k',
+      apiKey: '',
+      timeout: 60,
+      maxTokens: 2000,
+      temperature: 0.7,
+    },
+    minimax: {
+      provider: 'minimax',
+      baseUrl: 'https://api.minimax.chat',
+      model: 'MiniMax-Text-01',
       apiKey: '',
       timeout: 60,
       maxTokens: 2000,

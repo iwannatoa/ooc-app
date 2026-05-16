@@ -7,7 +7,7 @@ import SummaryPrompt from '../SummaryPrompt';
 // Mock i18n
 vi.mock('@/i18n/i18n', () => ({
   useI18n: vi.fn(() => ({
-    t: (key: string, params?: any) => {
+    t: (key: string, params?: Record<string, string | number>) => {
       if (params) {
         return `${key} ${JSON.stringify(params)}`;
       }

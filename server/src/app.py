@@ -5,6 +5,7 @@ Flask application entry point
 """
 import sys
 import os
+import secrets
 from pathlib import Path
 
 # Set UTF-8 encoding for stdout/stderr to support Chinese characters
@@ -70,7 +71,18 @@ app = Flask(__name__)
 config = get_config()
 app.config.from_object(config)
 
-if config is ProductionConfig and not getattr(config, 'FLASK_API_TOKEN', None):
+is_production = config is ProductionConfig
+if not getattr(config, 'FLASK_API_TOKEN', None) and not is_production:
+    generated_token = secrets.token_urlsafe(32)
+    os.environ['FLASK_API_TOKEN'] = generated_token
+    app.config['FLASK_API_TOKEN'] = generated_token
+    logger.info('FLASK_API_TOKEN not provided; generated an in-memory development token')
+
+if not os.getenv('FLASK_INSTANCE_ID'):
+    os.environ['FLASK_INSTANCE_ID'] = secrets.token_hex(16)
+app.config['FLASK_INSTANCE_ID'] = os.getenv('FLASK_INSTANCE_ID', '')
+
+if is_production and not getattr(config, 'FLASK_API_TOKEN', None):
     logger.error('Production mode requires FLASK_API_TOKEN for API authentication')
     raise SystemExit(1)
 
@@ -135,6 +147,9 @@ def health_check():
         
         ai_service = injector.injector.get(AIService)
         result = ai_service.health_check(provider=provider)
+        if isinstance(result, dict):
+            result = dict(result)
+            result['instance_id'] = app.config.get('FLASK_INSTANCE_ID')
         return jsonify(result)
     
     except Exception as e:
@@ -154,6 +169,18 @@ def stop_server():
     logger.info("=" * 60)
     logger.info("Flask server received shutdown request...")
     logger.info("=" * 60)
+
+    expected_instance_id = (app.config.get('FLASK_INSTANCE_ID') or '').strip()
+    presented_instance_id = (request.headers.get('X-Flask-Instance-Id') or '').strip()
+    if expected_instance_id and presented_instance_id != expected_instance_id:
+        logger.warning(
+            'Rejecting /api/stop: instance ownership mismatch (presented=%s)',
+            presented_instance_id or '<empty>',
+        )
+        return jsonify({
+            "success": False,
+            "error": "Instance ownership mismatch",
+        }), 409
     
     if _server_instance:
         def shutdown():

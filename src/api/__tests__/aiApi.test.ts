@@ -1,3 +1,4 @@
+import { mockFn } from '@/test/mockFn';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { AiApi } from '../aiApi';
 import { DEFAULT_SETTINGS } from '@/types/constants';
@@ -24,7 +25,7 @@ describe('AiApi', () => {
     vi.clearAllMocks();
     global.fetch = vi.fn();
     api = new AiApi(mockGetApiUrl, DEFAULT_SETTINGS);
-    (mockRouter.match as any).mockResolvedValue(null);
+    mockFn(mockRouter.match).mockResolvedValue(null);
   });
 
   it('should update settings', () => {
@@ -38,7 +39,7 @@ describe('AiApi', () => {
   });
 
   it('should send message', async () => {
-    (global.fetch as any).mockResolvedValue({
+    mockFn(global.fetch).mockResolvedValue({
       ok: true,
       json: async () => ({
         success: true,
@@ -56,7 +57,7 @@ describe('AiApi', () => {
     const mockOnChunk = vi.fn();
 
     // Use mock router to simulate streaming response
-    (mockRouter.match as any).mockResolvedValue({
+    mockFn(mockRouter.match).mockResolvedValue({
       success: true,
       response: 'Hello World',
     });

@@ -44,6 +44,7 @@ describe('ConversationSettingsForm', () => {
     vi.mocked(useConversationClient.useConversationClient).mockReturnValue(
       createMockConversationClient({
         confirmOutline: mockConversationClient.confirmOutline,
+        getStoryTemplates: vi.fn().mockResolvedValue([]),
         getProgress: vi.fn().mockResolvedValue(null),
         updateProgress: vi.fn().mockResolvedValue({} as never),
       })
@@ -66,6 +67,9 @@ describe('ConversationSettingsForm', () => {
           allowAutoGenerateMainCharacters: false,
           serializationOpenEnded: true,
           finiteTotalSections: 10,
+          conversationTemperature: '',
+          conversationMaxTokens: '',
+          conversationStopWords: '',
         },
         conversationId: 'test_001',
         isNewConversation: false,

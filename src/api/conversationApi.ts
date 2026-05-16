@@ -22,7 +22,36 @@ import {
   ChatMessage,
 } from '@/types';
 
-export type TranslationFn = (key: string, params?: Record<string, any>) => string;
+/** Row shape from GET /api/conversations/list (fields merged into `settings` client-side). */
+interface ConversationsListRow {
+  conversation_id: string;
+  title?: string;
+  created_at?: string;
+  updated_at?: string;
+  characters?: string[];
+  character_personality?: Record<string, string>;
+  [key: string]: unknown;
+}
+
+/** Message row from GET /api/conversation */
+interface ConversationMessageRow {
+  role: ChatMessage['role'];
+  content: string;
+  created_at?: string;
+  id?: string | number;
+}
+
+export type TranslationFn = (
+  key: string,
+  params?: Record<string, string | number>
+) => string;
+
+export interface StoryTemplateItem {
+  id: string;
+  title: string;
+  background?: string;
+  outline_hint?: string;
+}
 
 export class ConversationApi extends BaseApiClient {
   private t: TranslationFn;
@@ -36,9 +65,11 @@ export class ConversationApi extends BaseApiClient {
    * Get list of all conversations
    */
   async getConversationsList(): Promise<ConversationWithSettings[]> {
-    const response = await this.get<{ conversations: any[] }>('/api/conversations/list');
-    
-    return response.conversations.map((conv: any) => ({
+    const response = await this.get<{ conversations: ConversationsListRow[] }>(
+      '/api/conversations/list'
+    );
+
+    return response.conversations.map((conv) => ({
       id: conv.conversation_id,
       title: conv.title || this.t('conversation.unnamedConversation'),
       messages: [],
@@ -54,6 +85,16 @@ export class ConversationApi extends BaseApiClient {
         character_personality: conv.character_personality || {},
       },
     }));
+  }
+
+  /**
+   * Get built-in story templates
+   */
+  async getStoryTemplates(): Promise<StoryTemplateItem[]> {
+    const response = await this.get<{ templates: StoryTemplateItem[] }>(
+      '/api/story-templates'
+    );
+    return response.templates || [];
   }
 
   /**
@@ -85,7 +126,7 @@ export class ConversationApi extends BaseApiClient {
   async createOrUpdateSettings(
     settings: Partial<ConversationSettings>
   ): Promise<ConversationSettings> {
-    const settingsToSend: any = {
+    const settingsToSend: Record<string, unknown> = {
       conversation_id: settings.conversation_id,
       title: settings.title,
       background: settings.background,
@@ -110,11 +151,11 @@ export class ConversationApi extends BaseApiClient {
    * Get conversation messages
    */
   async getConversationMessages(conversationId: string): Promise<ChatMessage[]> {
-    const response = await this.get<{ messages: any[] }>(
+    const response = await this.get<{ messages: ConversationMessageRow[] }>(
       `/api/conversation?conversation_id=${conversationId}`
     );
 
-    return (response.messages || []).map((msg: any) => ({
+    return (response.messages || []).map((msg) => ({
       role: msg.role,
       content: msg.content,
       timestamp: msg.created_at
@@ -370,6 +411,47 @@ export class ConversationApi extends BaseApiClient {
       }
     );
     return response.success;
+  }
+
+  async getAssistantVariants(
+    conversationId: string
+  ): Promise<
+    Array<{
+      id: number;
+      content: string;
+      model?: string;
+      provider?: string;
+      created_at?: string;
+      variant_group_id?: string;
+      parent_message_id?: number;
+    }>
+  > {
+    const response = await this.get<{
+      variants: Array<{
+        id: number;
+        content: string;
+        model?: string;
+        provider?: string;
+        created_at?: string;
+        variant_group_id?: string;
+        parent_message_id?: number;
+      }>;
+    }>(`/api/conversation/assistant-variants?conversation_id=${conversationId}`);
+    return response.variants || [];
+  }
+
+  async restoreAssistantVariant(
+    conversationId: string,
+    messageId: number
+  ): Promise<boolean> {
+    const response = await this.post<{ success: boolean }>(
+      '/api/conversation/assistant-variants/restore',
+      {
+        conversation_id: conversationId,
+        message_id: messageId,
+      }
+    );
+    return Boolean(response.success);
   }
 }
 

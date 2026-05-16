@@ -5,7 +5,7 @@ const baseURL = `http://127.0.0.1:${port}`;
 
 export default defineConfig({
   testDir: './e2e',
-  testIgnore: '**/tauri-desktop.spec.ts',
+  testIgnore: ['**/tauri-desktop.spec.ts', '**/tauri-desktop.spec.mjs'],
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,

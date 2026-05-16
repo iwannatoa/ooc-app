@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { useAppDispatch, useAppSelector } from './redux';
 import { useSettingsState } from './useSettingsState';
+import type { ConversationSettings } from '@/types';
 import {
   Dialog,
   DialogType,
@@ -207,7 +208,7 @@ export const useConversationSettingsDialog = () => {
     (
       conversationId: string,
       options?: {
-        settings?: any;
+        settings?: ConversationSettings;
         isNewConversation?: boolean;
         id?: string;
       }
@@ -266,7 +267,7 @@ export const useStorySettingsViewDialog = () => {
   const open = useCallback(
     (
       conversationId: string,
-      settings: any,
+      settings: ConversationSettings,
       id?: string
     ) => {
       return dialog.open('storySettingsView', {

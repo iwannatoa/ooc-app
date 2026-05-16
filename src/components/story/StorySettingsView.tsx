@@ -129,10 +129,7 @@ const StorySettingsView: React.FC<StorySettingsViewProps> = ({
 
   return (
     <div className={styles.overlay}>
-      <div
-        className={styles.modal}
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className={styles.modal}>
         <div className={styles.header}>
           <h2>{t('storySettings.titleAndOutline')}</h2>
           <div className={styles.headerActions}>

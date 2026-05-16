@@ -5,6 +5,7 @@ import { listen } from '@tauri-apps/api/event';
 import { useCallback, useEffect } from 'react';
 import { useStore } from 'react-redux';
 import { useAppDispatch, useAppSelector } from './redux';
+import { discoverFlaskPortBrowser } from '@/utils/discoverFlaskPortBrowser';
 
 /**
  * Flask port lifecycle: `fetchPort` invokes `get_flask_port` (Tauri) and dispatches
@@ -19,12 +20,21 @@ interface ApiResponse<T> {
   error?: string;
 }
 
+const tryStartPythonServer = async (): Promise<void> => {
+  try {
+    await invoke<ApiResponse<string>>('start_python_server');
+  } catch (err) {
+    console.error('Failed to start Python server:', err);
+  }
+};
+
 // Module state management
 class FlaskPortManager {
   private portFetchPromise: Promise<void> | null = null;
   private eventListenerSetup = false;
   private globalInitialized = false;
   private unsubscribeListener: (() => void) | null = null;
+  private lastStartAttemptAt = 0;
 
   getPortFetchPromise(): Promise<void> | null {
     return this.portFetchPromise;
@@ -54,6 +64,14 @@ class FlaskPortManager {
     this.unsubscribeListener = unsubscribe;
   }
 
+  canStartPythonServer(cooldownMs: number): boolean {
+    return Date.now() - this.lastStartAttemptAt >= cooldownMs;
+  }
+
+  markStartPythonServerAttempt(): void {
+    this.lastStartAttemptAt = Date.now();
+  }
+
   cleanup(): void {
     if (this.unsubscribeListener) {
       this.unsubscribeListener();
@@ -66,12 +84,20 @@ class FlaskPortManager {
     this.portFetchPromise = null;
     this.eventListenerSetup = false;
     this.globalInitialized = false;
+    this.lastStartAttemptAt = 0;
     this.cleanup();
   }
 }
 
-const flaskPortManager = new FlaskPortManager();
+const FLASK_PORT_MANAGER_KEY = '__OOC_FLASK_PORT_MANAGER__';
+const globalScope = globalThis as typeof globalThis & {
+  [FLASK_PORT_MANAGER_KEY]?: FlaskPortManager;
+};
+const flaskPortManager =
+  globalScope[FLASK_PORT_MANAGER_KEY] ??
+  (globalScope[FLASK_PORT_MANAGER_KEY] = new FlaskPortManager());
 const MAX_WAIT_TIME = 10000; // 10 seconds
+const START_SERVER_COOLDOWN_MS = 15000;
 
 // Export reset function for testing
 export const resetFlaskPortManager = () => {
@@ -82,8 +108,34 @@ export const useFlaskPort = () => {
   const dispatch = useAppDispatch();
   const store = useStore<RootState>();
   const { flaskPort, apiUrl } = useAppSelector((state) => state.server);
+  const isTauriRuntime =
+    typeof window !== 'undefined' && Boolean(window.__TAURI__);
+  const directApiBaseUrl =
+    (import.meta.env.VITE_FLASK_BASE_URL as string | undefined)?.trim() || '';
+  const directApiPort = (() => {
+    if (!directApiBaseUrl) return null;
+    try {
+      const parsed = new URL(directApiBaseUrl);
+      return parsed.port ? Number(parsed.port) : null;
+    } catch {
+      return null;
+    }
+  })();
 
   const fetchPort = useCallback(async () => {
+    if (directApiPort) {
+      dispatch(setFlaskPort(directApiPort));
+      return;
+    }
+
+    if (!isTauriRuntime) {
+      const discoveredPort = await discoverFlaskPortBrowser();
+      if (discoveredPort) {
+        dispatch(setFlaskPort(discoveredPort));
+      }
+      return;
+    }
+
     const existingPromise = flaskPortManager.getPortFetchPromise();
     if (existingPromise) {
       return existingPromise;
@@ -92,6 +144,7 @@ export const useFlaskPort = () => {
     const promise = (async () => {
       try {
         const response = await invoke<ApiResponse<number>>('get_flask_port');
+
         if (response.success && response.data) {
           dispatch(setFlaskPort(response.data));
         }
@@ -105,10 +158,26 @@ export const useFlaskPort = () => {
 
     flaskPortManager.setPortFetchPromise(promise);
     return promise;
-  }, [dispatch]);
+  }, [directApiPort, dispatch, isTauriRuntime]);
 
   // Wait for port to be ready, with maximum wait time of 10 seconds
   const waitForPort = useCallback(async (): Promise<string> => {
+    if (directApiBaseUrl) {
+      return directApiBaseUrl;
+    }
+
+    if (!isTauriRuntime) {
+      if (flaskPort) {
+        return `http://localhost:${flaskPort}`;
+      }
+      const discoveredPort = await discoverFlaskPortBrowser();
+      if (!discoveredPort) {
+        throw new Error('Failed to discover Flask port in browser mode');
+      }
+      dispatch(setFlaskPort(discoveredPort));
+      return `http://localhost:${discoveredPort}`;
+    }
+
     // If port is already available, return apiUrl immediately
     if (flaskPort) {
       return `http://localhost:${flaskPort}`;
@@ -138,15 +207,25 @@ export const useFlaskPort = () => {
         }
 
         if (elapsed >= MAX_WAIT_TIME) {
-          // Final attempt to fetch before rejecting
-          fetchPort()
+          const canStart = flaskPortManager.canStartPythonServer(
+            START_SERVER_COOLDOWN_MS
+          );
+          const recovery = canStart
+            ? (async () => {
+                flaskPortManager.markStartPythonServerAttempt();
+                await tryStartPythonServer();
+                await fetchPort();
+              })()
+            : fetchPort();
+
+          recovery
             .then(() => {
               const finalPort = store.getState().server?.flaskPort;
               if (finalPort) {
                 resolve(`http://localhost:${finalPort}`);
-              } else {
-                reject(new Error('Failed to get Flask port after 10 seconds'));
+                return;
               }
+              reject(new Error('Failed to get Flask port after 10 seconds'));
             })
             .catch(() => {
               reject(new Error('Failed to get Flask port after 10 seconds'));
@@ -161,9 +240,21 @@ export const useFlaskPort = () => {
       // Start polling immediately
       checkPort();
     });
-  }, [flaskPort, fetchPort, store]);
+  }, [directApiBaseUrl, dispatch, flaskPort, fetchPort, isTauriRuntime, store]);
 
   useEffect(() => {
+    if (directApiPort) {
+      dispatch(setFlaskPort(directApiPort));
+      return;
+    }
+
+    if (!isTauriRuntime) {
+      if (!flaskPort) {
+        void fetchPort();
+      }
+      return;
+    }
+
     if (flaskPortManager.isGlobalInitialized()) {
       return;
     }
@@ -194,7 +285,7 @@ export const useFlaskPort = () => {
         clearTimeout(timeoutId);
       };
     }
-  }, [dispatch, flaskPort, fetchPort]);
+  }, [directApiPort, dispatch, fetchPort, flaskPort, isTauriRuntime]);
 
   return {
     port: flaskPort,

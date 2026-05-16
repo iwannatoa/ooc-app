@@ -2,33 +2,31 @@ import { useCallback } from 'react';
 import { useChatState } from './useChatState';
 import { useSettingsState } from './useSettingsState';
 import { useAiClient } from './useAiClient';
+import { trackTelemetryEvent } from '@/services/telemetryService';
 
 export const useChatActions = () => {
   const { sendMessage, clearMessages } = useChatState();
   const {
     settings,
-    updateOllamaConfig,
-    updateDeepSeekConfig,
+    updateActiveAiProviderConfig,
   } = useSettingsState();
   const { sendMessage: sendAIMessage } = useAiClient(settings);
 
   const handleSendMessage = useCallback(
     (messageText: string) => {
       sendMessage(messageText, sendAIMessage);
+      void trackTelemetryEvent('chat_message_sent', {
+        provider: settings.ai.provider,
+      });
     },
-    [sendMessage, sendAIMessage]
+    [sendMessage, sendAIMessage, settings.ai.provider]
   );
 
   const handleModelChange = useCallback(
     (model: string) => {
-      const provider = settings.ai.provider;
-      if (provider === 'ollama') {
-        updateOllamaConfig({ model });
-      } else if (provider === 'deepseek') {
-        updateDeepSeekConfig({ model });
-      }
+      updateActiveAiProviderConfig({ model });
     },
-    [settings.ai.provider, updateOllamaConfig, updateDeepSeekConfig]
+    [updateActiveAiProviderConfig]
   );
 
   const getCurrentModel = useCallback((): string => {

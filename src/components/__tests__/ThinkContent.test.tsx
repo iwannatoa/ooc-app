@@ -19,12 +19,12 @@ vi.mock('@/i18n/i18n', async () => {
   return {
     useI18n: () => {
       const translations = mockLocale === 'zh' ? zhLocale : enLocale;
-      const getNestedValue = (obj: any, path: string): string => {
+      const getNestedValue = (obj: Record<string, unknown>, path: string): string => {
         const keys = path.split('.');
-        let value = obj;
+        let value: unknown = obj;
         for (const key of keys) {
           if (value && typeof value === 'object' && key in value) {
-            value = value[key];
+            value = (value as Record<string, unknown>)[key];
           } else {
             return path;
           }

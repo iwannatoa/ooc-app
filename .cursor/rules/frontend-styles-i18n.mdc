@@ -1,0 +1,31 @@
+---
+description: Frontend styling and i18n key parity rules
+globs: **/*.{ts,tsx,scss,json}
+alwaysApply: false
+---
+
+# Frontend Styles and i18n Rules
+
+## SCSS and styling
+
+- Use SCSS Modules for component-scoped styles (`*.module.scss`) where the codebase already does so.
+- Keep class names semantic and domain-oriented; avoid presentational naming tied to a single pixel tweak.
+- Reuse existing layout tokens/patterns before adding new global style mechanisms.
+
+## i18n structure
+
+- Locale files are under `src/i18n/locales/` (`en.json`, `zh.json`, `ja.json`).
+- Add user-facing strings to locale files, not inline hardcoded literals.
+- Keep key naming consistent with current namespaces (for example `storyActions.*`, `common.*`).
+- When adding keys, keep parity across required locales unless intentionally staged.
+
+## Validation and workflow
+
+- Run `npm run lint:i18n` after adding or renaming translation keys.
+- Use `useI18n`/existing i18n helpers instead of new ad-hoc translation utilities.
+- Keep interpolation placeholders stable across locale files.
+
+## PR hygiene
+
+- Mention i18n key additions/removals in the change summary when relevant.
+- If locale parity is intentionally incomplete, state it explicitly in review notes.

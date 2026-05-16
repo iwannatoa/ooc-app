@@ -1,3 +1,4 @@
+import { mockFn } from '@/test/mockFn';
 import { fireEvent, screen } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import ConfirmDialog from '../ConfirmDialog';
@@ -12,7 +13,7 @@ describe('ConfirmDialog', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    (useI18n.useI18n as any).mockReturnValue({
+    mockFn(useI18n.useI18n).mockReturnValue({
       t: (key: string) => key,
     });
   });

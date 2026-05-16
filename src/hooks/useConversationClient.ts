@@ -27,6 +27,10 @@ export const useConversationClient = () => {
         return await conversationApi.getConversationSettings(conversationId);
       },
 
+      getStoryTemplates: async () => {
+        return await conversationApi.getStoryTemplates();
+      },
+
       createOrUpdateSettings: async (
         settings: Partial<ConversationSettings>
       ): Promise<ConversationSettings> => {
@@ -35,7 +39,7 @@ export const useConversationClient = () => {
 
       getConversationMessages: async (
         conversationId: string
-      ): Promise<any[]> => {
+      ): Promise<ChatMessage[]> => {
         return await conversationApi.getConversationMessages(conversationId);
       },
 
@@ -169,6 +173,20 @@ export const useConversationClient = () => {
 
       deleteLastMessage: async (conversationId: string): Promise<boolean> => {
         return await conversationApi.deleteLastMessage(conversationId);
+      },
+
+      getAssistantVariants: async (conversationId: string) => {
+        return await conversationApi.getAssistantVariants(conversationId);
+      },
+
+      restoreAssistantVariant: async (
+        conversationId: string,
+        messageId: number
+      ): Promise<boolean> => {
+        return await conversationApi.restoreAssistantVariant(
+          conversationId,
+          messageId
+        );
       },
     };
   }, [conversationApi]);

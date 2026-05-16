@@ -4,7 +4,7 @@ Unit tests for SettingsController
 import pytest
 import sys
 from pathlib import Path
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import Mock
 from flask import Flask
 
 # Add src to path for imports
@@ -146,5 +146,41 @@ class TestSettingsController:
         data = response.get_json()
         assert data['success'] is True
         assert data['language'] == 'en'
+
+    def test_save_app_settings_persists_all_provider_configs(
+        self, client, mock_services
+    ):
+        """Should upsert ai_configs for each provider config present in settings.ai."""
+        settings_payload = {
+            "ai": {
+                "provider": "openai",
+                "ollama": {
+                    "model": "llama3",
+                    "baseUrl": "http://localhost:11434",
+                    "maxTokens": 1024,
+                    "temperature": 0.5,
+                },
+                "deepseek": {
+                    "model": "deepseek-chat",
+                    "apiKey": "deepseek-key",
+                    "baseUrl": "https://api.deepseek.com",
+                },
+                "openai": {
+                    "model": "gpt-4o-mini",
+                    "apiKey": "openai-key",
+                    "baseUrl": "https://api.openai.com",
+                },
+            }
+        }
+
+        response = client.post("/api/app-settings", json={"settings": settings_payload})
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["success"] is True
+
+        mock_services["app_settings_service"].set_setting.assert_called_once()
+        calls = mock_services["ai_config_service"].create_or_update_config.call_args_list
+        providers = [call.kwargs["provider"] for call in calls]
+        assert set(providers) == {"ollama", "deepseek", "openai"}
 
 

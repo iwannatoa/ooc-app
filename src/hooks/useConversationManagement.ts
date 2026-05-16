@@ -29,6 +29,29 @@ import { useI18n } from '@/i18n/i18n';
 import { useToast } from '@/hooks/useToast';
 import { reportApiFailureToToast } from '@/utils/reportApiFailure';
 
+const CONVERSATION_LIST_MIN_INTERVAL_MS = 1500;
+const CONVERSATION_LIST_LOAD_MANAGER_KEY = '__OOC_CONVERSATION_LIST_LOAD_MANAGER__';
+
+class ConversationListLoadManager {
+  inFlight: Promise<void> | null = null;
+  lastLoadedAt = 0;
+  bootstrapped = false;
+}
+
+const globalScope = globalThis as typeof globalThis & {
+  [CONVERSATION_LIST_LOAD_MANAGER_KEY]?: ConversationListLoadManager;
+};
+const conversationListLoadManager =
+  globalScope[CONVERSATION_LIST_LOAD_MANAGER_KEY] ??
+  (globalScope[CONVERSATION_LIST_LOAD_MANAGER_KEY] =
+    new ConversationListLoadManager());
+
+export const resetConversationListLoadManagerForTest = (): void => {
+  conversationListLoadManager.inFlight = null;
+  conversationListLoadManager.lastLoadedAt = 0;
+  conversationListLoadManager.bootstrapped = false;
+};
+
 export const useConversationManagement = () => {
   const dispatch = useAppDispatch();
   const conversations = useAppSelector((s) => s.conversations?.items ?? []);
@@ -77,30 +100,71 @@ export const useConversationManagement = () => {
 
   const loading = listStatus === 'loading' || interactionLoading;
 
+  const runLoadConversations = useCallback(
+    async (force: boolean) => {
+      if (conversationListLoadManager.inFlight) {
+        await conversationListLoadManager.inFlight;
+        return;
+      }
+
+      const now = Date.now();
+      if (
+        !force &&
+        now - conversationListLoadManager.lastLoadedAt <
+          CONVERSATION_LIST_MIN_INTERVAL_MS
+      ) {
+        return;
+      }
+
+      const request = (async () => {
+        dispatch(setConversationListLoading());
+        try {
+          const list = await conversationClient.getConversationsList();
+          dispatch(setConversationListSuccess(list));
+          conversationListLoadManager.lastLoadedAt = Date.now();
+        } catch (error) {
+          console.error('Failed to load conversations:', error);
+          dispatch(
+            setConversationListFailure(
+              error instanceof Error ? error.message : undefined
+            )
+          );
+          reportApiFailureToToast(error, {
+            t,
+            showError,
+            detailKey: 'conversation.loadFailedDetail',
+            hintNamespace: 'storyErrors',
+          });
+        }
+      })();
+
+      conversationListLoadManager.inFlight = request;
+      try {
+        await request;
+      } finally {
+        if (conversationListLoadManager.inFlight === request) {
+          conversationListLoadManager.inFlight = null;
+        }
+      }
+    },
+    [conversationClient, dispatch, showError, t]
+  );
+
   const loadConversations = useCallback(async () => {
-    dispatch(setConversationListLoading());
-    try {
-      const list = await conversationClient.getConversationsList();
-      dispatch(setConversationListSuccess(list));
-    } catch (error) {
-      console.error('Failed to load conversations:', error);
-      dispatch(
-        setConversationListFailure(
-          error instanceof Error ? error.message : undefined
-        )
-      );
-      reportApiFailureToToast(error, {
-        t,
-        showError,
-        detailKey: 'conversation.loadFailedDetail',
-        hintNamespace: 'storyErrors',
-      });
-    }
-  }, [conversationClient, dispatch, showError, t]);
+    await runLoadConversations(false);
+  }, [runLoadConversations]);
+
+  const forceLoadConversations = useCallback(async () => {
+    await runLoadConversations(true);
+  }, [runLoadConversations]);
 
   useEffect(() => {
-    void loadConversations();
-  }, [loadConversations]);
+    if (conversationListLoadManager.bootstrapped) {
+      return;
+    }
+    conversationListLoadManager.bootstrapped = true;
+    void forceLoadConversations();
+  }, [forceLoadConversations]);
 
   const handleNewConversation = useCallback(() => {
     const newId = `conv_${Date.now()}_${Math.random()
@@ -163,7 +227,7 @@ export const useConversationManagement = () => {
           dispatch(prependConversation(newConversation));
         }
 
-        await loadConversations();
+        await forceLoadConversations();
       } catch (error) {
         console.error('Failed to save settings:', error);
         throw error;
@@ -176,7 +240,7 @@ export const useConversationManagement = () => {
       isNewConversation,
       setActiveConversation,
       setMessages,
-      loadConversations,
+      forceLoadConversations,
       settingsDialog,
       setIsNewConversation,
       setPendingConversationId,
@@ -203,7 +267,7 @@ export const useConversationManagement = () => {
           setActiveConversation(null);
           setMessages([]);
         }
-        await loadConversations();
+        await forceLoadConversations();
       } catch (error) {
         console.error('Failed to delete conversation:', error);
       }
@@ -214,7 +278,7 @@ export const useConversationManagement = () => {
       activeConversationId,
       setActiveConversation,
       setMessages,
-      loadConversations,
+      forceLoadConversations,
       t,
     ]
   );

@@ -4,6 +4,7 @@ import settingsReducer, {
   setSettings,
   updateAiProvider,
   updateOllamaConfig,
+  updateActiveAiProviderConfig,
   setSettingsOpen,
   markSettingsSaved,
 } from '../settingsSlice';
@@ -37,6 +38,15 @@ describe('settingsSlice', () => {
       updateOllamaConfig({ model: 'new-model' })
     );
     expect(state.settings.ai.ollama.model).toBe('new-model');
+  });
+
+  it('should update active provider config generically', () => {
+    const withProvider = settingsReducer(undefined, updateAiProvider('openai'));
+    const state = settingsReducer(
+      withProvider,
+      updateActiveAiProviderConfig({ model: 'gpt-4.1-mini' })
+    );
+    expect(state.settings.ai.openai.model).toBe('gpt-4.1-mini');
   });
 
   it('should open settings panel', () => {

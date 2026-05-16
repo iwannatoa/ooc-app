@@ -15,6 +15,17 @@ export function isPersistFailedError(error: unknown): boolean {
  * Map common API/network errors to a short user-facing hint (append to toast).
  */
 export function getApiErrorActionHint(error: unknown): string | null {
+  const resolveErrorCode = (apiError: ApiError): string | null => {
+    const response = apiError.response;
+    if (response && typeof response === 'object') {
+      const rawCode = (response as { error_code?: unknown }).error_code;
+      if (typeof rawCode === 'string' && rawCode.trim()) {
+        return rawCode.trim().toUpperCase();
+      }
+    }
+    return null;
+  };
+
   if (!isApiError(error)) {
     const msg = error instanceof Error ? error.message : String(error);
     if (/Failed to fetch|NetworkError|ECONNREFUSED/i.test(msg)) {
@@ -23,6 +34,16 @@ export function getApiErrorActionHint(error: unknown): string | null {
     return null;
   }
   const status = error.status;
+  const errorCode = resolveErrorCode(error);
+  if (errorCode === 'NETWORK_UNREACHABLE') {
+    return 'hint_network';
+  }
+  if (errorCode === 'API_KEY_MISSING') {
+    return 'hint_api_key';
+  }
+  if (errorCode === 'PROVIDER_CONFIG_ERROR') {
+    return 'hint_provider_config';
+  }
   if (status === 401 || status === 403) {
     return 'hint_auth';
   }

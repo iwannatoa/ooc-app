@@ -1,3 +1,4 @@
+import { mockFn } from '@/test/mockFn';
 import React from 'react';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -47,33 +48,29 @@ describe('StoryActions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    (useI18n.useI18n as any).mockReturnValue({
+    mockFn(useI18n.useI18n).mockReturnValue({
       t: mockT,
     });
 
-    (useChatState.useChatState as any).mockReturnValue({
+    mockFn(useChatState.useChatState).mockReturnValue({
       isSending: false,
       storyOperation: 'idle' as const,
       messages: [],
     });
 
-    (
-      useConversationManagement.useConversationManagement as any
-    ).mockReturnValue({
+    mockFn(useConversationManagement.useConversationManagement).mockReturnValue({
       activeConversationId: 'conv_001',
       conversationSettings: {
         title: 'Test Story',
       },
     });
 
-    (
-      useConversationSettingsDialog.useConversationSettingsDialog as any
-    ).mockReturnValue({
+    mockFn(useConversationSettingsDialog.useConversationSettingsDialog).mockReturnValue({
       open: mockSettingsDialogOpen,
       close: vi.fn(),
     });
 
-    (useAppLogic.useAppLogic as any).mockReturnValue({
+    mockFn(useAppLogic.useAppLogic).mockReturnValue({
       handleGenerateStory: mockHandleGenerateStory,
       handleConfirmSection: mockHandleConfirmSection,
       handleRewriteSection: mockHandleRewriteSection,
@@ -162,7 +159,7 @@ describe('StoryActions', () => {
   });
 
   it('should disable buttons when loading', () => {
-    (useChatState.useChatState as any).mockReturnValue({
+    mockFn(useChatState.useChatState).mockReturnValue({
       isSending: true,
       storyOperation: 'generate' as const,
       messages: [],
@@ -178,9 +175,7 @@ describe('StoryActions', () => {
   });
 
   it('should disable buttons when no active conversation', () => {
-    (
-      useConversationManagement.useConversationManagement as any
-    ).mockReturnValue({
+    mockFn(useConversationManagement.useConversationManagement).mockReturnValue({
       activeConversationId: null,
       conversationSettings: null,
     });
@@ -192,7 +187,7 @@ describe('StoryActions', () => {
   });
 
   it('should show first chapter text when isFirstChapter is true', () => {
-    (useAppLogic.useAppLogic as any).mockReturnValue({
+    mockFn(useAppLogic.useAppLogic).mockReturnValue({
       handleGenerateStory: mockHandleGenerateStory,
       handleConfirmSection: mockHandleConfirmSection,
       handleRewriteSection: mockHandleRewriteSection,
@@ -212,7 +207,7 @@ describe('StoryActions', () => {
   });
 
   it('should not show generate button when canGenerate is false', () => {
-    (useAppLogic.useAppLogic as any).mockReturnValue({
+    mockFn(useAppLogic.useAppLogic).mockReturnValue({
       handleGenerateStory: mockHandleGenerateStory,
       handleConfirmSection: mockHandleConfirmSection,
       handleRewriteSection: mockHandleRewriteSection,
@@ -232,7 +227,7 @@ describe('StoryActions', () => {
   });
 
   it('should not show confirm button when canConfirm is false', () => {
-    (useAppLogic.useAppLogic as any).mockReturnValue({
+    mockFn(useAppLogic.useAppLogic).mockReturnValue({
       handleGenerateStory: mockHandleGenerateStory,
       handleConfirmSection: mockHandleConfirmSection,
       handleRewriteSection: mockHandleRewriteSection,
@@ -252,7 +247,7 @@ describe('StoryActions', () => {
   });
 
   it('should not show delete button when canDeleteLast is false', () => {
-    (useAppLogic.useAppLogic as any).mockReturnValue({
+    mockFn(useAppLogic.useAppLogic).mockReturnValue({
       handleGenerateStory: mockHandleGenerateStory,
       handleConfirmSection: mockHandleConfirmSection,
       handleRewriteSection: mockHandleRewriteSection,
@@ -422,9 +417,7 @@ describe('StoryActions', () => {
   });
 
   it('should not open settings dialog when activeConversationId is null', () => {
-    (
-      useConversationManagement.useConversationManagement as any
-    ).mockReturnValue({
+    mockFn(useConversationManagement.useConversationManagement).mockReturnValue({
       activeConversationId: null,
       conversationSettings: null,
     });

@@ -1,0 +1,33 @@
+---
+description: Flask backend layering and dependency injection boundaries
+globs: server/**/*.py
+alwaysApply: false
+---
+
+# Python Backend Architecture Rules
+
+Scope: `server/src/**` and backend-adjacent Python files.
+
+## Layer boundaries
+
+- Controllers handle HTTP concerns (request parsing, status codes, response shapes).
+- Services own business logic and orchestration.
+- Repositories handle persistence and database session interactions.
+- Models define SQLAlchemy data structures and schema entities.
+
+## Dependency injection
+
+- Keep service/repository wiring in `server/src/di/module.py`.
+- Prefer constructor injection and explicit dependencies.
+- Reuse existing singletons/providers instead of hidden module-level state.
+
+## API evolution
+
+- Add new endpoints through controller registration patterns in `app.py`.
+- Keep error responses consistent with existing helpers and exceptions.
+- Preserve auth and instance-ownership semantics around sensitive endpoints.
+
+## Data and migrations
+
+- Reuse existing migration points (`schema_migrations`, repository migration helpers).
+- Do not bypass repository/session abstractions for quick direct SQL in controllers.

@@ -1,3 +1,4 @@
+import { mockFn } from '@/test/mockFn';
 import { renderHook } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useAppSettings } from '../useAppSettings';
@@ -37,13 +38,13 @@ describe('useAppSettings', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    (isMockMode as any).mockReturnValue(false);
-    (loadAppearanceFromStorage as any).mockReturnValue(null);
+    mockFn(isMockMode).mockReturnValue(false);
+    mockFn(loadAppearanceFromStorage).mockReturnValue(null);
   });
 
   it('should not load settings in mock mode', () => {
-    (isMockMode as any).mockReturnValue(true);
-    (useApiClients as any).mockReturnValue({
+    mockFn(isMockMode).mockReturnValue(true);
+    mockFn(useApiClients).mockReturnValue({
       settingsApi: mockSettingsApi,
     });
 
@@ -56,7 +57,7 @@ describe('useAppSettings', () => {
   });
 
   it('should not load settings when API is not available', () => {
-    (useApiClients as any).mockReturnValue({
+    mockFn(useApiClients).mockReturnValue({
       settingsApi: null,
     });
 
@@ -86,7 +87,7 @@ describe('useAppSettings', () => {
     };
 
     mockGetAppSettings.mockResolvedValue(loadedSettings);
-    (useApiClients as any).mockReturnValue({
+    mockFn(useApiClients).mockReturnValue({
       settingsApi: mockSettingsApi,
     });
 
@@ -114,7 +115,7 @@ describe('useAppSettings', () => {
     };
 
     mockGetAppSettings.mockResolvedValue(loadedSettings);
-    (useApiClients as any).mockReturnValue({
+    mockFn(useApiClients).mockReturnValue({
       settingsApi: mockSettingsApi,
     });
 
@@ -137,12 +138,12 @@ describe('useAppSettings', () => {
   it('should handle invalid fontSize and use default', async () => {
     const loadedSettings = {
       appearance: {
-        fontSize: 'invalid' as any,
+        fontSize: 'invalid' as never,
       },
     };
 
     mockGetAppSettings.mockResolvedValue(loadedSettings);
-    (useApiClients as any).mockReturnValue({
+    mockFn(useApiClients).mockReturnValue({
       settingsApi: mockSettingsApi,
     });
 
@@ -169,7 +170,7 @@ describe('useAppSettings', () => {
     };
 
     mockGetAppSettings.mockResolvedValue(loadedSettings);
-    (useApiClients as any).mockReturnValue({
+    mockFn(useApiClients).mockReturnValue({
       settingsApi: mockSettingsApi,
     });
 
@@ -192,9 +193,9 @@ describe('useAppSettings', () => {
       fontFamily: 'Arial',
     };
 
-    (loadAppearanceFromStorage as any).mockReturnValue(storedAppearance);
+    mockFn(loadAppearanceFromStorage).mockReturnValue(storedAppearance);
     mockGetAppSettings.mockRejectedValue(new Error('API Error'));
-    (useApiClients as any).mockReturnValue({
+    mockFn(useApiClients).mockReturnValue({
       settingsApi: mockSettingsApi,
     });
 
@@ -214,7 +215,7 @@ describe('useAppSettings', () => {
 
   it('should only load settings once', async () => {
     mockGetAppSettings.mockResolvedValue({});
-    (useApiClients as any).mockReturnValue({
+    mockFn(useApiClients).mockReturnValue({
       settingsApi: mockSettingsApi,
     });
 
@@ -234,5 +235,70 @@ describe('useAppSettings', () => {
     await tick();
 
     expect(mockGetAppSettings).toHaveBeenCalledTimes(1);
+  });
+
+  it('should create a default profile when profiles are missing', async () => {
+    mockGetAppSettings.mockResolvedValue({
+      ai: {
+        ...DEFAULT_SETTINGS.ai,
+        provider: 'deepseek',
+      },
+      profiles: [],
+    });
+    mockFn(useApiClients).mockReturnValue({
+      settingsApi: mockSettingsApi,
+    });
+
+    const store = createTestStore();
+    renderHook(() => useAppSettings(), {
+      wrapper: createWrapper(store),
+    });
+
+    await tick();
+
+    const state = store.getState();
+    expect(state.settings.settings.profiles).toBeDefined();
+    expect(state.settings.settings.profiles).toHaveLength(1);
+    expect(state.settings.settings.profiles?.[0].id).toBe('default');
+    expect(state.settings.settings.activeProfileId).toBe('default');
+  });
+
+  it('should apply active profile AI configuration', async () => {
+    mockGetAppSettings.mockResolvedValue({
+      ai: DEFAULT_SETTINGS.ai,
+      profiles: [
+        {
+          id: 'p-1',
+          name: 'Profile 1',
+          ai: {
+            ...DEFAULT_SETTINGS.ai,
+            provider: 'deepseek',
+          },
+        },
+        {
+          id: 'p-2',
+          name: 'Profile 2',
+          ai: {
+            ...DEFAULT_SETTINGS.ai,
+            provider: 'openai',
+          },
+        },
+      ],
+      activeProfileId: 'p-2',
+    });
+    mockFn(useApiClients).mockReturnValue({
+      settingsApi: mockSettingsApi,
+    });
+
+    const store = createTestStore();
+    renderHook(() => useAppSettings(), {
+      wrapper: createWrapper(store),
+    });
+
+    await tick();
+
+    const state = store.getState();
+    expect(state.settings.settings.activeProfileId).toBe('p-2');
+    expect(state.settings.settings.ai.provider).toBe('openai');
   });
 });

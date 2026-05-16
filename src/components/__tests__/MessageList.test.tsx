@@ -1,4 +1,5 @@
 import { renderWithProviders, screen } from '@/test/utils';
+import { fireEvent } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import MessageList from '../chat/MessageList';
 
@@ -7,12 +8,12 @@ vi.mock('@/i18n/i18n', async () => {
   const zhLocale = await import('@/i18n/locales/zh.json');
   return {
     useI18n: () => {
-      const getNestedValue = (obj: any, path: string): string => {
+      const getNestedValue = (obj: Record<string, unknown>, path: string): string => {
         const keys = path.split('.');
-        let value = obj;
+        let value: unknown = obj;
         for (const key of keys) {
           if (value && typeof value === 'object' && key in value) {
-            value = value[key];
+            value = (value as Record<string, unknown>)[key];
           } else {
             return path;
           }
@@ -287,5 +288,28 @@ describe('MessageList', () => {
     // Time should not be rendered
     const timeElements = screen.queryAllByText(/\d{1,2}:\d{2}:\d{2}/);
     expect(timeElements.length).toBe(0);
+  });
+
+  it('should load older messages in batches for long sessions', async () => {
+    const longMessages = Array.from({ length: 150 }, (_, i) => ({
+      id: String(i + 1),
+      role: 'assistant' as const,
+      content: `Assistant message ${i + 1}`,
+      timestamp: Date.now() + i,
+    }));
+    renderWithProviders(<MessageList />, {
+      initialState: {
+        chat: {
+          messages: longMessages,
+          isSending: false,
+        },
+      },
+    });
+
+    expect(screen.getByText('Assistant message 150')).toBeInTheDocument();
+    expect(screen.queryByText('Assistant message 1')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /加载更早消息/i }));
+    expect(screen.getByText('Assistant message 1')).toBeInTheDocument();
   });
 });

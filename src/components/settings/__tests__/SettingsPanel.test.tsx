@@ -1,4 +1,6 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import type { ReactNode } from 'react';
+import { mockFn } from '@/test/mockFn';
+import { fireEvent, screen } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import SettingsPanel from '../SettingsPanel';
 import { renderWithProviders } from '@/test/utils';
@@ -22,10 +24,12 @@ vi.mock('@/hooks/useApiClients', () => ({
 
 // Mock settings components
 vi.mock('../SettingsTabs', () => ({
-  SettingsTabs: ({ children }: any) => (
+  SettingsTabs: ({ children }: { children?: ReactNode }) => (
     <div data-testid='settings-tabs'>{children}</div>
   ),
-  SettingsTabPane: ({ children }: any) => <div>{children}</div>,
+  SettingsTabPane: ({ children }: { children?: ReactNode }) => (
+    <div>{children}</div>
+  ),
 }));
 
 vi.mock('../GeneralSettings', () => ({
@@ -89,13 +93,13 @@ describe('SettingsPanel', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    (useSettingsState as any).mockReturnValue({
+    mockFn(useSettingsState).mockReturnValue({
       settings: defaultSettings,
       updateSettings: mockUpdateSettings,
       updateAppearanceSettings: mockUpdateAppearanceSettings,
     });
 
-    (useApiClients as any).mockReturnValue({
+    mockFn(useApiClients).mockReturnValue({
       settingsApi: {
         updateAppSettings: mockUpdateAppSettings.mockResolvedValue(undefined),
       },
@@ -171,7 +175,7 @@ describe('SettingsPanel', () => {
   });
 
   it('should save settings when save button is clicked', async () => {
-    const { container } = renderWithProviders(
+    renderWithProviders(
       <SettingsPanel
         open={true}
         onClose={mockOnClose}
@@ -190,7 +194,7 @@ describe('SettingsPanel', () => {
   });
 
   it('should remove compactMode from appearance before saving', async () => {
-    (useSettingsState as any).mockReturnValue({
+    mockFn(useSettingsState).mockReturnValue({
       settings: {
         ...defaultSettings,
         appearance: {
@@ -202,7 +206,7 @@ describe('SettingsPanel', () => {
       updateAppearanceSettings: mockUpdateAppearanceSettings,
     });
 
-    const { container } = renderWithProviders(
+    renderWithProviders(
       <SettingsPanel
         open={true}
         onClose={mockOnClose}
@@ -219,7 +223,7 @@ describe('SettingsPanel', () => {
   });
 
   it('should handle backend save error gracefully', async () => {
-    (useApiClients as any).mockReturnValue({
+    mockFn(useApiClients).mockReturnValue({
       settingsApi: {
         updateAppSettings: mockUpdateAppSettings.mockRejectedValue(
           new Error('Backend error')
@@ -231,7 +235,7 @@ describe('SettingsPanel', () => {
       .spyOn(console, 'error')
       .mockImplementation(() => {});
 
-    const { container } = renderWithProviders(
+    renderWithProviders(
       <SettingsPanel
         open={true}
         onClose={mockOnClose}
@@ -250,11 +254,11 @@ describe('SettingsPanel', () => {
   });
 
   it('should handle save when settingsApi is not available', async () => {
-    (useApiClients as any).mockReturnValue({
+    mockFn(useApiClients).mockReturnValue({
       settingsApi: null,
     });
 
-    const { container } = renderWithProviders(
+    renderWithProviders(
       <SettingsPanel
         open={true}
         onClose={mockOnClose}
@@ -268,6 +272,45 @@ describe('SettingsPanel', () => {
 
     expect(mockUpdateSettings).toHaveBeenCalled();
     expect(mockOnClose).toHaveBeenCalled();
+  });
+
+  it('should sync active profile ai settings on save', async () => {
+    mockFn(useSettingsState).mockReturnValue({
+      settings: {
+        ...defaultSettings,
+        ai: {
+          ...defaultSettings.ai,
+          provider: 'openai',
+        },
+        profiles: [
+          {
+            id: 'default',
+            name: 'Default',
+            ai: {
+              ...defaultSettings.ai,
+              provider: 'ollama',
+            },
+          },
+        ],
+        activeProfileId: 'default',
+      },
+      updateSettings: mockUpdateSettings,
+      updateAppearanceSettings: mockUpdateAppearanceSettings,
+    });
+
+    renderWithProviders(
+      <SettingsPanel
+        open={true}
+        onClose={mockOnClose}
+      />
+    );
+
+    fireEvent.click(screen.getByText('common.save'));
+    await tick();
+
+    const savedSettings = mockUpdateSettings.mock.calls[0][0];
+    expect(savedSettings.profiles[0].ai.provider).toBe('openai');
+    expect(savedSettings.activeProfileId).toBe('default');
   });
 
   it('should stop propagation when panel is clicked', () => {

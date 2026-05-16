@@ -1,9 +1,10 @@
 """
 Streaming AI service support
 """
-from typing import Generator, Optional
+from typing import Generator, Optional, List
 from config import get_config
 from infrastructure.langchain_chat import stream_langchain_chat
+from infrastructure.provider_capabilities import get_provider_capability
 from utils.logger import get_logger
 from utils.exceptions import ProviderError, ValidationError
 from service.ollama_service import OllamaService
@@ -42,7 +43,8 @@ class AIServiceStreaming:
         max_tokens: int = 2048,
         temperature: float = 0.7,
         system_prompt: Optional[str] = None,
-        messages: Optional[list] = None
+        messages: Optional[list] = None,
+        stop_words: Optional[List[str]] = None,
     ) -> Generator[str, None, None]:
         """
         Send streaming chat request
@@ -77,6 +79,7 @@ class AIServiceStreaming:
                     temperature=temperature,
                     system_prompt=system_prompt,
                     messages=messages,
+                    stop_words=stop_words,
                     ollama_base_url=self.ollama_service.base_url
                     if provider == "ollama"
                     else None,
@@ -92,24 +95,35 @@ class AIServiceStreaming:
                     status_code=500,
                 ) from e
 
+        capability = get_provider_capability(provider)
+        if capability is None:
+            raise ProviderError(
+                f"Unsupported provider: {provider}",
+                provider=provider,
+                status_code=400,
+                error_code='PROVIDER_CONFIG_ERROR',
+            )
+
         if provider == 'ollama':
             yield from self._chat_stream_ollama(message, model, system_prompt, messages)
         elif provider == 'deepseek':
             yield from self._chat_stream_deepseek(
                 message, model, api_key, base_url, max_tokens, temperature,
-                system_prompt, messages
+                system_prompt, messages, stop_words
             )
-        elif provider == 'openai_compatible':
+        elif capability.client_kind in {'chat_openai', 'chat_anthropic'}:
             raise ProviderError(
-                "OpenAI-compatible provider requires USE_LANGCHAIN=true",
+                f"{provider} provider requires USE_LANGCHAIN=true",
                 provider=provider,
                 status_code=400,
+                error_code='PROVIDER_CONFIG_ERROR',
             )
         else:
             raise ProviderError(
                 f"Unsupported provider: {provider}",
                 provider=provider,
-                status_code=400
+                status_code=400,
+                error_code='PROVIDER_CONFIG_ERROR',
             )
     
     def _chat_stream_ollama(
@@ -190,7 +204,8 @@ class AIServiceStreaming:
             raise ProviderError(
                 error_msg,
                 provider='ollama',
-                status_code=503
+                status_code=503,
+                error_code='NETWORK_UNREACHABLE',
             )
         except Exception as e:
             logger.error(f"Unexpected error in Ollama streaming: {str(e)}")
@@ -209,7 +224,8 @@ class AIServiceStreaming:
         max_tokens: int,
         temperature: float,
         system_prompt: Optional[str] = None,
-        messages: Optional[list] = None
+        messages: Optional[list] = None,
+        stop_words: Optional[List[str]] = None,
     ) -> Generator[str, None, None]:
         """
         Stream chat request using DeepSeek
@@ -228,7 +244,11 @@ class AIServiceStreaming:
             Text chunks
         """
         if not api_key:
-            raise ValidationError("DeepSeek API key is required", field='apiKey')
+            raise ValidationError(
+                "DeepSeek API key is required",
+                field='apiKey',
+                error_code='API_KEY_MISSING',
+            )
         
         try:
             message_list = []
@@ -256,6 +276,8 @@ class AIServiceStreaming:
                 "temperature": temperature,
                 "stream": True
             }
+            if stop_words:
+                payload["stop"] = stop_words
             
             response = requests.post(
                 url,
@@ -300,7 +322,8 @@ class AIServiceStreaming:
             raise ProviderError(
                 error_msg,
                 provider='deepseek',
-                status_code=503
+                status_code=503,
+                error_code='NETWORK_UNREACHABLE',
             )
         except Exception as e:
             logger.error(f"Unexpected error in DeepSeek streaming: {str(e)}")

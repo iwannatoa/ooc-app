@@ -1,9 +1,10 @@
 """
 Unified AI service interface module
 """
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 from config import get_config
 from infrastructure.langchain_chat import invoke_langchain_chat
+from infrastructure.provider_capabilities import get_provider_capability
 from utils.logger import get_logger
 from utils.exceptions import ProviderError, ValidationError
 from service.ollama_service import OllamaService
@@ -40,7 +41,8 @@ class AIService:
         max_tokens: int = 2048,
         temperature: float = 0.7,
         system_prompt: Optional[str] = None,
-        messages: Optional[list] = None
+        messages: Optional[list] = None,
+        stop_words: Optional[List[str]] = None,
     ) -> Dict:
         """
         Send chat request
@@ -79,6 +81,7 @@ class AIService:
                     temperature=temperature,
                     system_prompt=system_prompt,
                     messages=messages,
+                    stop_words=stop_words,
                     ollama_base_url=self.ollama_service.base_url
                     if provider == "ollama"
                     else None,
@@ -94,25 +97,35 @@ class AIService:
                     status_code=500,
                 ) from e
 
-        if provider == 'ollama':
-            return self._chat_with_ollama(message, model, system_prompt, messages)
-        elif provider == 'deepseek':
-            return self._chat_with_deepseek(
-                message, model, api_key, base_url, max_tokens, temperature,
-                system_prompt, messages
-            )
-        elif provider == 'openai_compatible':
-            raise ProviderError(
-                "OpenAI-compatible provider requires USE_LANGCHAIN=true",
-                provider=provider,
-                status_code=400,
-            )
-        else:
+        capability = get_provider_capability(provider)
+        if capability is None:
             raise ProviderError(
                 f"Unsupported provider: {provider}",
                 provider=provider,
-                status_code=400
+                status_code=400,
+                error_code='PROVIDER_CONFIG_ERROR',
             )
+
+        if provider == 'ollama':
+            return self._chat_with_ollama(message, model, system_prompt, messages)
+        if provider == 'deepseek':
+            return self._chat_with_deepseek(
+                message, model, api_key, base_url, max_tokens, temperature,
+                system_prompt, messages, stop_words
+            )
+        if capability.client_kind in {'chat_openai', 'chat_anthropic'}:
+            raise ProviderError(
+                f"{provider} provider requires USE_LANGCHAIN=true",
+                provider=provider,
+                status_code=400,
+                error_code='PROVIDER_CONFIG_ERROR',
+            )
+        raise ProviderError(
+            f"Unsupported provider: {provider}",
+            provider=provider,
+            status_code=400,
+            error_code='PROVIDER_CONFIG_ERROR',
+        )
     
     # Ollama path (below): we concatenate system + history + user into one `prompt` string for
     # `ollama generate`, instead of using Ollama's native `/api/chat` messages array. Reasons:
@@ -192,7 +205,8 @@ class AIService:
         max_tokens: int,
         temperature: float,
         system_prompt: Optional[str] = None,
-        messages: Optional[list] = None
+        messages: Optional[list] = None,
+        stop_words: Optional[List[str]] = None,
     ) -> Dict:
         """
         Send chat request using DeepSeek
@@ -227,7 +241,8 @@ class AIService:
                 messages=message_list,
                 max_tokens=max_tokens,
                 temperature=temperature,
-                base_url=base_url
+                base_url=base_url,
+                stop_words=stop_words,
             )
             
             choices = result.get('choices', [])

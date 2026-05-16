@@ -5,7 +5,7 @@ import conversationsReducer, {
   prependConversation,
   removeConversationFromList,
 } from '../conversationsSlice';
-import type { ConversationWithSettings } from '@/types';
+import type { ConversationWithSettings, ConversationSettings } from '@/types';
 
 const sample: ConversationWithSettings = {
   id: 'c1',
@@ -13,7 +13,7 @@ const sample: ConversationWithSettings = {
   messages: [],
   createdAt: 1,
   updatedAt: 1,
-  settings: { conversation_id: 'c1', title: 'A' } as any,
+  settings: { conversation_id: 'c1', title: 'A' } as ConversationSettings,
 };
 
 describe('conversationsSlice', () => {

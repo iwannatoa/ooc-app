@@ -1,7 +1,7 @@
 """
 Story generation service layer
 """
-from typing import List, Optional, Dict, TYPE_CHECKING, Generator, Tuple, Literal
+from typing import Any, List, Optional, Dict, TYPE_CHECKING, Generator, Tuple, Literal
 import json
 from service.ai_service import AIService
 from service.ai_service_streaming import AIServiceStreaming
@@ -19,7 +19,10 @@ from utils.system_prompt import (
 from utils.i18n import get_i18n_text
 from utils.prompt_template_loader import PromptTemplateLoader
 from config import get_config
-from utils.story_context_selection import select_messages_for_ai_context
+from utils.story_context_selection import (
+    select_messages_for_ai_context,
+    select_messages_for_ai_context_with_trace,
+)
 from infrastructure.database import unit_of_work
 from utils.logger import get_logger
 
@@ -219,7 +222,7 @@ class StoryGenerationService:
             status='generating'
         )
         
-        messages, system_prompt = self._prepare_generation_context(
+        messages, system_prompt, context_trace = self._prepare_generation_context(
             conversation_id, context_kind="story_generate"
         )
         
@@ -264,6 +267,7 @@ class StoryGenerationService:
             system_prompt=system_prompt,
             messages=messages
         )
+        result["context_trace"] = context_trace
         
         if result.get('success'):
             response_content = result.get('response', '')
@@ -348,7 +352,7 @@ class StoryGenerationService:
             status='generating'
         )
         
-        messages, system_prompt = self._prepare_generation_context(
+        messages, system_prompt, context_trace = self._prepare_generation_context(
             conversation_id, context_kind="story_generate"
         )
         
@@ -460,6 +464,7 @@ class StoryGenerationService:
                 # Check if summary is needed
                 result = {"success": True, "response": accumulated_content}
                 self._check_and_mark_summary_needed(conversation_id, result)
+                yield json.dumps({"context_trace": context_trace}) + "\n"
                 if parse_warnings:
                     yield json.dumps({"parse_warnings": parse_warnings}) + "\n"
             except Exception as e:
@@ -513,7 +518,7 @@ class StoryGenerationService:
 
         api_config = self._story_api_config(conversation_id, provider, model)
 
-        messages, system_prompt = self._prepare_generation_context(
+        messages, system_prompt, context_trace = self._prepare_generation_context(
             conversation_id, current_section=new_section, context_kind="story_generate"
         )
         
@@ -548,6 +553,7 @@ class StoryGenerationService:
             system_prompt=system_prompt,
             messages=messages
         )
+        result["context_trace"] = context_trace
         
         if result.get('success'):
             response_content = result.get('response', '')
@@ -637,7 +643,7 @@ class StoryGenerationService:
 
         api_config = self._story_api_config(conversation_id, provider, model)
 
-        messages, system_prompt = self._prepare_generation_context(
+        messages, system_prompt, context_trace = self._prepare_generation_context(
             conversation_id, context_kind="story_feedback"
         )
         
@@ -660,16 +666,25 @@ class StoryGenerationService:
             system_prompt=system_prompt,
             messages=messages
         )
+        result["context_trace"] = context_trace
         
         if result.get('success'):
             response_content = result.get('response', '')
             # Remove think content before processing
             response_content = self.conversation_service._strip_think_content(response_content)
+            last_assistant_msg = self.chat_service.get_last_assistant_message(conversation_id)
+            source_message_id = None
+            source_variant_group = None
+            if isinstance(last_assistant_msg, dict):
+                try:
+                    source_message_id = int(last_assistant_msg.get('id')) if last_assistant_msg.get('id') is not None else None
+                except (TypeError, ValueError):
+                    source_message_id = None
+                source_variant_group = last_assistant_msg.get('variant_group_id')
             
             # Before recording new characters, revert character status changes from the previous assistant message
             # Get the last assistant message to revert its character changes
             if self.character_service:
-                last_assistant_msg = self.chat_service.get_last_assistant_message(conversation_id)
                 if last_assistant_msg and last_assistant_msg.get('content'):
                     try:
                         # Parse the previous message to find character status changes and revert them
@@ -720,7 +735,9 @@ class StoryGenerationService:
                 conversation_id=conversation_id,
                 content=clean_content,  # Save cleaned content without character tags
                 model=result.get('model'),
-                provider=api_config['provider']
+                provider=api_config['provider'],
+                parent_message_id=source_message_id,
+                variant_group_id=source_variant_group,
             )
             
             self.story_service.update_progress(
@@ -770,7 +787,7 @@ class StoryGenerationService:
         current_section: Optional[int] = None,
         *,
         context_kind: Literal["story_generate", "story_feedback"] = "story_generate",
-    ) -> tuple[List[Dict], str]:
+    ) -> tuple[List[Dict], str, Dict[str, Any]]:
         """
         Prepare generation context
         
@@ -836,15 +853,77 @@ class StoryGenerationService:
             )
         )
         
-        messages_for_ai, history_truncated, older_via_summary = select_messages_for_ai_context(
-            all_messages,
-            summary_text=summary_text,
-            estimated_system_tokens=estimated_system_tokens,
-            estimate_tokens=self.summary_service.estimate_tokens,
-            recent_messages_with_summary=self.config.RECENT_MESSAGES_WITH_SUMMARY,
-            max_message_history=self.config.MAX_MESSAGE_HISTORY,
-            max_context_tokens=self.config.MAX_CONTEXT_TOKENS,
-        )
+        summary_version = None
+        if isinstance(summary, dict):
+            summary_version = summary.get("updated_at") or str(summary.get("message_count") or "")
+        try:
+            if not getattr(self.config, "CONTEXT_MANAGEMENT_ENABLED", True):
+                messages_for_ai, history_truncated, older_via_summary = (
+                    select_messages_for_ai_context(
+                        all_messages,
+                        summary_text=summary_text,
+                        estimated_system_tokens=estimated_system_tokens,
+                        estimate_tokens=self.summary_service.estimate_tokens,
+                        recent_messages_with_summary=self.config.RECENT_MESSAGES_WITH_SUMMARY,
+                        max_message_history=self.config.MAX_MESSAGE_HISTORY,
+                        max_context_tokens=self.config.MAX_CONTEXT_TOKENS,
+                    )
+                )
+                context_trace = {
+                    "selectedSources": ["legacy_context_selector"],
+                    "droppedSources": [],
+                    "budgetUsed": {
+                        "totalBudget": int(self.config.MAX_CONTEXT_TOKENS * 0.8),
+                        "usedTokens": 0,
+                        "usedByLayer": {
+                            "recent": 0,
+                            "history": 0,
+                            "summary": 0,
+                            "system": estimated_system_tokens,
+                        },
+                    },
+                    "trimReasons": ["context_management_disabled"],
+                    "summaryVersion": summary_version or "none",
+                }
+            else:
+                messages_for_ai, history_truncated, older_via_summary, context_trace = (
+                    select_messages_for_ai_context_with_trace(
+                        all_messages,
+                        summary_text=summary_text,
+                        summary_version=summary_version,
+                        estimated_system_tokens=estimated_system_tokens,
+                        estimate_tokens=self.summary_service.estimate_tokens,
+                        recent_messages_with_summary=self.config.RECENT_MESSAGES_WITH_SUMMARY,
+                        max_message_history=self.config.MAX_MESSAGE_HISTORY,
+                        max_context_tokens=self.config.MAX_CONTEXT_TOKENS,
+                    )
+                )
+        except Exception:
+            # Fallback rule: keep the app available with minimum context when selector fails.
+            logger.error("Context selection failed, applying fallback strategy", exc_info=True)
+            recent_fallback = all_messages[-5:] if len(all_messages) > 5 else all_messages
+            messages_for_ai = [
+                {"role": m.get("role", "user"), "content": m.get("content", "")}
+                for m in recent_fallback
+            ]
+            history_truncated = len(recent_fallback) < len(all_messages)
+            older_via_summary = bool(summary_text)
+            context_trace = {
+                "selectedSources": ["latest_summary", f"recent_messages:{len(recent_fallback)}"],
+                "droppedSources": ["history_selector_failed"],
+                "budgetUsed": {
+                    "totalBudget": int(self.config.MAX_CONTEXT_TOKENS * 0.8),
+                    "usedTokens": 0,
+                    "usedByLayer": {
+                        "recent": 0,
+                        "history": 0,
+                        "summary": 0,
+                        "system": estimated_system_tokens,
+                    },
+                },
+                "trimReasons": ["fallback_context_path"],
+                "summaryVersion": summary_version or "none",
+            }
         
         system_prompt = build_system_prompt(
             background=settings.get('background') if settings else None,
@@ -862,7 +941,7 @@ class StoryGenerationService:
             older_via_summary=older_via_summary,
         )
         
-        return messages_for_ai, system_prompt
+        return messages_for_ai, system_prompt, context_trace
     
     def _check_and_mark_summary_needed(self, conversation_id: str, result: Dict):
         """
@@ -881,10 +960,26 @@ class StoryGenerationService:
             threshold=self.config.SUMMARY_THRESHOLD,
             estimated_tokens_per_message=self.config.ESTIMATED_TOKENS_PER_MESSAGE
         )
+        summary_budget = int(self.config.MAX_CONTEXT_TOKENS * 0.8)
+        summary_threshold_by_budget = int(summary_budget * 0.7)
+        estimated_tokens = message_count * self.config.ESTIMATED_TOKENS_PER_MESSAGE
+        existing_summary = self.summary_service.get_summary(conversation_id)
+        if isinstance(existing_summary, dict):
+            previous_summary_count = int(existing_summary.get("message_count") or 0)
+            if message_count - previous_summary_count >= 20:
+                should_summarize = True
+        if estimated_tokens >= summary_threshold_by_budget:
+            should_summarize = True
         
         if should_summarize:
             result['needs_summary'] = True
             result['message_count'] = message_count
+            result['summary_trigger'] = {
+                "messageCount": message_count,
+                "estimatedTokens": estimated_tokens,
+                "summaryBudget": summary_budget,
+                "budgetThreshold": summary_threshold_by_budget,
+            }
         else:
             result['needs_summary'] = False
 

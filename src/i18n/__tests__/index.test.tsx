@@ -1,3 +1,4 @@
+import { mockFn } from '@/test/mockFn';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
 import { I18nProvider, useI18n, availableLocales } from '../i18n';
@@ -42,7 +43,7 @@ describe('I18n', () => {
     vi.clearAllMocks();
     localStorage.clear();
 
-    (useFlaskPort.useFlaskPort as any).mockReturnValue({
+    mockFn(useFlaskPort.useFlaskPort).mockReturnValue({
       apiUrl: mockApiUrl,
     });
 
@@ -94,7 +95,7 @@ describe('I18n', () => {
     });
 
     it('should load language from backend on mount', async () => {
-      (global.fetch as any).mockResolvedValueOnce({
+      mockFn(global.fetch).mockResolvedValueOnce({
         json: async () => ({
           success: true,
           language: 'en',
@@ -122,7 +123,7 @@ describe('I18n', () => {
     });
 
     it('should handle backend language load error gracefully', async () => {
-      (global.fetch as any).mockRejectedValueOnce(new Error('Network error'));
+      mockFn(global.fetch).mockRejectedValueOnce(new Error('Network error'));
       const consoleErrorSpy = vi
         .spyOn(console, 'error')
         .mockImplementation(() => {});
@@ -151,7 +152,7 @@ describe('I18n', () => {
     });
 
     it('should not load language from backend if apiUrl is not available', async () => {
-      (useFlaskPort.useFlaskPort as any).mockReturnValue({
+      mockFn(useFlaskPort.useFlaskPort).mockReturnValue({
         apiUrl: null,
       });
 
@@ -289,7 +290,7 @@ describe('I18n', () => {
 
     it('should handle locale change error gracefully', async () => {
       // Mock initial load from backend
-      (global.fetch as any).mockResolvedValueOnce({
+      mockFn(global.fetch).mockResolvedValueOnce({
         json: async () => ({
           success: true,
           language: 'zh',
@@ -297,7 +298,7 @@ describe('I18n', () => {
       });
 
       // Mock save to backend with error
-      (global.fetch as any).mockRejectedValueOnce(new Error('Network error'));
+      mockFn(global.fetch).mockRejectedValueOnce(new Error('Network error'));
       const consoleErrorSpy = vi
         .spyOn(console, 'error')
         .mockImplementation(() => {});
@@ -341,7 +342,7 @@ describe('I18n', () => {
     });
 
     it('should save locale to localStorage even without apiUrl', async () => {
-      (useFlaskPort.useFlaskPort as any).mockReturnValue({
+      mockFn(useFlaskPort.useFlaskPort).mockReturnValue({
         apiUrl: null,
       });
 

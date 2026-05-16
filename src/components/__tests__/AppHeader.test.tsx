@@ -20,7 +20,6 @@ vi.mock('../ServerStatus', () => ({
 }));
 
 describe('AppHeader', () => {
-  const mockOnOpenSettings = vi.fn();
   const mockSetLocale = vi.fn();
   const mockToggleMockMode = vi.fn();
 

@@ -45,7 +45,7 @@ export interface ConversationSettings {
   character_is_main?: Record<string, boolean>;
   outline?: string;
   allow_auto_generate_characters?: boolean;
-  additional_settings?: Record<string, any>;
+  additional_settings?: Record<string, unknown>;
   created_at?: string;
   updated_at?: string;
 }

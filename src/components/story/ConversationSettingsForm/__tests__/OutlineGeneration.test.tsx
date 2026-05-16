@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { mockFn } from '@/test/mockFn';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { renderWithProviders } from '@/test/utils';
 import { OutlineGeneration } from '../OutlineGeneration';
@@ -43,11 +44,11 @@ describe('OutlineGeneration', () => {
     mockFormData.outlineConfirmed = false;
 
     (
-      useConversationSettingsForm.useConversationSettingsForm as any
+      mockFn(useConversationSettingsForm.useConversationSettingsForm)
     ).mockReturnValue(createMockUseConversationSettingsForm());
 
     (
-      useConversationSettingsGeneration.useConversationSettingsGeneration as any
+      mockFn(useConversationSettingsGeneration.useConversationSettingsGeneration)
     ).mockReturnValue({
       generateOutline: mockGenerateOutline,
     });
@@ -71,7 +72,7 @@ describe('OutlineGeneration', () => {
   });
 
   it('should allow outline textarea to be changed', () => {
-    const { container } = renderWithProviders(<OutlineGeneration />);
+    renderWithProviders(<OutlineGeneration />);
 
     const textarea = screen.getByRole('textbox', { name: /outline/i });
     
@@ -178,7 +179,6 @@ describe('OutlineGeneration', () => {
   });
 
   it('should handle outline generation with streaming callback', async () => {
-    const streamingCallback = vi.fn();
     mockGenerateOutline.mockImplementation((callback) => {
       callback('chunk1', 'chunk1');
       callback('chunk2', 'chunk1chunk2');
@@ -256,7 +256,7 @@ describe('OutlineGeneration', () => {
 
   it('should disable generate button when generating', () => {
     (
-      useConversationSettingsForm.useConversationSettingsForm as any
+      mockFn(useConversationSettingsForm.useConversationSettingsForm)
     ).mockReturnValue(
       createMockUseConversationSettingsForm({ isGeneratingOutline: true })
     );
@@ -273,7 +273,7 @@ describe('OutlineGeneration', () => {
     mockFormData.generatedOutline = 'Generated outline';
     mockFormData.outlineConfirmed = false;
     (
-      useConversationSettingsForm.useConversationSettingsForm as any
+      mockFn(useConversationSettingsForm.useConversationSettingsForm)
     ).mockReturnValue(
       createMockUseConversationSettingsForm({ isGeneratingOutline: true })
     );
@@ -288,7 +288,7 @@ describe('OutlineGeneration', () => {
 
   it('should show generating text when isGeneratingOutline is true', () => {
     (
-      useConversationSettingsForm.useConversationSettingsForm as any
+      mockFn(useConversationSettingsForm.useConversationSettingsForm)
     ).mockReturnValue(
       createMockUseConversationSettingsForm({ isGeneratingOutline: true })
     );
@@ -329,7 +329,7 @@ describe('OutlineGeneration', () => {
     mockFormData.generatedOutline = 'Streaming content';
     mockFormData.outlineConfirmed = false;
     (
-      useConversationSettingsForm.useConversationSettingsForm as any
+      mockFn(useConversationSettingsForm.useConversationSettingsForm)
     ).mockReturnValue(
       createMockUseConversationSettingsForm({ isGeneratingOutline: true })
     );

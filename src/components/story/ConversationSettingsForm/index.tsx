@@ -1,6 +1,6 @@
 import { useConversationClient } from '@/hooks/useConversationClient';
 import { useI18n } from '@/i18n/i18n';
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useConversationSettingsForm } from '@/hooks/useConversationSettingsForm';
 import { useConversationSettingsGeneration } from '@/hooks/useConversationSettingsGeneration';
 import { useConversationSettingsConverter } from '@/hooks/useConversationSettingsConverter';
@@ -9,10 +9,11 @@ import { CharacterManagement } from './CharacterManagement';
 import { OutlineGeneration } from './OutlineGeneration';
 import { StoryLengthMode } from './StoryLengthMode';
 import { AutoGenerationOptions } from './AutoGenerationOptions';
+import type { ConversationSettings } from '@/types';
 import styles from './ConversationSettingsForm.module.scss';
 
 interface ConversationSettingsFormProps {
-  onSave?: (settings: any) => void;
+  onSave?: (settings: Partial<ConversationSettings>) => void | Promise<void>;
   onCancel?: () => void;
 }
 
@@ -34,6 +35,15 @@ const ConversationSettingsForm: React.FC<ConversationSettingsFormProps> = ({
 }) => {
   const { t } = useI18n();
   const conversationClient = useConversationClient();
+  const [templates, setTemplates] = useState<
+    Array<{
+      id: string;
+      title: string;
+      background?: string;
+      outline_hint?: string;
+    }>
+  >([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState('');
 
   // Form state management (Redux)
   const { formData, conversationId, isNewConversation, updateFields } =
@@ -63,6 +73,23 @@ const ConversationSettingsForm: React.FC<ConversationSettingsFormProps> = ({
       cancelled = true;
     };
   }, [conversationId, conversationClient, updateFields]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void conversationClient.getStoryTemplates().then((items) => {
+      if (!cancelled) {
+        setTemplates(items);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [conversationClient]);
+
+  const selectedTemplate = useMemo(
+    () => templates.find((x) => x.id === selectedTemplateId),
+    [selectedTemplateId, templates]
+  );
 
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
@@ -130,10 +157,7 @@ const ConversationSettingsForm: React.FC<ConversationSettingsFormProps> = ({
 
   return (
     <div className={styles.overlay}>
-      <div
-        className={styles.modal}
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className={styles.modal}>
         <div className={styles.header}>
           <h2>
             {isNewConversation
@@ -151,6 +175,46 @@ const ConversationSettingsForm: React.FC<ConversationSettingsFormProps> = ({
           onSubmit={handleSubmit}
           className={styles.form}
         >
+          {templates.length > 0 && (
+            <div className={styles.formGroup}>
+              <label htmlFor='story-template-select'>Story Template</label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <select
+                  id='story-template-select'
+                  value={selectedTemplateId}
+                  onChange={(e) => setSelectedTemplateId(e.target.value)}
+                  style={{ flex: 1 }}
+                >
+                  <option value=''>Select a template</option>
+                  {templates.map((tpl) => (
+                    <option
+                      key={tpl.id}
+                      value={tpl.id}
+                    >
+                      {tpl.title}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type='button'
+                  className={styles.cancelButton}
+                  disabled={!selectedTemplate}
+                  onClick={() => {
+                    if (!selectedTemplate) return;
+                    updateFields({
+                      background:
+                        selectedTemplate.background || formData.background,
+                      outline:
+                        selectedTemplate.outline_hint || formData.outline,
+                    });
+                  }}
+                >
+                  Apply
+                </button>
+              </div>
+            </div>
+          )}
+
           <StoryBasicInfo />
 
           <CharacterManagement />

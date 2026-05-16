@@ -32,23 +32,25 @@ export {
 // Import routes to auto-register them
 import './routes';
 
-// Mock mode state (managed by useMockMode hook)
-let globalMockModeEnabled: boolean | null = null;
+const MOCK_MODE_GLOBAL_KEY = '__OOC_MOCK_MODE_ENABLED__';
 
 // Set global Mock mode state
 export const setMockModeEnabled = (enabled: boolean): void => {
-  globalMockModeEnabled = enabled;
+  (globalThis as unknown as Record<string, unknown>)[MOCK_MODE_GLOBAL_KEY] =
+    enabled;
 };
 
 // Check if Mock mode is enabled
 export const isMockMode = (): boolean => {
-  // If global state is set, use it first
-  if (globalMockModeEnabled !== null) {
-    return globalMockModeEnabled;
+  const globalState = globalThis as unknown as Record<string, unknown>;
+  const value = globalState[MOCK_MODE_GLOBAL_KEY];
+  if (typeof value === 'boolean') {
+    return value;
   }
-  
-  // Otherwise use environment variable
-  return import.meta.env.VITE_USE_MOCK === 'true' || 
-         (import.meta.env.DEV && import.meta.env.VITE_USE_MOCK !== 'false');
+
+  return (
+    import.meta.env.VITE_USE_MOCK === 'true' ||
+    (import.meta.env.DEV && import.meta.env.VITE_USE_MOCK !== 'false')
+  );
 };
 

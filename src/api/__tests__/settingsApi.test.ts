@@ -1,3 +1,4 @@
+import { mockFn } from '@/test/mockFn';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { SettingsApi } from '../settingsApi';
 import { DEFAULT_SETTINGS } from '@/types/constants';
@@ -20,7 +21,7 @@ describe('SettingsApi', () => {
   });
 
   it('should get app settings', async () => {
-    (global.fetch as any).mockResolvedValue({
+    mockFn(global.fetch).mockResolvedValue({
       ok: true,
       json: async () => ({
         success: true,
@@ -33,7 +34,7 @@ describe('SettingsApi', () => {
   });
 
   it('should update app settings', async () => {
-    (global.fetch as any).mockResolvedValue({
+    mockFn(global.fetch).mockResolvedValue({
       ok: true,
       json: async () => ({ success: true }),
     });

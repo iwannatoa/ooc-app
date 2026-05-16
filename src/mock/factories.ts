@@ -99,7 +99,7 @@ export const createMockChatState = (
   ...overrides,
 });
 
-import type { AppSettings } from '@/types';
+import type { AppSettings, AIProvider } from '@/types';
 
 /**
  * Deep partial type helper - makes all nested properties optional
@@ -142,6 +142,60 @@ const getDefaultSettings = (): AppSettings => ({
       maxTokens: 2048,
       temperature: 0.7,
     },
+    openai_compatible: {
+      provider: 'openai_compatible',
+      baseUrl: 'http://127.0.0.1:1234/v1',
+      model: 'gpt-4o-mini',
+      apiKey: '',
+      timeout: 30000,
+      maxTokens: 2048,
+      temperature: 0.7,
+    },
+    openai: {
+      provider: 'openai',
+      baseUrl: 'https://api.openai.com',
+      model: 'gpt-4o-mini',
+      apiKey: '',
+      timeout: 30000,
+      maxTokens: 2048,
+      temperature: 0.7,
+    },
+    anthropic: {
+      provider: 'anthropic',
+      baseUrl: 'https://api.anthropic.com',
+      model: 'claude-3-5-sonnet-latest',
+      apiKey: '',
+      timeout: 30000,
+      maxTokens: 2048,
+      temperature: 0.7,
+    },
+    glm: {
+      provider: 'glm',
+      baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
+      model: 'glm-4-flash',
+      apiKey: '',
+      timeout: 30000,
+      maxTokens: 2048,
+      temperature: 0.7,
+    },
+    kimi: {
+      provider: 'kimi',
+      baseUrl: 'https://api.moonshot.cn',
+      model: 'moonshot-v1-8k',
+      apiKey: '',
+      timeout: 30000,
+      maxTokens: 2048,
+      temperature: 0.7,
+    },
+    minimax: {
+      provider: 'minimax',
+      baseUrl: 'https://api.minimax.chat',
+      model: 'MiniMax-Text-01',
+      apiKey: '',
+      timeout: 30000,
+      maxTokens: 2048,
+      temperature: 0.7,
+    },
   },
   advanced: {
     enableStreaming: true,
@@ -156,7 +210,7 @@ const getDefaultSettings = (): AppSettings => ({
  * Deep merge helper for nested objects
  * Merges source into target, preserving target's structure
  */
-const deepMerge = <T extends Record<string, any>>(
+const deepMerge = <T extends Record<string, unknown>>(
   target: T,
   source: Partial<T>
 ): T => {
@@ -206,6 +260,13 @@ export const createMockSettingsState = (
     updateAiProvider: vi.fn(),
     updateOllamaConfig: vi.fn(),
     updateDeepSeekConfig: vi.fn(),
+    updateOpenAICompatibleConfig: vi.fn(),
+    updateOpenAIConfig: vi.fn(),
+    updateAnthropicConfig: vi.fn(),
+    updateGLMConfig: vi.fn(),
+    updateKimiConfig: vi.fn(),
+    updateMiniMaxConfig: vi.fn(),
+    updateActiveAiProviderConfig: vi.fn(),
     updateGeneralSettings: vi.fn(),
     updateAppearanceSettings: vi.fn(),
     updateAdvancedSettings: vi.fn(),
@@ -224,7 +285,7 @@ export const createMockSettingsState = (
  * Helper to create mock settings state with a specific AI provider
  */
 export const createMockSettingsStateWithProvider = (
-  provider: 'ollama' | 'deepseek',
+  provider: AIProvider,
   overrides: Partial<SettingsStateReturn> = {}
 ): SettingsStateReturn => {
   const defaultSettings = getDefaultSettings();
@@ -517,15 +578,15 @@ export const createMockConversationSettingsConverter = (
  */
 export const createMockApiClients = (
   overrides: {
-    conversationApi?: any;
-    aiApi?: any;
-    storyApi?: any;
-    settingsApi?: any;
-    serverApi?: any;
-    apiFactory?: any;
+    conversationApi?: unknown;
+    aiApi?: unknown;
+    storyApi?: unknown;
+    settingsApi?: unknown;
+    serverApi?: unknown;
+    apiFactory?: unknown;
   } = {}
 ) => ({
-  conversationApi: overrides.conversationApi || {
+  conversationApi: (overrides.conversationApi as object | undefined) ?? {
     getConversationsList: vi.fn(),
     getConversationSettings: vi.fn(),
     createOrUpdateSettings: vi.fn(),
@@ -543,25 +604,25 @@ export const createMockApiClients = (
     generateCharacter: vi.fn(),
     deleteLastMessage: vi.fn(),
   },
-  aiApi: overrides.aiApi || {
+  aiApi: (overrides.aiApi as object | undefined) ?? {
     sendMessage: vi.fn(),
     sendMessageStream: vi.fn(),
   },
-  storyApi: overrides.storyApi || {
+  storyApi: (overrides.storyApi as object | undefined) ?? {
     generateStory: vi.fn(),
     confirmSection: vi.fn(),
     rewriteSection: vi.fn(),
     modifySection: vi.fn(),
   },
-  settingsApi: overrides.settingsApi || {
+  settingsApi: (overrides.settingsApi as object | undefined) ?? {
     getSettings: vi.fn(),
     updateSettings: vi.fn(),
   },
-  serverApi: overrides.serverApi || {
+  serverApi: (overrides.serverApi as object | undefined) ?? {
     checkHealth: vi.fn(),
     getModels: vi.fn(),
   },
-  apiFactory: overrides.apiFactory || {
+  apiFactory: (overrides.apiFactory as object | undefined) ?? {
     updateSettings: vi.fn(),
   },
 });

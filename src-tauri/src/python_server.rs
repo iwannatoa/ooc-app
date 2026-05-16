@@ -6,6 +6,7 @@ pub struct PythonServer {
     pub process: Option<CommandChild>,
     pub port: Option<u16>,
     pub pid: Option<u32>,
+    pub instance_id: Option<String>,
     /// Windows: `tokio::process::Child` for graceful wait / kill (not used on other OS).
     #[cfg(target_os = "windows")]
     pub windows_child: Option<Arc<TokioMutex<Option<tokio::process::Child>>>>,
@@ -17,6 +18,7 @@ impl PythonServer {
             process: None,
             port: None,
             pid: None,
+            instance_id: None,
             #[cfg(target_os = "windows")]
             windows_child: None,
         }
@@ -33,6 +35,7 @@ mod tests {
         assert!(s.process.is_none());
         assert!(s.port.is_none());
         assert!(s.pid.is_none());
+        assert!(s.instance_id.is_none());
         #[cfg(target_os = "windows")]
         assert!(s.windows_child.is_none());
     }

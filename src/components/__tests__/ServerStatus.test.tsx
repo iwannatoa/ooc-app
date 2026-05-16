@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { screen, fireEvent, waitFor } from '@testing-library/react';
+import { screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { renderWithProviders } from '@/test/utils';
 import ServerStatus from '../ServerStatus';
 import * as useServerState from '@/hooks/useServerState';
@@ -729,5 +729,51 @@ describe('ServerStatus', () => {
 
     // Error should be handled gracefully (no crash)
     expect(mockGetModels).toHaveBeenCalled();
+  });
+
+  it('should avoid duplicate model fetches while request is in-flight', async () => {
+    vi.mocked(useSettingsState.useSettingsState).mockReturnValue(
+      createMockSettingsState({
+        settings: {
+          ai: {
+            provider: 'ollama',
+            ollama: {
+              model: 'test-model',
+            },
+          },
+        },
+        updateOllamaConfig: mockUpdateOllamaConfig,
+      })
+    );
+
+    let resolveModels: ((value: unknown) => void) | null = null;
+    mockGetModels.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveModels = resolve;
+        })
+    );
+
+    renderWithProviders(<ServerStatus />);
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    // Trigger another health-check cycle while getModels is still pending.
+    await act(async () => {
+      vi.advanceTimersByTime(3500);
+      await Promise.resolve();
+    });
+
+    expect(mockGetModels).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolveModels?.({
+        success: true,
+        models: [{ name: 'llama2' }],
+      });
+      await Promise.resolve();
+    });
   });
 });

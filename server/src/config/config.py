@@ -33,13 +33,14 @@ class Config:
     # Authorization: Bearer <token>. Same value should be set for the Tauri/desktop client.
     _api_token_raw: str = os.getenv('FLASK_API_TOKEN', '').strip()
     FLASK_API_TOKEN: Optional[str] = _api_token_raw if _api_token_raw else None
+    FLASK_INSTANCE_ID: str = os.getenv('FLASK_INSTANCE_ID', '').strip()
 
     # Paths exempt from Bearer check (no leading API prefix duplication for '/')
     API_AUTH_EXEMPT_PATHS: FrozenSet[str] = frozenset(
         p.strip()
         for p in os.getenv(
             'API_AUTH_EXEMPT_PATHS',
-            '/,/api/health',
+            '/',
         ).split(',')
         if p.strip()
     )
@@ -52,6 +53,22 @@ class Config:
     # DeepSeek configuration
     DEEPSEEK_BASE_URL: str = os.getenv('DEEPSEEK_BASE_URL', 'https://api.deepseek.com')
     DEEPSEEK_TIMEOUT: int = int(os.getenv('DEEPSEEK_TIMEOUT', '60'))
+    OPENAI_COMPATIBLE_BASE_URL: str = os.getenv(
+        'OPENAI_COMPATIBLE_BASE_URL',
+        'http://127.0.0.1:1234/v1'
+    )
+
+    # Additional provider base URLs
+    OPENAI_BASE_URL: str = os.getenv('OPENAI_BASE_URL', 'https://api.openai.com')
+    AZURE_OPENAI_BASE_URL: str = os.getenv(
+        'AZURE_OPENAI_BASE_URL',
+        'https://example-resource.openai.azure.com/openai/v1'
+    )
+    ANTHROPIC_BASE_URL: str = os.getenv('ANTHROPIC_BASE_URL', 'https://api.anthropic.com')
+    GLM_BASE_URL: str = os.getenv('GLM_BASE_URL', 'https://open.bigmodel.cn/api/paas/v4')
+    KIMI_BASE_URL: str = os.getenv('KIMI_BASE_URL', 'https://api.moonshot.cn')
+    MINIMAX_BASE_URL: str = os.getenv('MINIMAX_BASE_URL', 'https://api.minimax.chat')
+    ANTHROPIC_TIMEOUT: int = int(os.getenv('ANTHROPIC_TIMEOUT', '60'))
     
     # Logging configuration
     LOG_LEVEL: str = os.getenv('LOG_LEVEL', 'INFO')
@@ -78,6 +95,10 @@ class Config:
     # Token estimation configuration (for more precise control)
     ESTIMATED_TOKENS_PER_MESSAGE: int = int(os.getenv('ESTIMATED_TOKENS_PER_MESSAGE', '500'))  # Estimated tokens per message
     MAX_CONTEXT_TOKENS: int = int(os.getenv('MAX_CONTEXT_TOKENS', '60000'))  # Max context tokens (default 60K, suitable for most models)
+    CONTEXT_MANAGEMENT_ENABLED: bool = os.getenv(
+        'CONTEXT_MANAGEMENT_ENABLED',
+        'true',
+    ).lower() in ('1', 'true', 'yes')
 
     # LangChain: unified chat invoke/stream (set false to use legacy Ollama generate + DeepSeek requests)
     USE_LANGCHAIN: bool = os.getenv('USE_LANGCHAIN', 'true').lower() in (

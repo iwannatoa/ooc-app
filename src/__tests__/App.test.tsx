@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { screen } from '@testing-library/react';
 import { renderWithProviders } from '@/test/utils';
+import type { ConversationSettings } from '@/types';
 import App from '../App';
 
 // Mock all hooks
@@ -176,7 +177,7 @@ describe('App', () => {
       conversationSettings: {
         conversation_id: 'conv-123',
         title: 'Test Conversation',
-      } as any,
+      } as ConversationSettings,
       conversations: [],
       loading: false,
       summaryMessageCount: 0,

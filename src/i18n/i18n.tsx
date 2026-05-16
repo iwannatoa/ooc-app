@@ -7,15 +7,20 @@ import {
   ReactNode,
 } from 'react';
 import { useFlaskPort } from '@/hooks/useFlaskPort';
+import { invoke } from '@tauri-apps/api/core';
 
 // Auto-import all locale files
-const localeModules = import.meta.glob<{ default: Record<string,any> }>('./locales/*.json', {
-  eager: true,
-});
+type TranslationJson = Record<string, string | TranslationJson>;
 
-// Extract locale codes from file paths and build translations object
-const translations: Record<string, any> = {};
-let defaultTranslations: any = null;
+const localeModules = import.meta.glob<{ default: TranslationJson }>(
+  './locales/*.json',
+  {
+    eager: true,
+  }
+);
+
+const translations: Record<string, TranslationJson> = {};
+let defaultTranslations: TranslationJson | null = null;
 
 Object.entries(localeModules).forEach(([path, module]) => {
   // Extract locale code from path (e.g., './locales/zh.json' -> 'zh')
@@ -31,7 +36,7 @@ Object.entries(localeModules).forEach(([path, module]) => {
 });
 
 export type Locale = keyof typeof translations;
-export type Translations = typeof defaultTranslations;
+export type Translations = TranslationJson;
 
 // Get available locales list
 export const availableLocales = Object.keys(translations) as Locale[];
@@ -49,12 +54,43 @@ const I18nContext = createContext<I18nContextType | undefined>(undefined);
 
 const LOCALE_STORAGE_KEY = 'app_locale';
 
-function getNestedValue(obj: any, path: string): string {
+interface CommandResponse<T> {
+  success: boolean;
+  data?: T;
+}
+
+const buildAuthHeaders = async (
+  baseHeaders: HeadersInit = {}
+): Promise<Record<string, string>> => {
+  const merged: Record<string, string> =
+    baseHeaders instanceof Headers
+      ? Object.fromEntries(baseHeaders.entries())
+      : Array.isArray(baseHeaders)
+        ? Object.fromEntries(baseHeaders)
+        : { ...(baseHeaders as Record<string, string>) };
+
+  try {
+    const tokenResp = await invoke<CommandResponse<string>>('get_flask_api_token');
+    const token = tokenResp.success ? tokenResp.data?.trim() : '';
+    if (token) {
+      merged.Authorization = `Bearer ${token}`;
+    }
+  } catch {
+    const fallback = import.meta.env.VITE_FLASK_API_TOKEN?.trim();
+    if (fallback) {
+      merged.Authorization = `Bearer ${fallback}`;
+    }
+  }
+
+  return merged;
+};
+
+function getNestedValue(obj: TranslationJson, path: string): string {
   const keys = path.split('.');
-  let value = obj;
+  let value: string | TranslationJson | undefined = obj;
   for (const key of keys) {
     if (value && typeof value === 'object' && key in value) {
-      value = value[key];
+      value = value[key] as string | TranslationJson;
     } else {
       return path;
     }
@@ -109,7 +145,9 @@ export const I18nProvider = ({ children }: { children: ReactNode }) => {
       if (!apiUrl) return;
 
       try {
-        const response = await fetch(`${apiUrl}/api/app-settings/language`);
+        const response = await fetch(`${apiUrl}/api/app-settings/language`, {
+          headers: await buildAuthHeaders(),
+        });
         const data = await response.json();
         if (data.success && data.language && data.language in translations) {
           setLocaleState(data.language as Locale);
@@ -142,9 +180,12 @@ export const I18nProvider = ({ children }: { children: ReactNode }) => {
 
     if (apiUrl) {
       try {
+        const headers = await buildAuthHeaders({
+          'Content-Type': 'application/json',
+        });
         await fetch(`${apiUrl}/api/app-settings/language`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers,
           body: JSON.stringify({ language: newLocale }),
         });
       } catch (error) {

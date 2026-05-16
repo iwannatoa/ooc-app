@@ -15,6 +15,7 @@ from service.ai_config_service import AIConfigService
 from service.app_settings_service import AppSettingsService
 from service.conversation_service import ConversationService
 from service.story_service import StoryService
+from infrastructure.provider_capabilities import get_provider_capability
 from utils.logger import get_logger
 from utils.exceptions import APIError, ValidationError, ProviderError
 from utils.stream_response import create_stream_response
@@ -144,6 +145,14 @@ class ChatController:
         @app.route('/api/conversation/delete-last-message', methods=['POST'])
         def delete_last_message():
             return self.delete_last_message()
+
+        @app.route('/api/conversation/assistant-variants', methods=['GET'])
+        def get_assistant_variants():
+            return self.get_assistant_variants()
+
+        @app.route('/api/conversation/assistant-variants/restore', methods=['POST'])
+        def restore_assistant_variant():
+            return self.restore_assistant_variant()
     
     @handle_errors
     def chat(self):
@@ -236,6 +245,15 @@ class ChatController:
                 provider=provider,
                 model=data.get('model')
             )
+            settings = (
+                self.conversation_service.get_settings(conversation_id)
+                if conversation_id
+                else None
+            )
+            api_config = ChatOrchestrationService._merge_conversation_llm_overrides(
+                api_config,
+                settings,
+            )
             
             # Get conversation history for context
             messages = []
@@ -256,7 +274,8 @@ class ChatController:
                     base_url=api_config['base_url'],
                     max_tokens=api_config['max_tokens'],
                     temperature=api_config['temperature'],
-                    messages=messages if messages else None
+                    messages=messages if messages else None,
+                    stop_words=api_config.get('stop_words'),
                 )
             
             persist_metadata: dict = {}
@@ -271,7 +290,7 @@ class ChatController:
                         model=api_config['model'],
                         provider=api_config['provider']
                     )
-                except Exception as e:
+                except Exception:
                     logger.error(
                         "Failed to persist streamed chat messages",
                         exc_info=True,
@@ -540,10 +559,16 @@ class ChatController:
             provider = request.args.get('provider', 'ollama')
             logger.info(f"Fetching models for provider: {provider}")
 
-            if provider == 'openai_compatible':
-                cfg = self.ai_config_service.get_config(
-                    'openai_compatible', include_api_key=False
+            capability = get_provider_capability(provider)
+            if capability is None:
+                raise ProviderError(
+                    f"Unsupported provider: {provider}",
+                    provider=provider,
+                    status_code=400,
                 )
+
+            if provider != 'ollama':
+                cfg = self.ai_config_service.get_config(provider, include_api_key=False)
                 name = (cfg or {}).get('model') or 'configured-model'
                 return jsonify({
                     'success': True,
@@ -872,4 +897,56 @@ class ChatController:
                 "success": False,
                 "error": f"Failed to delete last message: {str(e)}"
             }), 500
+
+    def get_assistant_variants(self):
+        data = request.args
+        conversation_id = data.get('conversation_id')
+        language = self.app_settings_service.get_language()
+        if not conversation_id:
+            return error_response(language, 'error_messages.conversation_id_required')
+        rows = self.chat_service.get_assistant_variants(conversation_id, limit=50)
+        return jsonify({
+            "success": True,
+            "variants": rows,
+        })
+
+    def restore_assistant_variant(self):
+        data = request.json or {}
+        conversation_id = data.get('conversation_id')
+        message_id = data.get('message_id')
+        language = self.app_settings_service.get_language()
+        if not conversation_id:
+            return error_response(language, 'error_messages.conversation_id_required')
+        if message_id is None:
+            return jsonify({
+                "success": False,
+                "error": "message_id is required",
+            }), 400
+        try:
+            message_id_int = int(message_id)
+        except (TypeError, ValueError):
+            return jsonify({
+                "success": False,
+                "error": "invalid message_id",
+            }), 400
+
+        restored = self.chat_service.restore_assistant_variant(
+            conversation_id=conversation_id,
+            message_id=message_id_int,
+        )
+        if not restored:
+            return jsonify({
+                "success": False,
+                "error": "Variant message not found",
+            }), 404
+
+        self.story_service.update_progress(
+            conversation_id=conversation_id,
+            last_generated_content=restored.get("content"),
+            status='completed',
+        )
+        return jsonify({
+            "success": True,
+            "restored": restored,
+        })
 

@@ -2,7 +2,7 @@
 DeepSeek service module
 """
 import requests
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 from utils.logger import get_logger
 from utils.exceptions import ProviderError, ValidationError
 from config import Config
@@ -30,7 +30,8 @@ class DeepSeekService:
         messages: list,
         max_tokens: int = 2048,
         temperature: float = 0.7,
-        base_url: Optional[str] = None
+        base_url: Optional[str] = None,
+        stop_words: Optional[List[str]] = None,
     ) -> Dict:
         """
         Send chat completion request
@@ -68,6 +69,8 @@ class DeepSeekService:
             "max_tokens": max_tokens,
             "temperature": temperature
         }
+        if stop_words:
+            payload["stop"] = stop_words
         
         try:
             logger.info(f"Calling DeepSeek API - Model: {model}, Messages: {len(messages)}")

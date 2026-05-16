@@ -1,41 +1,63 @@
-import {
-  render,
-  screen,
-  fireEvent,
-  waitFor,
-  act,
-} from '@testing-library/react';
+import { mockFn } from '@/test/mockFn';
+import { screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { DialogContainer } from '../DialogContainer';
 import { renderWithProviders, tick } from '@/test/utils';
 import { createTestStore } from '@/test/utils';
 
+type ConversationSettingsFormStubProps = {
+  onSave?: () => void;
+  onCancel?: () => void;
+};
+
+type SummaryPromptStubProps = {
+  onGenerate?: () => void;
+  onSave?: () => void;
+  onCancel?: () => void;
+};
+
+type StorySettingsViewStubProps = {
+  onEdit?: () => void;
+  onClose?: () => void;
+};
+
+type SettingsPanelStubProps = {
+  onClose?: () => void;
+};
+
 vi.mock('../../story', () => ({
-  ConversationSettingsForm: ({ onSave, onCancel }: any) => (
+  ConversationSettingsForm: ({
+    onSave,
+    onCancel,
+  }: ConversationSettingsFormStubProps) => (
     <div data-testid="conversation-settings-form">
-      <button onClick={onSave}>Save</button>
-      <button onClick={onCancel}>Cancel</button>
+      <button onClick={() => onSave?.()}>Save</button>
+      <button onClick={() => onCancel?.()}>Cancel</button>
     </div>
   ),
-  SummaryPrompt: ({ onGenerate, onSave, onCancel }: any) => (
+  SummaryPrompt: ({
+    onGenerate,
+    onSave,
+    onCancel,
+  }: SummaryPromptStubProps) => (
     <div data-testid="summary-prompt">
-      <button onClick={onGenerate}>Generate</button>
-      <button onClick={onSave}>Save</button>
-      <button onClick={onCancel}>Cancel</button>
+      <button onClick={() => onGenerate?.()}>Generate</button>
+      <button onClick={() => onSave?.()}>Save</button>
+      <button onClick={() => onCancel?.()}>Cancel</button>
     </div>
   ),
-  StorySettingsView: ({ onEdit, onClose }: any) => (
+  StorySettingsView: ({ onEdit, onClose }: StorySettingsViewStubProps) => (
     <div data-testid="story-settings-view">
-      <button onClick={onEdit}>Edit</button>
-      <button onClick={onClose}>Close</button>
+      <button onClick={() => onEdit?.()}>Edit</button>
+      <button onClick={() => onClose?.()}>Close</button>
     </div>
   ),
 }));
 
 vi.mock('../../settings', () => ({
-  SettingsPanel: ({ onClose }: any) => (
+  SettingsPanel: ({ onClose }: SettingsPanelStubProps) => (
     <div data-testid="settings-panel">
-      <button onClick={onClose}>Close</button>
+      <button onClick={() => onClose?.()}>Close</button>
     </div>
   ),
 }));
@@ -65,7 +87,6 @@ import { useConversationSettingsForm } from '@/hooks/useConversationSettingsForm
 
 describe('DialogContainer', () => {
   const mockClose = vi.fn();
-  const mockOpen = vi.fn();
   const mockHandleSaveSettings = vi.fn();
   const mockHandleGenerateSummary = vi.fn();
   const mockHandleSaveSummary = vi.fn();
@@ -75,28 +96,28 @@ describe('DialogContainer', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    (useDialog as any).mockReturnValue({
+    mockFn(useDialog).mockReturnValue({
       close: mockClose,
     });
 
-    (useConversationSettingsDialog as any).mockReturnValue({
+    mockFn(useConversationSettingsDialog).mockReturnValue({
       open: mockSettingsDialogOpen,
     });
 
-    (useAppLogic as any).mockReturnValue({
+    mockFn(useAppLogic).mockReturnValue({
       currentSettings: { title: 'Test Story' },
       handleSaveSettings: mockHandleSaveSettings,
       handleGenerateSummary: mockHandleGenerateSummary,
       handleSaveSummary: mockHandleSaveSummary,
     });
 
-    (useConversationManagement as any).mockReturnValue({
+    mockFn(useConversationManagement).mockReturnValue({
       activeConversationId: 'conv1',
       pendingConversationId: null,
       isNewConversation: false,
     });
 
-    (useConversationSettingsForm as any).mockReturnValue({
+    mockFn(useConversationSettingsForm).mockReturnValue({
       initialize: mockInitialize,
     });
   });
@@ -168,7 +189,7 @@ describe('DialogContainer', () => {
   });
 
   it('should use pendingConversationId when available', () => {
-    (useConversationManagement as any).mockReturnValue({
+    mockFn(useConversationManagement).mockReturnValue({
       activeConversationId: 'conv1',
       pendingConversationId: 'pending1',
       isNewConversation: false,
@@ -198,7 +219,7 @@ describe('DialogContainer', () => {
   });
 
   it('should not render conversation settings when no conversationId available', () => {
-    (useConversationManagement as any).mockReturnValue({
+    mockFn(useConversationManagement).mockReturnValue({
       activeConversationId: null,
       pendingConversationId: null,
       isNewConversation: false,

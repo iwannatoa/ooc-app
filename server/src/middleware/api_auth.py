@@ -34,6 +34,10 @@ def register_api_auth(app: Flask) -> None:
         if path in exempt:
             return None
 
+        # Allow CORS preflight requests to pass without bearer token.
+        if request.method == 'OPTIONS':
+            return None
+
         if not path.startswith('/api'):
             return None
 

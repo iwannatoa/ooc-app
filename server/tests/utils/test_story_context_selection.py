@@ -4,7 +4,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 
-from utils.story_context_selection import select_messages_for_ai_context
+from utils.story_context_selection import (
+    select_messages_for_ai_context,
+    select_messages_for_ai_context_with_trace,
+)
 
 
 def test_with_summary_recent_slice_and_older_flag():
@@ -41,4 +44,25 @@ def test_without_summary_truncates_by_token_budget():
     assert older is False
     assert truncated is True
     assert len(sel) < len(all_msgs)
+
+
+def test_with_trace_contains_required_fields():
+    all_msgs = [{"role": "user", "content": f"line-{i}"} for i in range(10)]
+    sel, _truncated, _older, trace = select_messages_for_ai_context_with_trace(
+        all_msgs,
+        summary_text="summary",
+        summary_version="v1",
+        estimated_system_tokens=120,
+        estimate_tokens=lambda s: len(s),
+        recent_messages_with_summary=4,
+        max_message_history=100,
+        max_context_tokens=3000,
+    )
+    assert len(sel) == 4
+    assert "selectedSources" in trace
+    assert "droppedSources" in trace
+    assert "budgetUsed" in trace
+    assert "trimReasons" in trace
+    assert "summaryVersion" in trace
+    assert trace["summaryVersion"] == "v1"
 

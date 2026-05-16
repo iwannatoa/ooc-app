@@ -4,6 +4,7 @@ import { Provider } from 'react-redux';
 import { describe, it, expect } from 'vitest';
 import { useSettingsState } from '../useSettingsState';
 import { createTestStore } from '@/test/utils';
+import { DEFAULT_SETTINGS } from '@/types/constants';
 
 const createWrapper = (store: ReturnType<typeof createTestStore>) => {
   return ({ children }: { children: React.ReactNode }) => (
@@ -21,6 +22,7 @@ describe('useSettingsState', () => {
     expect(result.current).toHaveProperty('settings');
     expect(result.current).toHaveProperty('updateSettings');
     expect(result.current).toHaveProperty('updateAiProvider');
+    expect(result.current).toHaveProperty('updateActiveAiProviderConfig');
   });
 
   it('should update AI provider', () => {
@@ -79,27 +81,15 @@ describe('useSettingsState', () => {
     });
 
     const newSettings = {
+      ...DEFAULT_SETTINGS,
       general: {
+        ...DEFAULT_SETTINGS.general,
         language: 'zh',
-        autoStart: false,
-        minimizeToTray: true,
-        startWithSystem: true,
-      },
-      appearance: {
-        theme: 'light' as const,
-        fontSize: 'medium' as const,
-        fontFamily: 'Arial',
       },
       ai: {
+        ...DEFAULT_SETTINGS.ai,
         provider: 'ollama' as const,
-        ollama: { model: 'test-model' },
-      },
-      advanced: {
-        enableStreaming: true,
-        apiTimeout: 5000,
-        maxRetries: 3,
-        logLevel: 'info' as const,
-        enableDiagnostics: false,
+        ollama: { ...DEFAULT_SETTINGS.ai.ollama, model: 'test-model' },
       },
     };
 
@@ -156,6 +146,20 @@ describe('useSettingsState', () => {
     });
 
     expect(result.current.settings.ai.deepseek?.model).toBe('deepseek-chat');
+  });
+
+  it('should update active provider config', () => {
+    const store = createTestStore();
+    const { result } = renderHook(() => useSettingsState(), {
+      wrapper: createWrapper(store),
+    });
+
+    act(() => {
+      result.current.updateAiProvider('openai');
+      result.current.updateActiveAiProviderConfig({ model: 'gpt-4.1-mini' });
+    });
+
+    expect(result.current.settings.ai.openai.model).toBe('gpt-4.1-mini');
   });
 
   it('should update general settings', () => {

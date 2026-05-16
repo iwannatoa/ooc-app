@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { mockFn } from '@/test/mockFn';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { renderWithProviders } from '@/test/utils';
 import { CharacterManagement } from '../CharacterManagement';
@@ -59,11 +60,11 @@ describe('CharacterManagement', () => {
     mockFormData.background = 'Test background';
 
     (
-      useConversationSettingsForm.useConversationSettingsForm as any
+      mockFn(useConversationSettingsForm.useConversationSettingsForm)
     ).mockReturnValue(createMockUseConversationSettingsForm());
 
     (
-      useConversationSettingsGeneration.useConversationSettingsGeneration as any
+      mockFn(useConversationSettingsGeneration.useConversationSettingsGeneration)
     ).mockReturnValue({
       generateCharacter: mockGenerateCharacter,
     });
@@ -100,7 +101,7 @@ describe('CharacterManagement', () => {
   });
 
   it('should allow character name input to be changed', () => {
-    const { container } = renderWithProviders(<CharacterManagement />);
+    renderWithProviders(<CharacterManagement />);
 
     const inputs = screen.getAllByPlaceholderText(
       'conversationSettingsForm.characterNamePlaceholder'
@@ -146,7 +147,7 @@ describe('CharacterManagement', () => {
     mockFormData.characters = ['Alice'];
     mockFormData.characterPersonality = {};
 
-    const { container } = renderWithProviders(<CharacterManagement />);
+    renderWithProviders(<CharacterManagement />);
 
     const personalityInput = screen.getByPlaceholderText(
       'conversationSettingsForm.characterSettingPlaceholder'
@@ -233,7 +234,7 @@ describe('CharacterManagement', () => {
   });
 
   it('should allow generation hints input to be changed', () => {
-    const { container } = renderWithProviders(<CharacterManagement />);
+    renderWithProviders(<CharacterManagement />);
 
     const hintsInput = screen.getByPlaceholderText(
       'conversationSettingsForm.characterGenerationHintsPlaceholder'
@@ -261,7 +262,7 @@ describe('CharacterManagement', () => {
 
   it('should disable generate button and hints input when generating', () => {
     (
-      useConversationSettingsForm.useConversationSettingsForm as any
+      mockFn(useConversationSettingsForm.useConversationSettingsForm)
     ).mockReturnValue(
       createMockUseConversationSettingsForm({ isGeneratingCharacter: true })
     );
@@ -281,7 +282,7 @@ describe('CharacterManagement', () => {
 
   it('should show generating text when isGeneratingCharacter is true', () => {
     (
-      useConversationSettingsForm.useConversationSettingsForm as any
+      mockFn(useConversationSettingsForm.useConversationSettingsForm)
     ).mockReturnValue(
       createMockUseConversationSettingsForm({ isGeneratingCharacter: true })
     );

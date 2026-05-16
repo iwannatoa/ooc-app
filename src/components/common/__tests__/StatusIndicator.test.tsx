@@ -1,3 +1,4 @@
+import { mockFn } from '@/test/mockFn';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import StatusIndicator from '../StatusIndicator';
@@ -7,7 +8,7 @@ vi.mock('@/i18n/i18n');
 
 describe('StatusIndicator', () => {
   beforeEach(() => {
-    (useI18n.useI18n as any).mockReturnValue({
+    mockFn(useI18n.useI18n).mockReturnValue({
       t: (key: string) => key,
     });
   });

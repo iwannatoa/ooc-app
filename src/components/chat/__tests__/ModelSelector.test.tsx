@@ -1,3 +1,4 @@
+import { mockFn } from '@/test/mockFn';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import ModelSelector from '../ModelSelector';
@@ -11,7 +12,7 @@ describe('ModelSelector', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    (useI18n.useI18n as any).mockReturnValue({
+    mockFn(useI18n.useI18n).mockReturnValue({
       t: (key: string) => key,
     });
   });

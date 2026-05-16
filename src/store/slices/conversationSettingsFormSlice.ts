@@ -29,6 +29,12 @@ export interface ConversationSettingsFormData {
   serializationOpenEnded: boolean;
   /** Used when ``serializationOpenEnded`` is false (clamped 1–999 on save). */
   finiteTotalSections: number;
+  /** Conversation-level LLM override (optional). */
+  conversationTemperature: string;
+  /** Conversation-level max tokens override (optional). */
+  conversationMaxTokens: string;
+  /** Conversation-level stop words override (optional, comma/newline separated). */
+  conversationStopWords: string;
 }
 
 /**
@@ -72,6 +78,15 @@ const createInitialFormData = (
     settings?.additional_settings?.allow_auto_generate_main_characters !== false,
   serializationOpenEnded: true,
   finiteTotalSections: 10,
+  conversationTemperature:
+    settings?.additional_settings?.conversationTemperature?.toString() || '',
+  conversationMaxTokens:
+    settings?.additional_settings?.conversationMaxTokens?.toString() || '',
+  conversationStopWords: Array.isArray(
+    settings?.additional_settings?.conversationStopWords
+  )
+    ? settings?.additional_settings?.conversationStopWords.join(', ')
+    : settings?.additional_settings?.conversationStopWords?.toString() || '',
 });
 
 const initialState: ConversationSettingsFormState = {

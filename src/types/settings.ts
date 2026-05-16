@@ -46,6 +46,8 @@ export interface AdvancedSettings {
   maxRetries: number;
   logLevel: 'debug' | 'info' | 'warn' | 'error';
   enableDiagnostics: boolean;
+  /** Optional anonymous telemetry (usage + crash counters), default off. */
+  enableAnonymousTelemetry?: boolean;
   /** Optional one-line user narration appended as a user chat row (desktop flow). */
   enableFreeformNote?: boolean;
 }
@@ -58,5 +60,14 @@ export interface AppSettings {
   appearance: AppearanceSettings;
   ai: AISettings;
   advanced: AdvancedSettings;
+  profiles?: ProfileSettings[];
+  activeProfileId?: string;
+}
+
+export interface ProfileSettings {
+  id: string;
+  name: string;
+  storyLibraryPath?: string;
+  ai: AISettings;
 }
 

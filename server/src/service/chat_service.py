@@ -2,6 +2,7 @@
 Chat record service layer
 """
 from typing import List, Optional, Dict
+from uuid import uuid4
 
 from sqlalchemy.orm import Session
 
@@ -53,6 +54,8 @@ class ChatService:
         content: str,
         model: Optional[str] = None,
         provider: Optional[str] = None,
+        parent_message_id: Optional[int] = None,
+        variant_group_id: Optional[str] = None,
         session: Optional[Session] = None,
     ) -> Dict:
         """
@@ -73,6 +76,8 @@ class ChatService:
             content=content,
             model=model,
             provider=provider,
+            parent_message_id=parent_message_id,
+            variant_group_id=variant_group_id,
             session=session,
         )
         return record.to_dict()
@@ -156,4 +161,34 @@ class ChatService:
         """
         message = self.repository.delete_last_message(conversation_id)
         return message.to_dict() if message else None
+
+    def get_assistant_variants(self, conversation_id: str, limit: int = 30) -> List[Dict]:
+        rows = self.repository.get_assistant_messages(conversation_id, limit=limit)
+        return [row.to_dict() for row in rows]
+
+    def restore_assistant_variant(
+        self,
+        conversation_id: str,
+        message_id: int,
+        session: Optional[Session] = None,
+    ) -> Optional[Dict]:
+        source = self.repository.get_message_by_id(
+            conversation_id,
+            message_id,
+            session=session,
+        )
+        if not source or source.role != 'assistant':
+            return None
+        variant_group_id = source.variant_group_id or f"vg-{uuid4().hex[:12]}"
+        restored = self.repository.save_message(
+            conversation_id=conversation_id,
+            role='assistant',
+            content=source.content,
+            model=source.model,
+            provider=source.provider,
+            parent_message_id=source.id,
+            variant_group_id=variant_group_id,
+            session=session,
+        )
+        return restored.to_dict()
 

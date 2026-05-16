@@ -8,6 +8,17 @@
   @include scrollbar;
 }
 
+.loadMoreButton {
+  @include button-reset;
+  margin: 0 auto $spacing-md;
+  display: block;
+  padding: $spacing-xs $spacing-sm;
+  border: 1px solid $border-color;
+  border-radius: $border-radius;
+  background: $bg-light;
+  color: $text-secondary;
+}
+
 .message {
   margin-bottom: $spacing-lg;
   padding: $spacing-md;

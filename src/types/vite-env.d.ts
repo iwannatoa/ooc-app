@@ -5,6 +5,8 @@ interface ImportMetaEnv {
   readonly VITE_USE_MOCK?: string;
   /** Same value as server `FLASK_API_TOKEN` when API auth is enabled (Vite exposes this to the client). */
   readonly VITE_FLASK_API_TOKEN?: string;
+  /** Optional direct backend URL for browser-only mode (e.g. http://127.0.0.1:5000). */
+  readonly VITE_FLASK_BASE_URL?: string;
   /** Optional manual "releases" page for the desktop title bar (no auto-updater). */
   readonly VITE_RELEASES_PAGE_URL?: string;
 }

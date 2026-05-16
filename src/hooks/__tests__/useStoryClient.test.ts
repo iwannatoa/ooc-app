@@ -1,7 +1,11 @@
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { mockFn } from '@/test/mockFn';
+import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useStoryClient } from '../useStoryClient';
 import * as useApiClients from '../useApiClients';
+import { DEFAULT_SETTINGS } from '@/types/constants';
+import type { AppSettings } from '@/types';
+import type { StoryActionResponse } from '@/api';
 
 // Mock dependencies
 vi.mock('../useApiClients');
@@ -21,19 +25,22 @@ describe('useStoryClient', () => {
     updateSettings: mockUpdateSettings,
   };
 
-  const mockSettings = {
+  const mockSettings: AppSettings = {
+    ...DEFAULT_SETTINGS,
     ai: {
+      ...DEFAULT_SETTINGS.ai,
       provider: 'deepseek',
       deepseek: {
+        ...DEFAULT_SETTINGS.ai.deepseek,
         model: 'deepseek-chat',
       },
     },
-  } as any;
+  };
 
   beforeEach(() => {
     vi.clearAllMocks();
 
-    (useApiClients.useApiClients as any).mockReturnValue({
+    mockFn(useApiClients.useApiClients).mockReturnValue({
       storyApi: mockStoryApi,
     });
   });
@@ -79,7 +86,7 @@ describe('useStoryClient', () => {
   });
 
   it('should not update settings if storyApi does not have updateSettings method', () => {
-    (useApiClients.useApiClients as any).mockReturnValue({
+    mockFn(useApiClients.useApiClients).mockReturnValue({
       storyApi: {
         generateStory: mockGenerateStory,
         confirmSection: mockConfirmSection,
@@ -106,7 +113,7 @@ describe('useStoryClient', () => {
     expect(result.current.loading).toBe(false);
 
     const onChunk = vi.fn();
-    let generatePromise: Promise<any>;
+    let generatePromise: Promise<StoryActionResponse>;
 
     await act(async () => {
       generatePromise = result.current.generateStory('conv_001', onChunk);
@@ -146,7 +153,7 @@ describe('useStoryClient', () => {
     await act(async () => {
       try {
         await result.current.generateStory('conv_001');
-      } catch (e) {
+      } catch (_e) {
         // Expected error
       }
     });
@@ -180,7 +187,7 @@ describe('useStoryClient', () => {
     await act(async () => {
       try {
         await result.current.confirmSection('conv_001');
-      } catch (e) {
+      } catch (_e) {
         // Expected error
       }
     });
@@ -217,7 +224,7 @@ describe('useStoryClient', () => {
     await act(async () => {
       try {
         await result.current.rewriteSection('conv_001', 'feedback');
-      } catch (e) {
+      } catch (_e) {
         // Expected error
       }
     });
@@ -254,7 +261,7 @@ describe('useStoryClient', () => {
     await act(async () => {
       try {
         await result.current.modifySection('conv_001', 'feedback');
-      } catch (e) {
+      } catch (_e) {
         // Expected error
       }
     });

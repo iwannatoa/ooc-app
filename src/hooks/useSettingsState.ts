@@ -6,6 +6,14 @@ import {
   updateAiProvider,
   updateOllamaConfig,
   updateDeepSeekConfig,
+  updateOpenAICompatibleConfig,
+  updateOpenAIConfig,
+  updateAzureConfig,
+  updateAnthropicConfig,
+  updateGLMConfig,
+  updateKimiConfig,
+  updateMiniMaxConfig,
+  updateActiveAiProviderConfig,
   updateGeneralSettings,
   updateAppearanceSettings,
   updateAdvancedSettings,
@@ -17,6 +25,13 @@ import {
 import {
   OllamaConfig,
   DeepSeekConfig,
+  OpenAICompatibleConfig,
+  OpenAIConfig,
+  AzureConfig,
+  AnthropicConfig,
+  GLMConfig,
+  KimiConfig,
+  MiniMaxConfig,
   AIProvider,
   AppSettings,
 } from '@/types';
@@ -42,6 +57,31 @@ export const useSettingsState = () => {
       dispatch(updateOllamaConfig(config)),
     updateDeepSeekConfig: (config: Partial<DeepSeekConfig>) =>
       dispatch(updateDeepSeekConfig(config)),
+    updateOpenAICompatibleConfig: (
+      config: Partial<OpenAICompatibleConfig>
+    ) => dispatch(updateOpenAICompatibleConfig(config)),
+    updateOpenAIConfig: (config: Partial<OpenAIConfig>) =>
+      dispatch(updateOpenAIConfig(config)),
+    updateAzureConfig: (config: Partial<AzureConfig>) =>
+      dispatch(updateAzureConfig(config)),
+    updateAnthropicConfig: (config: Partial<AnthropicConfig>) =>
+      dispatch(updateAnthropicConfig(config)),
+    updateGLMConfig: (config: Partial<GLMConfig>) =>
+      dispatch(updateGLMConfig(config)),
+    updateKimiConfig: (config: Partial<KimiConfig>) =>
+      dispatch(updateKimiConfig(config)),
+    updateMiniMaxConfig: (config: Partial<MiniMaxConfig>) =>
+      dispatch(updateMiniMaxConfig(config)),
+    updateActiveAiProviderConfig: (
+      config: Partial<{
+        baseUrl: string;
+        model: string;
+        timeout: number;
+        maxTokens: number;
+        temperature: number;
+        apiKey: string;
+      }>
+    ) => dispatch(updateActiveAiProviderConfig(config)),
 
     // Category settings
     updateGeneralSettings: (settings: Partial<AppSettings['general']>) =>

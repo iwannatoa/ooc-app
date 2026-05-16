@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useI18n } from '@/i18n/i18n';
 import { useChatState } from '@/hooks/useChatState';
 import AssistantMessageItem from './AssistantMessageItem';
@@ -8,6 +8,7 @@ const MessageList: React.FC = () => {
   const { t } = useI18n();
   const { messages, isSending: loading, storyOperation } = useChatState();
   const messageListRef = useRef<HTMLDivElement>(null);
+  const [visibleCount, setVisibleCount] = useState(120);
 
   const aiMessages = useMemo(
     () =>
@@ -16,6 +17,10 @@ const MessageList: React.FC = () => {
       ),
     [messages]
   );
+  const hasMoreHistory = aiMessages.length > visibleCount;
+  const visibleMessages = hasMoreHistory
+    ? aiMessages.slice(aiMessages.length - visibleCount)
+    : aiMessages;
 
   const lastAssistantScrollKey = useMemo(() => {
     for (let i = messages.length - 1; i >= 0; i--) {
@@ -41,7 +46,16 @@ const MessageList: React.FC = () => {
       aria-busy={loading}
       aria-live="polite"
     >
-      {aiMessages.map((message, index) => (
+      {hasMoreHistory && (
+        <button
+          type='button'
+          className={styles.loadMoreButton}
+          onClick={() => setVisibleCount((prev) => prev + 120)}
+        >
+          {t('common.loadMore')}
+        </button>
+      )}
+      {visibleMessages.map((message, index) => (
         <AssistantMessageItem
           key={message.id || `idx-${index}`}
           message={message}

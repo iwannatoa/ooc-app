@@ -5,14 +5,26 @@
  * Allows registering mock handlers for specific endpoints and methods.
  */
 
-import { isMockMode } from './index';
+const MOCK_MODE_GLOBAL_KEY = '__OOC_MOCK_MODE_ENABLED__';
+
+const isMockMode = (): boolean => {
+  const globalState = globalThis as unknown as Record<string, unknown>;
+  const value = globalState[MOCK_MODE_GLOBAL_KEY];
+  if (typeof value === 'boolean') {
+    return value;
+  }
+  return (
+    import.meta.env.VITE_USE_MOCK === 'true' ||
+    (import.meta.env.DEV && import.meta.env.VITE_USE_MOCK !== 'false')
+  );
+};
 
 export type RoutePattern = string | RegExp;
 export type RouteHandler = (req: {
-  params: Record<string, any>;
-  query: Record<string, any>;
-  body: any;
-}) => Promise<any>;
+  params: Record<string, unknown>;
+  query: Record<string, unknown>;
+  body: unknown;
+}) => Promise<unknown>;
 
 interface Route {
   method: string;
@@ -46,10 +58,10 @@ class MockRouter {
     method: string,
     endpoint: string,
     params: {
-      query?: Record<string, any>;
-      body?: any;
+      query?: Record<string, unknown>;
+      body?: unknown;
     } = {}
-  ): Promise<any | null> {
+  ): Promise<unknown | null> {
     if (!isMockMode()) {
       return null;
     }
@@ -84,8 +96,8 @@ class MockRouter {
   /**
    * Parse query string into object
    */
-  private parseQuery(queryString: string): Record<string, any> {
-    const params: Record<string, any> = {};
+  private parseQuery(queryString: string): Record<string, string | boolean> {
+    const params: Record<string, string | boolean> = {};
     if (!queryString) return params;
 
     const pairs = queryString.split('&');

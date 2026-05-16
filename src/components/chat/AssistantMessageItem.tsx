@@ -52,7 +52,7 @@ function renderParsedContent(content: string) {
 
 const AssistantMessageItem = memo(function AssistantMessageItem({
   message,
-  listIndex,
+  listIndex: _listIndex,
 }: AssistantMessageItemProps) {
   const { t } = useI18n();
 

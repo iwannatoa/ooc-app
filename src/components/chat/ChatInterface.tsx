@@ -1,5 +1,6 @@
 import React from 'react';
 import MessageList from './MessageList';
+import ChatInput from './ChatInput';
 import ChatOnboarding from './ChatOnboarding';
 import { StoryActions } from '../story';
 import { UserNarrationBar } from './UserNarrationBar';
@@ -10,6 +11,7 @@ const ChatInterface: React.FC = () => {
     <div className={styles.chatInterface}>
       <ChatOnboarding />
       <MessageList />
+      <ChatInput />
       <UserNarrationBar />
       <StoryActions />
     </div>

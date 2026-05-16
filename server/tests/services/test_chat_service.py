@@ -111,4 +111,42 @@ class TestChatService:
         mock_repo.delete_last_message.assert_called_once_with('test_conv_001')
         mock_message.to_dict.assert_called_once()
 
+    def test_get_assistant_variants(self, service, mock_repo):
+        mock_rows = [Mock(spec=ChatRecord), Mock(spec=ChatRecord)]
+        mock_rows[0].to_dict.return_value = {'id': 11, 'role': 'assistant'}
+        mock_rows[1].to_dict.return_value = {'id': 10, 'role': 'assistant'}
+        mock_repo.get_assistant_messages.return_value = mock_rows
+
+        out = service.get_assistant_variants('test_conv_001', limit=20)
+
+        assert len(out) == 2
+        assert out[0]['id'] == 11
+        mock_repo.get_assistant_messages.assert_called_once_with(
+            'test_conv_001',
+            limit=20,
+        )
+
+    def test_restore_assistant_variant(self, service, mock_repo):
+        source = Mock(spec=ChatRecord)
+        source.id = 9
+        source.role = 'assistant'
+        source.content = 'old variant'
+        source.model = 'gpt'
+        source.provider = 'openai'
+        source.variant_group_id = 'vg-1'
+        restored = Mock(spec=ChatRecord)
+        restored.to_dict.return_value = {'id': 12, 'parent_message_id': 9}
+        mock_repo.get_message_by_id.return_value = source
+        mock_repo.save_message.return_value = restored
+
+        out = service.restore_assistant_variant('test_conv_001', 9)
+
+        assert out == {'id': 12, 'parent_message_id': 9}
+        mock_repo.get_message_by_id.assert_called_once_with(
+            'test_conv_001',
+            9,
+            session=None,
+        )
+        mock_repo.save_message.assert_called_once()
+
 

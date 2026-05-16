@@ -13,6 +13,7 @@ import { useSettingsState } from '@/hooks/useSettingsState';
 import { useUIState } from '@/hooks/useUIState';
 import { useStoryProgress } from '@/hooks/useStoryProgress';
 import { useToast } from '@/hooks/useToast';
+import { useConversationClient } from '@/hooks/useConversationClient';
 import ModelSelector from './ModelSelector';
 import styles from '../../styles.module.scss';
 
@@ -21,10 +22,11 @@ export const ChatControls: React.FC = () => {
   const { t } = useI18n();
   const { activeConversationId, conversationSettings, handleNewConversation } =
     useConversationManagement();
-  const { models, messages } = useChatState();
+  const { models, messages, setMessages } = useChatState();
   const { handleModelChange, getCurrentModel } = useChatActions();
   const { settings } = useSettingsState();
   const { progress } = useStoryProgress();
+  const conversationClient = useConversationClient();
   const { showError, showSuccess } = useToast();
   const {
     conversationListCollapsed,
@@ -140,6 +142,87 @@ export const ChatControls: React.FC = () => {
     showSuccess,
   ]);
 
+  const handleRollbackVariant = useCallback(async () => {
+    if (!activeConversationId) return;
+    try {
+      const variants =
+        await conversationClient.getAssistantVariants(activeConversationId);
+      if (variants.length < 2) {
+        showError('No previous variant available for rollback');
+        return;
+      }
+      const latestAssistant = [...messages]
+        .reverse()
+        .find((m) => m.role === 'assistant' || m.role === 'ai');
+      const latestId = latestAssistant?.id ? Number(latestAssistant.id) : NaN;
+      const target =
+        variants.find((v) => v.id !== latestId) ||
+        variants[1];
+      const ok = await conversationClient.restoreAssistantVariant(
+        activeConversationId,
+        target.id
+      );
+      if (!ok) {
+        showError('Failed to rollback variant');
+        return;
+      }
+      const refreshed = await conversationClient.getConversationMessages(
+        activeConversationId
+      );
+      setMessages(refreshed);
+      showSuccess('Rolled back to a previous variant');
+    } catch (error) {
+      console.error('Failed to rollback variant:', error);
+      showError('Failed to rollback variant');
+    }
+  }, [
+    activeConversationId,
+    conversationClient,
+    messages,
+    setMessages,
+    showError,
+    showSuccess,
+  ]);
+
+  const handleExportProjectBundle = useCallback(async () => {
+    if (!activeConversationId || !messages.length) {
+      return;
+    }
+    try {
+      const storyTitle =
+        conversationSettings?.title || t('conversation.unnamedConversation');
+      const sanitizedTitle = storyTitle.replace(/[<>:"/\\|?*]/g, '_');
+      const filePath = await save({
+        defaultPath: `${sanitizedTitle}.ooc-project.json`,
+        filters: [{ name: 'JSON', extensions: ['json'] }],
+      });
+      if (!filePath) {
+        return;
+      }
+      const bundle = {
+        version: 1,
+        exported_at: new Date().toISOString(),
+        conversation_id: activeConversationId,
+        settings: conversationSettings || null,
+        progress: progress || null,
+        messages,
+      };
+      await writeTextFile(filePath, JSON.stringify(bundle, null, 2));
+      showSuccess('Project bundle exported');
+    } catch (error) {
+      console.error('Failed to export project bundle:', error);
+      showError(t('chat.exportFailed'));
+    }
+  }, [
+    activeConversationId,
+    conversationSettings,
+    messages,
+    progress,
+    showError,
+    showSuccess,
+    t,
+  ]);
+
   return (
     <div className={styles.controls}>
       {/* Expand conversation list button */}
@@ -200,6 +283,20 @@ export const ChatControls: React.FC = () => {
             title={t('chat.exportStory')}
           >
             {t('chat.export')}
+          </button>
+          <button
+            onClick={handleRollbackVariant}
+            className={styles.exportButton}
+            title='Rollback to previous variant'
+          >
+            Rollback
+          </button>
+          <button
+            onClick={handleExportProjectBundle}
+            className={styles.exportButton}
+            title='Export project bundle JSON'
+          >
+            Bundle
           </button>
         </>
       )}

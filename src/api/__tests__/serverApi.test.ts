@@ -1,3 +1,4 @@
+import { mockFn } from '@/test/mockFn';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { ServerApi } from '../serverApi';
 
@@ -19,7 +20,7 @@ describe('ServerApi', () => {
   });
 
   it('should check server health status', async () => {
-    (global.fetch as any).mockResolvedValue({
+    mockFn(global.fetch).mockResolvedValue({
       ok: true,
       json: async () => ({
         success: true,
@@ -33,7 +34,7 @@ describe('ServerApi', () => {
   });
 
   it('should get models list', async () => {
-    (global.fetch as any).mockResolvedValue({
+    mockFn(global.fetch).mockResolvedValue({
       ok: true,
       json: async () => ({
         success: true,

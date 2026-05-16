@@ -1,0 +1,30 @@
+---
+description: Project map and canonical workflows for OOC app
+alwaysApply: true
+---
+
+# OOC Project Context
+
+This repository is a desktop app with three runtime layers:
+
+- `src/`: React + TypeScript UI (Redux Toolkit, SCSS Modules, custom i18n).
+- `server/`: Flask API with Controller/Service/Repository layering.
+- `src-tauri/`: Rust host process that manages window lifecycle and Python sidecar.
+
+Use these canonical scripts from `package.json`:
+
+- Local UI: `npm run dev`
+- Local Python API: `npm run server:dev`
+- Full desktop dev: `npm run tauri:dev`
+- Frontend build: `npm run build`
+- Python sidecar build: `npm run build:python`
+- Desktop build: `npm run tauri:build` or `npm run dist`
+- Main quality gate: `npm run check`
+
+When working in this repo:
+
+1. Keep changes scoped to the touched layer unless cross-layer changes are required.
+2. Preserve action-driven story UX (the desktop UI is not free-form chat-first).
+3. Prefer existing abstractions over introducing new patterns.
+4. Update matching tests for behavior changes.
+5. Keep contributor-facing docs in `docs/` and avoid duplicating large README blocks.

@@ -10,8 +10,9 @@ import uiReducer from '../store/slices/uiSlice';
 import dialogReducer from '../store/slices/dialogSlice';
 import conversationSettingsFormReducer from '../store/slices/conversationSettingsFormSlice';
 import conversationsReducer from '../store/slices/conversationsSlice';
+import type { RootState } from '../store';
 
-const createTestStore = (initialState: any = {}) => {
+const createTestStore = (initialState: Partial<RootState> = {}) => {
   return configureStore({
     reducer: {
       server: serverReducer,
@@ -21,13 +22,13 @@ const createTestStore = (initialState: any = {}) => {
       ui: uiReducer,
       dialog: dialogReducer,
       conversationSettingsForm: conversationSettingsFormReducer,
-    } as any,
-    preloadedState: initialState,
+    },
+    preloadedState: initialState as Partial<RootState>,
   });
 };
 
 interface CustomRenderOptions extends Omit<RenderOptions, 'wrapper'> {
-  initialState?: any;
+  initialState?: Partial<RootState>;
   store?: ReturnType<typeof createTestStore>;
 }
 

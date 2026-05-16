@@ -12,6 +12,7 @@ from service.app_settings_service import AppSettingsService
 from service.character_service import CharacterService
 from service.story_generation_service import StoryGenerationService
 from service.chat_service import ChatService
+from infrastructure.provider_capabilities import get_supported_providers
 from utils.logger import get_logger
 from utils.stream_response import create_stream_response
 from utils.controller_helpers import error_response, handle_errors
@@ -513,23 +514,17 @@ class SettingsController:
             # Extract and save AI configurations to ai_config table
             if 'ai' in settings_dict:
                 ai_settings = settings_dict['ai']
-                provider = ai_settings.get('provider')
-                
-                if provider:
-                    # Get provider-specific config
-                    provider_config = ai_settings.get(provider, {})
-                    
-                    # Extract API key (support both camelCase and snake_case)
-                    # Check if apiKey or api_key exists in the config (even if empty)
+                for provider in get_supported_providers():
+                    provider_config = ai_settings.get(provider)
+                    if not isinstance(provider_config, dict):
+                        continue
+
                     api_key = None
                     if 'apiKey' in provider_config:
                         api_key = provider_config.get('apiKey')
                     elif 'api_key' in provider_config:
                         api_key = provider_config.get('api_key')
-                    # Pass api_key as-is (could be None, empty string, or actual key)
-                    # Repository will handle None vs empty string appropriately
-                    
-                    # Save to ai_config table
+
                     self.ai_config_service.create_or_update_config(
                         provider=provider,
                         model=provider_config.get('model'),
@@ -538,7 +533,6 @@ class SettingsController:
                         max_tokens=provider_config.get('maxTokens') or provider_config.get('max_tokens'),
                         temperature=provider_config.get('temperature')
                     )
-                    
                     logger.info(f"Saved AI config for provider: {provider}")
             
             return jsonify({
@@ -745,6 +739,8 @@ class SettingsController:
                     items.append({
                         'id': data.get('id', path.stem),
                         'title': data.get('title', path.stem),
+                        'background': data.get('background', ''),
+                        'outline_hint': data.get('outline_hint', ''),
                     })
                 except Exception:
                     logger.warning('Skip invalid story template file: %s', path)

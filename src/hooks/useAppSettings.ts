@@ -6,6 +6,7 @@ import { DEFAULT_SETTINGS } from '@/types/constants';
 import { useApiClients } from './useApiClients';
 import { isMockMode } from '@/mock';
 import { loadAppearanceFromStorage } from '@/utils/theme';
+import type { ProfileSettings } from '@/types';
 
 /**
  * Hook to load app settings from backend on app startup
@@ -14,6 +15,40 @@ export const useAppSettings = () => {
   const dispatch = useAppDispatch();
   const { settingsApi } = useApiClients();
   const hasLoadedRef = useRef(false);
+
+  const applyActiveProfile = (
+    settings: AppSettings
+  ): AppSettings => {
+    const profiles = settings.profiles ?? [];
+    if (profiles.length === 0) return settings;
+    const active =
+      profiles.find((profile) => profile.id === settings.activeProfileId) ??
+      profiles[0];
+    if (!active) return settings;
+    return {
+      ...settings,
+      activeProfileId: active.id,
+      ai: active.ai,
+    };
+  };
+
+  const ensureDefaultProfile = (
+    settings: AppSettings
+  ): AppSettings => {
+    if (settings.profiles && settings.profiles.length > 0) {
+      return settings;
+    }
+    const defaultProfile: ProfileSettings = {
+      id: 'default',
+      name: 'Default',
+      ai: settings.ai,
+    };
+    return {
+      ...settings,
+      profiles: [defaultProfile],
+      activeProfileId: defaultProfile.id,
+    };
+  };
 
   // Load settings from backend on mount (only once)
   useEffect(() => {
@@ -55,7 +90,7 @@ export const useAppSettings = () => {
         if ('compactMode' in mergedSettings.appearance) {
           delete mergedSettings.appearance.compactMode;
         }
-        dispatch(setSettings(mergedSettings));
+        dispatch(setSettings(applyActiveProfile(ensureDefaultProfile(mergedSettings))));
       } catch (error) {
         console.error('Failed to load settings from backend:', error);
         
@@ -69,7 +104,9 @@ export const useAppSettings = () => {
               ...storedAppearance,
             },
           };
-          dispatch(setSettings(fallbackSettings));
+          dispatch(
+            setSettings(applyActiveProfile(ensureDefaultProfile(fallbackSettings)))
+          );
         }
       }
     };

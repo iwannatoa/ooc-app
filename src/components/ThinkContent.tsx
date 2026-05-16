@@ -33,7 +33,19 @@ const ThinkContent: React.FC<ThinkContentProps> = ({ content, isOpen, onComplete
   
   return (
     <div className={`${styles.thinkContent} ${isCollapsed ? styles.collapsed : ''}`}>
-      <div className={styles.thinkHeader} onClick={() => setIsCollapsed(!isCollapsed)}>
+      <div
+        className={styles.thinkHeader}
+        role="button"
+        tabIndex={0}
+        aria-expanded={!isCollapsed}
+        onClick={() => setIsCollapsed(!isCollapsed)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            setIsCollapsed(!isCollapsed);
+          }
+        }}
+      >
         <span className={styles.thinkLabel}>
           {isOpen ? t('messages.thinkingInProgress') : t('messages.thinkProcess')}
         </span>

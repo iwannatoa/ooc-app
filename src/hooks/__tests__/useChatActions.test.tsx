@@ -1,3 +1,4 @@
+import { mockFn } from '@/test/mockFn';
 import React from 'react';
 import { renderHook, act } from '@testing-library/react';
 import { Provider } from 'react-redux';
@@ -31,35 +32,37 @@ const createWrapper = (store: ReturnType<typeof createTestStore>) => {
 describe('useChatActions', () => {
   const mockSendMessage = vi.fn();
   const mockClearMessages = vi.fn();
-  const mockUpdateOllamaConfig = vi.fn();
-  const mockUpdateDeepSeekConfig = vi.fn();
+  const mockUpdateActiveAiProviderConfig = vi.fn();
   const mockSendAIMessage = vi.fn();
+
+  const baseAiSettings = {
+    provider: 'ollama',
+    ollama: { model: 'llama2' },
+    deepseek: { model: 'deepseek-chat' },
+    openai_compatible: { model: 'gpt-4o-mini' },
+    openai: { model: 'gpt-4o-mini' },
+    anthropic: { model: 'claude-3-5-sonnet-latest' },
+    glm: { model: 'glm-4-flash' },
+    kimi: { model: 'moonshot-v1-8k' },
+    minimax: { model: 'MiniMax-Text-01' },
+  };
 
   beforeEach(() => {
     vi.clearAllMocks();
 
-    (useChatState as any).mockReturnValue({
+    mockFn(useChatState).mockReturnValue({
       sendMessage: mockSendMessage,
       clearMessages: mockClearMessages,
     });
 
-    (useSettingsState as any).mockReturnValue({
+    mockFn(useSettingsState).mockReturnValue({
       settings: {
-        ai: {
-          provider: 'ollama',
-          ollama: {
-            model: 'llama2',
-          },
-          deepseek: {
-            model: 'deepseek-chat',
-          },
-        },
+        ai: baseAiSettings,
       },
-      updateOllamaConfig: mockUpdateOllamaConfig,
-      updateDeepSeekConfig: mockUpdateDeepSeekConfig,
+      updateActiveAiProviderConfig: mockUpdateActiveAiProviderConfig,
     });
 
-    (useAiClient as any).mockReturnValue({
+    mockFn(useAiClient).mockReturnValue({
       sendMessage: mockSendAIMessage,
     });
   });
@@ -89,7 +92,7 @@ describe('useChatActions', () => {
     expect(mockSendMessage).toHaveBeenCalledWith('Test message', mockSendAIMessage);
   });
 
-  it('should update ollama config when handleModelChange is called with ollama provider', () => {
+  it('should update active provider config when handleModelChange is called', () => {
     const store = createTestStore();
     const { result } = renderHook(() => useChatActions(), {
       wrapper: createWrapper(store),
@@ -99,25 +102,20 @@ describe('useChatActions', () => {
       result.current.handleModelChange('llama3');
     });
 
-    expect(mockUpdateOllamaConfig).toHaveBeenCalledWith({ model: 'llama3' });
-    expect(mockUpdateDeepSeekConfig).not.toHaveBeenCalled();
+    expect(mockUpdateActiveAiProviderConfig).toHaveBeenCalledWith({
+      model: 'llama3',
+    });
   });
 
-  it('should update deepseek config when handleModelChange is called with deepseek provider', () => {
-    (useSettingsState as any).mockReturnValue({
+  it('should update deepseek model through unified updater', () => {
+    mockFn(useSettingsState).mockReturnValue({
       settings: {
         ai: {
+          ...baseAiSettings,
           provider: 'deepseek',
-          ollama: {
-            model: 'llama2',
-          },
-          deepseek: {
-            model: 'deepseek-chat',
-          },
         },
       },
-      updateOllamaConfig: mockUpdateOllamaConfig,
-      updateDeepSeekConfig: mockUpdateDeepSeekConfig,
+      updateActiveAiProviderConfig: mockUpdateActiveAiProviderConfig,
     });
 
     const store = createTestStore();
@@ -129,8 +127,9 @@ describe('useChatActions', () => {
       result.current.handleModelChange('deepseek-coder');
     });
 
-    expect(mockUpdateDeepSeekConfig).toHaveBeenCalledWith({ model: 'deepseek-coder' });
-    expect(mockUpdateOllamaConfig).not.toHaveBeenCalled();
+    expect(mockUpdateActiveAiProviderConfig).toHaveBeenCalledWith({
+      model: 'deepseek-coder',
+    });
   });
 
   it('should return current model for ollama provider', () => {
@@ -144,20 +143,14 @@ describe('useChatActions', () => {
   });
 
   it('should return current model for deepseek provider', () => {
-    (useSettingsState as any).mockReturnValue({
+    mockFn(useSettingsState).mockReturnValue({
       settings: {
         ai: {
+          ...baseAiSettings,
           provider: 'deepseek',
-          ollama: {
-            model: 'llama2',
-          },
-          deepseek: {
-            model: 'deepseek-chat',
-          },
         },
       },
-      updateOllamaConfig: mockUpdateOllamaConfig,
-      updateDeepSeekConfig: mockUpdateDeepSeekConfig,
+      updateActiveAiProviderConfig: mockUpdateActiveAiProviderConfig,
     });
 
     const store = createTestStore();

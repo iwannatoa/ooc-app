@@ -41,6 +41,9 @@ describe('useConversationSettingsConverter', () => {
       finiteTotalSections: 10,
       allowAutoGenerateCharacters: true,
       allowAutoGenerateMainCharacters: false,
+      conversationTemperature: '',
+      conversationMaxTokens: '',
+      conversationStopWords: '',
     };
 
     const apiFormat = result.current.toApiFormat(formData, 'conv_001');
@@ -62,6 +65,9 @@ describe('useConversationSettingsConverter', () => {
       additional_settings: {
         allow_auto_generate_main_characters: false,
         supplement: 'Test supplement',
+        conversationTemperature: undefined,
+        conversationMaxTokens: undefined,
+        conversationStopWords: undefined,
       },
     });
   });
@@ -92,6 +98,9 @@ describe('useConversationSettingsConverter', () => {
       finiteTotalSections: 10,
       allowAutoGenerateCharacters: true,
       allowAutoGenerateMainCharacters: false,
+      conversationTemperature: '',
+      conversationMaxTokens: '',
+      conversationStopWords: '',
     };
 
     const apiFormat = result.current.toApiFormat(formData, 'conv_001');
@@ -127,6 +136,9 @@ describe('useConversationSettingsConverter', () => {
       finiteTotalSections: 10,
       allowAutoGenerateCharacters: true,
       allowAutoGenerateMainCharacters: false,
+      conversationTemperature: '',
+      conversationMaxTokens: '',
+      conversationStopWords: '',
     };
 
     const apiFormat = result.current.toApiFormat(formData, 'conv_001');
@@ -160,6 +172,9 @@ describe('useConversationSettingsConverter', () => {
       finiteTotalSections: 10,
       allowAutoGenerateCharacters: true,
       allowAutoGenerateMainCharacters: false,
+      conversationTemperature: '',
+      conversationMaxTokens: '',
+      conversationStopWords: '',
     };
 
     const apiFormat = result.current.toApiFormat(formData, 'conv_001');
@@ -217,6 +232,9 @@ describe('useConversationSettingsConverter', () => {
       finiteTotalSections: 10,
       allowAutoGenerateCharacters: true,
       allowAutoGenerateMainCharacters: false,
+      conversationTemperature: '',
+      conversationMaxTokens: '',
+      conversationStopWords: '',
     });
   });
 
@@ -243,6 +261,9 @@ describe('useConversationSettingsConverter', () => {
       finiteTotalSections: 10,
       allowAutoGenerateCharacters: true,
       allowAutoGenerateMainCharacters: true,
+      conversationTemperature: '',
+      conversationMaxTokens: '',
+      conversationStopWords: '',
     });
   });
 
@@ -300,6 +321,43 @@ describe('useConversationSettingsConverter', () => {
 
     expect(formData.allowAutoGenerateMainCharacters).toBe(true);
     expect(formData.supplement).toBe('');
+  });
+
+  it('should normalize conversation stop words from comma/newline text', () => {
+    const store = createTestStore();
+    const { result } = renderHook(() => useConversationSettingsConverter(), {
+      wrapper: createWrapper(store),
+    });
+
+    const formData: ConversationSettingsFormData = {
+      title: 'Test',
+      background: 'Test',
+      supplement: '',
+      characters: ['Alice'],
+      characterPersonality: {},
+      characterIsMain: {},
+      characterGenerationHints: '',
+      outline: '',
+      generatedOutline: null,
+      outlineConfirmed: false,
+      serializationOpenEnded: true,
+      finiteTotalSections: 10,
+      allowAutoGenerateCharacters: true,
+      allowAutoGenerateMainCharacters: true,
+      conversationTemperature: '',
+      conversationMaxTokens: '',
+      conversationStopWords: 'END, STOP\n###',
+    };
+
+    const apiFormat = result.current.toApiFormat(formData, 'conv_001');
+    const additionalSettings = apiFormat.additional_settings as
+      | Record<string, unknown>
+      | undefined;
+    expect(additionalSettings?.conversationStopWords).toEqual([
+      'END',
+      'STOP',
+      '###',
+    ]);
   });
 });
 

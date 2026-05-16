@@ -9,6 +9,14 @@ pub(crate) fn flask_api_token_from_env() -> Option<String> {
         .filter(|s| !s.is_empty())
 }
 
+/// Forward current Flask instance ownership ID for health/stop ownership checks.
+pub(crate) fn flask_instance_id_from_env() -> Option<String> {
+    std::env::var("FLASK_INSTANCE_ID")
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+}
+
 /// Parse `netstat -ano` stdout for a LISTENING line containing `:{port}` (Windows heuristics).
 fn parse_pid_from_netstat_output(output: &str, port: u16) -> Option<u32> {
     let port_str = format!(":{}", port);
@@ -45,24 +53,26 @@ pub(crate) fn add_flask_auth_header(req: RequestBuilder) -> RequestBuilder {
     }
 }
 
-/// Returns true if something is still listening and responds on `/api/health` (or TCP accepted).
+pub(crate) fn add_flask_instance_header(req: RequestBuilder) -> RequestBuilder {
+    if let Some(ref instance_id) = flask_instance_id_from_env() {
+        req.header("X-Flask-Instance-Id", instance_id)
+    } else {
+        req
+    }
+}
+
+pub(crate) fn add_flask_security_headers(req: RequestBuilder) -> RequestBuilder {
+    add_flask_instance_header(add_flask_auth_header(req))
+}
+
+/// Returns true only when `/api/health` returns a success status.
 pub(crate) async fn flask_health_reachable(port: u16) -> bool {
     let client = reqwest::Client::new();
     let url = format!("http://127.0.0.1:{}/api/health", port);
-    let req = add_flask_auth_header(
-        client
-            .get(&url)
-            .timeout(Duration::from_secs(2)),
-    );
+    let req = add_flask_security_headers(client.get(&url).timeout(Duration::from_secs(2)));
     match req.send().await {
-        Ok(_) => true,
-        Err(e) => {
-            if e.is_connect() {
-                false
-            } else {
-                true
-            }
-        }
+        Ok(response) => response.status().is_success(),
+        Err(_) => false,
     }
 }
 
@@ -76,7 +86,8 @@ mod tests {
 
     #[test]
     fn parse_netstat_finds_pid_on_listening_line() {
-        let sample = "  TCP    0.0.0.0:5000           0.0.0.0:0              LISTENING       12345\n";
+        let sample =
+            "  TCP    0.0.0.0:5000           0.0.0.0:0              LISTENING       12345\n";
         assert_eq!(parse_pid_from_netstat_output(sample, 5000), Some(12345));
     }
 
@@ -128,5 +139,48 @@ mod tests {
             .build()
             .unwrap();
         assert!(req.headers().get("Authorization").is_none());
+    }
+
+    #[test]
+    fn add_flask_instance_header_sets_instance_id_when_present() {
+        let _g = ENV_LOCK.lock().unwrap();
+        std::env::set_var("FLASK_INSTANCE_ID", "instance-123");
+        let client = reqwest::Client::new();
+        let req = add_flask_instance_header(client.get("http://127.0.0.1:9/"))
+            .build()
+            .unwrap();
+        let instance = req
+            .headers()
+            .get("X-Flask-Instance-Id")
+            .unwrap()
+            .to_str()
+            .unwrap();
+        assert_eq!(instance, "instance-123");
+        std::env::remove_var("FLASK_INSTANCE_ID");
+    }
+
+    #[test]
+    fn add_flask_security_headers_sets_both_headers() {
+        let _g = ENV_LOCK.lock().unwrap();
+        std::env::set_var("FLASK_API_TOKEN", "secret");
+        std::env::set_var("FLASK_INSTANCE_ID", "instance-123");
+        let client = reqwest::Client::new();
+        let req = add_flask_security_headers(client.get("http://127.0.0.1:9/"))
+            .build()
+            .unwrap();
+        assert_eq!(
+            req.headers().get("Authorization").unwrap().to_str().unwrap(),
+            "Bearer secret"
+        );
+        assert_eq!(
+            req.headers()
+                .get("X-Flask-Instance-Id")
+                .unwrap()
+                .to_str()
+                .unwrap(),
+            "instance-123"
+        );
+        std::env::remove_var("FLASK_API_TOKEN");
+        std::env::remove_var("FLASK_INSTANCE_ID");
     }
 }

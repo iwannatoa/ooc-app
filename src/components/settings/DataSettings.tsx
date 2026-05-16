@@ -15,6 +15,7 @@ export const DataSettings: React.FC = () => {
   const { t } = useI18n();
   const [busy, setBusy] = useState(false);
   const [hint, setHint] = useState<string | null>(null);
+  const [releaseNotes, setReleaseNotes] = useState<string | null>(null);
 
   const onExportDiagnostics = useCallback(async () => {
     setHint(null);
@@ -84,11 +85,60 @@ export const DataSettings: React.FC = () => {
     }
   }, [t]);
 
+  const onCheckUpdate = useCallback(async () => {
+    setHint(null);
+    setReleaseNotes(null);
+    if (!isTauriRuntime()) {
+      setHint(t('settingsPanel.dataDesktopOnly'));
+      return;
+    }
+    setBusy(true);
+    try {
+      const updater = await import('@tauri-apps/plugin-updater');
+      const pending = await updater.check();
+      if (!pending) {
+        setHint(t('settingsPanel.dataUpdaterNoUpdate'));
+        return;
+      }
+      if (pending.body) {
+        setReleaseNotes(pending.body);
+      }
+      setHint(
+        t('settingsPanel.dataUpdaterAvailable').replace(
+          '{version}',
+          pending.version
+        )
+      );
+      const shouldInstall = window.confirm(
+        t('settingsPanel.dataUpdaterInstallConfirm').replace(
+          '{version}',
+          pending.version
+        )
+      );
+      if (!shouldInstall) return;
+      await pending.downloadAndInstall();
+      setHint(t('settingsPanel.dataUpdaterInstalled'));
+    } catch (e) {
+      setHint(
+        t('settingsPanel.dataUpdaterFailed').replace('{error}', String(e))
+      );
+    } finally {
+      setBusy(false);
+    }
+  }, [t]);
+
   return (
     <div className={styles.settingsSection}>
       <h3>{t('settingsPanel.tabs.data')}</h3>
       <p className={styles.dataHint}>{t('settingsPanel.dataIntro')}</p>
       <div className={styles.dataActions}>
+        <button
+          type='button'
+          disabled={busy}
+          onClick={onCheckUpdate}
+        >
+          {t('settingsPanel.dataCheckUpdate')}
+        </button>
         <button
           type='button'
           disabled={busy}
@@ -112,6 +162,9 @@ export const DataSettings: React.FC = () => {
         </button>
       </div>
       {hint ? <p className={styles.dataStatus}>{hint}</p> : null}
+      {releaseNotes ? (
+        <pre className={styles.dataStatus}>{releaseNotes}</pre>
+      ) : null}
     </div>
   );
 };

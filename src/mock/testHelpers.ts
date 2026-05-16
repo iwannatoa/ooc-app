@@ -116,9 +116,6 @@ export const createMockReadableStream = (
     enumerable: false,
     configurable: true,
   });
-  // Type assertion to ensure compatibility with Response.body
-  // The stream is functionally correct, but TypeScript is strict about ArrayBuffer vs ArrayBufferLike
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return stream as any as ReadableStream<Uint8Array>;
+  return stream as ReadableStream<Uint8Array>;
 };
 

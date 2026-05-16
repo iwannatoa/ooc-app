@@ -1,3 +1,4 @@
+import { mockFn } from '@/test/mockFn';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { useApiClients } from '../useApiClients';
@@ -22,11 +23,11 @@ describe('useApiClients', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    (useFlaskPort.useFlaskPort as any).mockReturnValue({
+    mockFn(useFlaskPort.useFlaskPort).mockReturnValue({
       waitForPort: vi.fn().mockResolvedValue('http://localhost:5000'),
     });
 
-    (useSettingsState.useSettingsState as any).mockReturnValue({
+    mockFn(useSettingsState.useSettingsState).mockReturnValue({
       settings: {
         ai: {
           provider: 'ollama',
@@ -35,7 +36,7 @@ describe('useApiClients', () => {
       },
     });
 
-    (useI18n.useI18n as any).mockReturnValue({
+    mockFn(useI18n.useI18n).mockReturnValue({
       t: (key: string) => key,
     });
   });

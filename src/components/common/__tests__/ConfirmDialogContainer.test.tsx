@@ -1,3 +1,4 @@
+import { mockFn } from '@/test/mockFn';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ConfirmDialogContainer } from '../ConfirmDialogContainer';
@@ -6,7 +7,17 @@ import * as useI18n from '@/i18n/i18n';
 
 vi.mock('@/i18n/i18n');
 vi.mock('../ConfirmDialog', () => ({
-  default: ({ isOpen, message, onConfirm, onCancel }: any) => {
+  default: ({
+    isOpen,
+    message,
+    onConfirm,
+    onCancel,
+  }: {
+    isOpen?: boolean;
+    message?: string;
+    onConfirm?: () => void;
+    onCancel?: () => void;
+  }) => {
     if (!isOpen) return null;
     return (
       <div data-testid='confirm-dialog'>
@@ -21,7 +32,7 @@ vi.mock('../ConfirmDialog', () => ({
 describe('ConfirmDialogContainer', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (useI18n.useI18n as any).mockReturnValue({
+    mockFn(useI18n.useI18n).mockReturnValue({
       t: (key: string) => key,
     });
   });

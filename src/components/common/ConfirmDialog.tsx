@@ -35,7 +35,6 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
         aria-modal="true"
         aria-labelledby={title ? 'confirm-dialog-title' : undefined}
         aria-describedby="confirm-dialog-desc"
-        onClick={(e) => e.stopPropagation()}
       >
         {title ? (
           <h3 id="confirm-dialog-title" className={styles.title}>
