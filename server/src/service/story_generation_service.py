@@ -195,7 +195,6 @@ class StoryGenerationService:
         self, conversation_id: str, provider: str, model: Optional[str]
     ) -> Dict:
         settings = self.conversation_service.get_settings(conversation_id)
-        context_strategy = _resolve_context_strategy(self.config, settings)
         api = self.ai_config_service.get_config_for_api(
             provider=provider,
             model=model,
@@ -872,7 +871,8 @@ class StoryGenerationService:
             (Messages list, System prompt)
         """
         settings = self.conversation_service.get_settings(conversation_id)
-        
+        context_strategy = _resolve_context_strategy(self.config, settings)
+
         progress = self.story_service.get_progress(conversation_id)
         if current_section is None:
             if isinstance(progress, dict):
