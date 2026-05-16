@@ -17,8 +17,13 @@ class ChatRecord(Base):
     content = Column(Text, nullable=False, comment='Message content')
     model = Column(String(100), nullable=True, comment='Model used')
     provider = Column(String(50), nullable=True, comment='AI provider: ollama, deepseek')
+    content_type = Column(String(20), nullable=False, default='text', comment='text|multimodal')
+    attachment_ref = Column(Text, nullable=True, comment='JSON attachment refs')
     parent_message_id = Column(Integer, nullable=True, comment='Parent message for rewrite/branch')
     variant_group_id = Column(String(64), nullable=True, index=True, comment='Groups rewrite variants')
+    branch_id = Column(String(64), nullable=True, index=True, comment='Branch identifier')
+    savepoint_id = Column(String(64), nullable=True, comment='Savepoint identifier')
+    ending_tag = Column(String(64), nullable=True, comment='Ending classification')
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True, comment='Created at')
     
     # Add index to improve query performance
@@ -35,8 +40,13 @@ class ChatRecord(Base):
             'content': self.content,
             'model': self.model,
             'provider': self.provider,
+            'content_type': self.content_type,
+            'attachment_ref': self.attachment_ref,
             'parent_message_id': self.parent_message_id,
             'variant_group_id': self.variant_group_id,
+            'branch_id': self.branch_id,
+            'savepoint_id': self.savepoint_id,
+            'ending_tag': self.ending_tag,
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
 

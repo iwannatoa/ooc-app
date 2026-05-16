@@ -53,6 +53,27 @@ export interface StoryTemplateItem {
   outline_hint?: string;
 }
 
+export interface StoryBranch {
+  branch_id: string;
+  parent_message_id?: number;
+  label?: string;
+  created_at?: string;
+}
+
+export interface StorySavepoint {
+  savepoint_id: string;
+  message_id?: number;
+  label?: string;
+  created_at?: string;
+}
+
+export interface StoryEnding {
+  branch_id?: string;
+  ending_tag: string;
+  message_id?: number;
+  created_at?: string;
+}
+
 export class ConversationApi extends BaseApiClient {
   private t: TranslationFn;
 
@@ -452,6 +473,69 @@ export class ConversationApi extends BaseApiClient {
       }
     );
     return Boolean(response.success);
+  }
+
+  async getStoryBranches(conversationId: string): Promise<StoryBranch[]> {
+    const response = await this.get<{ branches: StoryBranch[] }>(
+      `/api/story/branches?conversation_id=${conversationId}`
+    );
+    return response.branches || [];
+  }
+
+  async createStoryBranch(
+    conversationId: string,
+    payload: { parent_message_id?: number; label?: string; branch_id?: string }
+  ): Promise<StoryBranch> {
+    const response = await this.post<{ branch: StoryBranch }>(
+      '/api/story/branches',
+      {
+        conversation_id: conversationId,
+        ...payload,
+      }
+    );
+    return response.branch;
+  }
+
+  async getStorySavepoints(conversationId: string): Promise<StorySavepoint[]> {
+    const response = await this.get<{ savepoints: StorySavepoint[] }>(
+      `/api/story/savepoint?conversation_id=${conversationId}`
+    );
+    return response.savepoints || [];
+  }
+
+  async createStorySavepoint(
+    conversationId: string,
+    payload: { message_id?: number; label?: string; savepoint_id?: string }
+  ): Promise<StorySavepoint> {
+    const response = await this.post<{ savepoint: StorySavepoint }>(
+      '/api/story/savepoint',
+      {
+        conversation_id: conversationId,
+        ...payload,
+      }
+    );
+    return response.savepoint;
+  }
+
+  async getStoryEndings(conversationId: string): Promise<StoryEnding[]> {
+    const response = await this.get<{ endings: StoryEnding[] }>(
+      `/api/story/ending?conversation_id=${conversationId}`
+    );
+    return response.endings || [];
+  }
+
+  async markStoryEnding(
+    conversationId: string,
+    payload: { ending_tag: string; branch_id?: string; message_id?: number }
+  ): Promise<StoryEnding> {
+    const response = await this.post<{ ending: StoryEnding }>(
+      '/api/story/ending',
+      {
+        conversation_id: conversationId,
+        ...payload,
+      }
+    );
+    return response.ending;
   }
 }
 

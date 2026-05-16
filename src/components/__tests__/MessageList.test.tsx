@@ -3,6 +3,45 @@ import { fireEvent } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import MessageList from '../chat/MessageList';
 
+let useLargeFirstRow = false;
+
+class MockResizeObserver {
+  private callback: ResizeObserverCallback;
+
+  constructor(callback: ResizeObserverCallback) {
+    this.callback = callback;
+  }
+
+  observe(target: Element): void {
+    const text = target.textContent || '';
+    const height =
+      useLargeFirstRow && text.includes('Assistant message 1') ? 1000 : 100;
+    this.callback(
+      [
+        {
+          target,
+          contentRect: {
+            width: 0,
+            height,
+            x: 0,
+            y: 0,
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: height,
+            toJSON: () => ({}),
+          } as DOMRectReadOnly,
+        } as ResizeObserverEntry,
+      ],
+      this as unknown as ResizeObserver
+    );
+  }
+
+  unobserve(): void {}
+
+  disconnect(): void {}
+}
+
 // Mock useI18n hook
 vi.mock('@/i18n/i18n', async () => {
   const zhLocale = await import('@/i18n/locales/zh.json');
@@ -47,6 +86,8 @@ vi.mock('../ThinkContent', () => ({
 describe('MessageList', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    useLargeFirstRow = false;
+    vi.stubGlobal('ResizeObserver', MockResizeObserver);
   });
 
   it('should render empty when no messages', () => {
@@ -297,7 +338,7 @@ describe('MessageList', () => {
       content: `Assistant message ${i + 1}`,
       timestamp: Date.now() + i,
     }));
-    renderWithProviders(<MessageList />, {
+    const { container } = renderWithProviders(<MessageList />, {
       initialState: {
         chat: {
           messages: longMessages,
@@ -305,11 +346,61 @@ describe('MessageList', () => {
         },
       },
     });
+    const list = container.querySelector(
+      '[aria-busy="false"][aria-live="polite"]'
+    ) as HTMLDivElement;
+    Object.defineProperty(list, 'scrollTop', {
+      configurable: true,
+      writable: true,
+      value: 999999,
+    });
+    fireEvent.scroll(list);
 
     expect(screen.getByText('Assistant message 150')).toBeInTheDocument();
     expect(screen.queryByText('Assistant message 1')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /加载更早消息/i }));
+    Object.defineProperty(list, 'scrollTop', {
+      configurable: true,
+      writable: true,
+      value: 0,
+    });
+    fireEvent.scroll(list);
+    expect(screen.getByText('Assistant message 1')).toBeInTheDocument();
+  });
+
+  it('should keep large first row mounted at deep scroll with dynamic height', () => {
+    useLargeFirstRow = true;
+    const messages = Array.from({ length: 20 }, (_, i) => ({
+      id: String(i + 1),
+      role: 'assistant' as const,
+      content: `Assistant message ${i + 1}`,
+      timestamp: Date.now() + i,
+    }));
+    const { container } = renderWithProviders(<MessageList />, {
+      initialState: {
+        chat: {
+          messages,
+          isSending: false,
+        },
+      },
+    });
+
+    const list = container.querySelector(
+      '[aria-busy="false"][aria-live="polite"]'
+    ) as HTMLDivElement;
+    Object.defineProperty(list, 'clientHeight', {
+      configurable: true,
+      value: 300,
+    });
+    Object.defineProperty(list, 'scrollTop', {
+      configurable: true,
+      writable: true,
+      value: 800,
+    });
+
+    fireEvent.scroll(list);
+
     expect(screen.getByText('Assistant message 1')).toBeInTheDocument();
   });
 });

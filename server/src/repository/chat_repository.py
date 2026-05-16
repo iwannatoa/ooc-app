@@ -1,9 +1,9 @@
 """
 Chat record data access layer
 """
-from typing import List, Optional
+from typing import List, Optional, Dict
 from datetime import datetime
-from sqlalchemy import desc
+from sqlalchemy import desc, text
 from sqlalchemy.orm import Session, sessionmaker
 
 from model.chat_record import ChatRecord
@@ -26,8 +26,13 @@ class ChatRepository:
         content: str,
         model: Optional[str] = None,
         provider: Optional[str] = None,
+        content_type: str = 'text',
+        attachment_ref: Optional[str] = None,
         parent_message_id: Optional[int] = None,
         variant_group_id: Optional[str] = None,
+        branch_id: Optional[str] = None,
+        savepoint_id: Optional[str] = None,
+        ending_tag: Optional[str] = None,
         session: Optional[Session] = None,
     ) -> ChatRecord:
         with repository_session(self._session_factory, session) as sess:
@@ -37,8 +42,13 @@ class ChatRepository:
                 content=content,
                 model=model,
                 provider=provider,
+                content_type=content_type,
+                attachment_ref=attachment_ref,
                 parent_message_id=parent_message_id,
                 variant_group_id=variant_group_id,
+                branch_id=branch_id,
+                savepoint_id=savepoint_id,
+                ending_tag=ending_tag,
                 created_at=datetime.utcnow(),
             )
             sess.add(record)
@@ -143,6 +153,13 @@ class ChatRepository:
                     content=last_message.content,
                     model=last_message.model,
                     provider=last_message.provider,
+                    content_type=last_message.content_type,
+                    attachment_ref=last_message.attachment_ref,
+                    parent_message_id=last_message.parent_message_id,
+                    variant_group_id=last_message.variant_group_id,
+                    branch_id=last_message.branch_id,
+                    savepoint_id=last_message.savepoint_id,
+                    ending_tag=last_message.ending_tag,
                     created_at=last_message.created_at,
                 )
                 message_id = last_message.id
@@ -152,3 +169,129 @@ class ChatRepository:
                 )
                 return message_info
             return None
+
+    def create_branch(
+        self,
+        conversation_id: str,
+        branch_id: str,
+        parent_message_id: Optional[int],
+        label: Optional[str],
+        session: Optional[Session] = None,
+    ) -> Dict:
+        with repository_session(self._session_factory, session) as sess:
+            sess.execute(
+                text(
+                    "INSERT INTO story_branches "
+                    "(conversation_id, branch_id, parent_message_id, label, created_at) "
+                    "VALUES (:conversation_id, :branch_id, :parent_message_id, :label, :created_at)"
+                ),
+                {
+                    "conversation_id": conversation_id,
+                    "branch_id": branch_id,
+                    "parent_message_id": parent_message_id,
+                    "label": label,
+                    "created_at": datetime.utcnow(),
+                },
+            )
+            return {
+                "conversation_id": conversation_id,
+                "branch_id": branch_id,
+                "parent_message_id": parent_message_id,
+                "label": label,
+            }
+
+    def list_branches(self, conversation_id: str) -> List[Dict]:
+        with repository_session(self._session_factory, None) as sess:
+            rows = sess.execute(
+                text(
+                    "SELECT branch_id, parent_message_id, label, created_at "
+                    "FROM story_branches WHERE conversation_id=:conversation_id "
+                    "ORDER BY created_at ASC"
+                ),
+                {"conversation_id": conversation_id},
+            ).mappings().all()
+            return [dict(r) for r in rows]
+
+    def create_savepoint(
+        self,
+        conversation_id: str,
+        savepoint_id: str,
+        message_id: Optional[int],
+        label: Optional[str],
+        session: Optional[Session] = None,
+    ) -> Dict:
+        with repository_session(self._session_factory, session) as sess:
+            sess.execute(
+                text(
+                    "INSERT INTO story_savepoints "
+                    "(conversation_id, savepoint_id, message_id, label, created_at) "
+                    "VALUES (:conversation_id, :savepoint_id, :message_id, :label, :created_at)"
+                ),
+                {
+                    "conversation_id": conversation_id,
+                    "savepoint_id": savepoint_id,
+                    "message_id": message_id,
+                    "label": label,
+                    "created_at": datetime.utcnow(),
+                },
+            )
+            return {
+                "conversation_id": conversation_id,
+                "savepoint_id": savepoint_id,
+                "message_id": message_id,
+                "label": label,
+            }
+
+    def list_savepoints(self, conversation_id: str) -> List[Dict]:
+        with repository_session(self._session_factory, None) as sess:
+            rows = sess.execute(
+                text(
+                    "SELECT savepoint_id, message_id, label, created_at "
+                    "FROM story_savepoints WHERE conversation_id=:conversation_id "
+                    "ORDER BY created_at ASC"
+                ),
+                {"conversation_id": conversation_id},
+            ).mappings().all()
+            return [dict(r) for r in rows]
+
+    def mark_ending(
+        self,
+        conversation_id: str,
+        ending_tag: str,
+        branch_id: Optional[str],
+        message_id: Optional[int],
+        session: Optional[Session] = None,
+    ) -> Dict:
+        with repository_session(self._session_factory, session) as sess:
+            sess.execute(
+                text(
+                    "INSERT INTO story_endings "
+                    "(conversation_id, branch_id, ending_tag, message_id, created_at) "
+                    "VALUES (:conversation_id, :branch_id, :ending_tag, :message_id, :created_at)"
+                ),
+                {
+                    "conversation_id": conversation_id,
+                    "branch_id": branch_id,
+                    "ending_tag": ending_tag,
+                    "message_id": message_id,
+                    "created_at": datetime.utcnow(),
+                },
+            )
+            return {
+                "conversation_id": conversation_id,
+                "branch_id": branch_id,
+                "ending_tag": ending_tag,
+                "message_id": message_id,
+            }
+
+    def list_endings(self, conversation_id: str) -> List[Dict]:
+        with repository_session(self._session_factory, None) as sess:
+            rows = sess.execute(
+                text(
+                    "SELECT branch_id, ending_tag, message_id, created_at "
+                    "FROM story_endings WHERE conversation_id=:conversation_id "
+                    "ORDER BY created_at ASC"
+                ),
+                {"conversation_id": conversation_id},
+            ).mappings().all()
+            return [dict(r) for r in rows]

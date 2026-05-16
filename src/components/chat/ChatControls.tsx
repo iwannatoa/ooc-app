@@ -200,12 +200,16 @@ export const ChatControls: React.FC = () => {
         return;
       }
       const bundle = {
-        version: 1,
+        version: 2,
         exported_at: new Date().toISOString(),
         conversation_id: activeConversationId,
         settings: conversationSettings || null,
         progress: progress || null,
         messages,
+        integrity: {
+          message_count: messages.length,
+          has_settings: Boolean(conversationSettings),
+        },
       };
       await writeTextFile(filePath, JSON.stringify(bundle, null, 2));
       showSuccess('Project bundle exported');
@@ -222,6 +226,45 @@ export const ChatControls: React.FC = () => {
     showSuccess,
     t,
   ]);
+
+  const handleCreateBranch = useCallback(async () => {
+    if (!activeConversationId) return;
+    const label = window.prompt('Branch label (optional)') || undefined;
+    try {
+      await conversationClient.createStoryBranch(activeConversationId, { label });
+      showSuccess('Branch created');
+    } catch (error) {
+      console.error('Failed to create branch:', error);
+      showError('Failed to create branch');
+    }
+  }, [activeConversationId, conversationClient, showError, showSuccess]);
+
+  const handleCreateSavepoint = useCallback(async () => {
+    if (!activeConversationId) return;
+    const label = window.prompt('Savepoint label (optional)') || undefined;
+    try {
+      await conversationClient.createStorySavepoint(activeConversationId, { label });
+      showSuccess('Savepoint created');
+    } catch (error) {
+      console.error('Failed to create savepoint:', error);
+      showError('Failed to create savepoint');
+    }
+  }, [activeConversationId, conversationClient, showError, showSuccess]);
+
+  const handleMarkEnding = useCallback(async () => {
+    if (!activeConversationId) return;
+    const endingTag = window.prompt('Ending tag (required, e.g. good_end)');
+    if (!endingTag?.trim()) return;
+    try {
+      await conversationClient.markStoryEnding(activeConversationId, {
+        ending_tag: endingTag.trim(),
+      });
+      showSuccess('Ending marked');
+    } catch (error) {
+      console.error('Failed to mark ending:', error);
+      showError('Failed to mark ending');
+    }
+  }, [activeConversationId, conversationClient, showError, showSuccess]);
 
   return (
     <div className={styles.controls}>
@@ -297,6 +340,27 @@ export const ChatControls: React.FC = () => {
             title='Export project bundle JSON'
           >
             Bundle
+          </button>
+          <button
+            onClick={handleCreateBranch}
+            className={styles.exportButton}
+            title='Create story branch'
+          >
+            Branch
+          </button>
+          <button
+            onClick={handleCreateSavepoint}
+            className={styles.exportButton}
+            title='Create savepoint'
+          >
+            Savepoint
+          </button>
+          <button
+            onClick={handleMarkEnding}
+            className={styles.exportButton}
+            title='Mark ending'
+          >
+            Ending
           </button>
         </>
       )}

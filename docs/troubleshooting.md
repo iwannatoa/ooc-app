@@ -58,7 +58,20 @@ This page lists common local and CI failures and where to investigate first.
 - Confirm desktop test uses `playwright.tauri.config.ts`.
 - Check CI Linux dependencies for WebKitGTK and xvfb jobs.
 
-## 5) CI passes locally but fails remotely
+## 5) SQLite / `chat.db` migration or column errors
+
+### Symptoms
+
+- Backend logs mention schema migration or `ALTER TABLE` / missing column errors.
+- Older `chat.db` files behave differently after pulling main.
+
+### Checks
+
+1. Read [`architecture.md`](./architecture.md) section **SQLite schema versioning and chat extensions** for current `SCHEMA_USER_VERSION` and new tables.
+2. Confirm `DB_PATH` points at the intended file (dev default under `server/data/local/` when unset).
+3. Remember: if the file’s `PRAGMA user_version` is **greater** than the app’s `SCHEMA_USER_VERSION`, the app **does not downgrade** migrations (use a matching app build or restore from backup).
+
+## 6) CI passes locally but fails remotely
 
 ### Checks
 

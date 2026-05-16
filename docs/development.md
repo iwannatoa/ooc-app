@@ -88,6 +88,12 @@ Notes:
 - Confirm Python dependencies and interpreter resolution.
 - Validate DB path and file permissions.
 
+### SQLite migrations
+
+- Chat database schema level is tracked with **`SCHEMA_USER_VERSION`** and `PRAGMA user_version` in `server/src/infrastructure/schema_migrations.py`; `apply_schema_migrations` runs at startup from `server/src/app.py`.
+- When adding a step: bump `SCHEMA_USER_VERSION`, append `(version, callable)` to `SCHEMA_MIGRATIONS`, and keep the step **idempotent** (`IF NOT EXISTS`, detect missing columns before `ALTER TABLE`).
+- If `chat.db` has a **higher** `user_version` than the app’s `SCHEMA_USER_VERSION`, migrations are skipped (open the DB with a newer app build, or follow ops/backup procedures). A formal **down migration** path is not the default today; the mainline is forward-only upgrades.
+
 ### Desktop integration issues
 
 - Check whether sidecar executable was built/available.

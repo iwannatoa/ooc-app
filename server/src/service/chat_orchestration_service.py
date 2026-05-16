@@ -79,6 +79,8 @@ class ChatOrchestrationService:
         provider: str,
         conversation_id: Optional[str] = None,
         model: Optional[str] = None,
+        content_type: str = 'text',
+        attachment_ref: Optional[str] = None,
         language: str = 'en',
     ) -> Dict:
         """
@@ -126,13 +128,19 @@ class ChatOrchestrationService:
 
                 with unit_of_work() as session:
                     self.chat_service.save_user_message(
-                        conversation_id, message, session=session
+                        conversation_id=conversation_id,
+                        message=message,
+                        content_type=content_type,
+                        attachment_ref=attachment_ref,
+                        session=session,
                     )
                     self.chat_service.save_assistant_message(
                         conversation_id=conversation_id,
                         content=clean_content,
                         model=result.get('model'),
                         provider=api_config['provider'],
+                        content_type=content_type,
+                        attachment_ref=attachment_ref,
                         session=session,
                     )
                 result['conversation_id'] = conversation_id

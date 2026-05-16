@@ -1,7 +1,7 @@
 """
 Chat record service layer
 """
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Any
 from uuid import uuid4
 
 from sqlalchemy.orm import Session
@@ -28,6 +28,10 @@ class ChatService:
         self,
         conversation_id: str,
         message: str,
+        content_type: str = 'text',
+        attachment_ref: Optional[str] = None,
+        branch_id: Optional[str] = None,
+        savepoint_id: Optional[str] = None,
         session: Optional[Session] = None,
     ) -> Dict:
         """
@@ -44,6 +48,10 @@ class ChatService:
             conversation_id=conversation_id,
             role='user',
             content=message,
+            content_type=content_type,
+            attachment_ref=attachment_ref,
+            branch_id=branch_id,
+            savepoint_id=savepoint_id,
             session=session,
         )
         return record.to_dict()
@@ -56,6 +64,11 @@ class ChatService:
         provider: Optional[str] = None,
         parent_message_id: Optional[int] = None,
         variant_group_id: Optional[str] = None,
+        content_type: str = 'text',
+        attachment_ref: Optional[str] = None,
+        branch_id: Optional[str] = None,
+        savepoint_id: Optional[str] = None,
+        ending_tag: Optional[str] = None,
         session: Optional[Session] = None,
     ) -> Dict:
         """
@@ -76,8 +89,13 @@ class ChatService:
             content=content,
             model=model,
             provider=provider,
+            content_type=content_type,
+            attachment_ref=attachment_ref,
             parent_message_id=parent_message_id,
             variant_group_id=variant_group_id,
+            branch_id=branch_id,
+            savepoint_id=savepoint_id,
+            ending_tag=ending_tag,
             session=session,
         )
         return record.to_dict()
@@ -186,9 +204,73 @@ class ChatService:
             content=source.content,
             model=source.model,
             provider=source.provider,
+            content_type=source.content_type or 'text',
+            attachment_ref=source.attachment_ref,
             parent_message_id=source.id,
             variant_group_id=variant_group_id,
+            branch_id=source.branch_id,
+            savepoint_id=source.savepoint_id,
+            ending_tag=source.ending_tag,
             session=session,
         )
         return restored.to_dict()
+
+    def create_branch(
+        self,
+        conversation_id: str,
+        parent_message_id: Optional[int] = None,
+        label: Optional[str] = None,
+        branch_id: Optional[str] = None,
+        session: Optional[Session] = None,
+    ) -> Dict[str, Any]:
+        resolved_branch_id = branch_id or f"br-{uuid4().hex[:12]}"
+        return self.repository.create_branch(
+            conversation_id=conversation_id,
+            branch_id=resolved_branch_id,
+            parent_message_id=parent_message_id,
+            label=label,
+            session=session,
+        )
+
+    def list_branches(self, conversation_id: str) -> List[Dict[str, Any]]:
+        return self.repository.list_branches(conversation_id)
+
+    def create_savepoint(
+        self,
+        conversation_id: str,
+        message_id: Optional[int] = None,
+        label: Optional[str] = None,
+        savepoint_id: Optional[str] = None,
+        session: Optional[Session] = None,
+    ) -> Dict[str, Any]:
+        resolved_savepoint_id = savepoint_id or f"sp-{uuid4().hex[:12]}"
+        return self.repository.create_savepoint(
+            conversation_id=conversation_id,
+            savepoint_id=resolved_savepoint_id,
+            message_id=message_id,
+            label=label,
+            session=session,
+        )
+
+    def list_savepoints(self, conversation_id: str) -> List[Dict[str, Any]]:
+        return self.repository.list_savepoints(conversation_id)
+
+    def mark_ending(
+        self,
+        conversation_id: str,
+        ending_tag: str,
+        branch_id: Optional[str] = None,
+        message_id: Optional[int] = None,
+        session: Optional[Session] = None,
+    ) -> Dict[str, Any]:
+        return self.repository.mark_ending(
+            conversation_id=conversation_id,
+            ending_tag=ending_tag,
+            branch_id=branch_id,
+            message_id=message_id,
+            session=session,
+        )
+
+    def list_endings(self, conversation_id: str) -> List[Dict[str, Any]]:
+        return self.repository.list_endings(conversation_id)
 

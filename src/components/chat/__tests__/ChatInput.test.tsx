@@ -37,7 +37,10 @@ describe('ChatInput', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Send' }));
 
     await waitFor(() => {
-      expect(handleSendMessage).toHaveBeenCalledWith('hello');
+      expect(handleSendMessage).toHaveBeenCalledWith('hello', {
+        inputMode: 'freeChat',
+        messageParts: [{ type: 'text', content: 'hello' }],
+      });
     });
     expect((input as HTMLInputElement).value).toBe('');
   });

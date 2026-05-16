@@ -34,6 +34,11 @@ Detailed guide: [`../src/test/README.md`](../src/test/README.md)
 - Mock external AI/provider dependencies for deterministic tests.
 - Cover both success and error paths when changing endpoint logic.
 
+Examples for **chat / branching contract** coverage:
+
+- `server/tests/controllers/test_chat_controller.py`: `chat-stream` conversation-level `stop_words`, `message_parts` payloads, and `story/branches|savepoint|ending` routes.
+- `server/tests/services/test_chat_service.py`, `server/tests/services/test_chat_orchestration_service.py`: message persistence kwargs and orchestration behavior.
+
 Detailed guide: [`../server/tests/README.md`](../server/tests/README.md)
 
 ## E2E strategy

@@ -20,6 +20,7 @@ export interface RequestConfig extends RequestInit {
 /** Optional side channels for SSE consumers (e.g. story `parse_warnings` frames). */
 export interface StreamExtras {
   parseWarningsCollector?: string[];
+  capabilityNoticeCollector?: string[];
 }
 
 export interface ApiError extends Error {
@@ -422,6 +423,15 @@ export class BaseApiClient {
                     }
                   }
                 }
+                continue;
+              }
+              if (
+                typeof data.provider_capability_notice === 'string' &&
+                data.provider_capability_notice.trim()
+              ) {
+                streamExtras?.capabilityNoticeCollector?.push(
+                  data.provider_capability_notice
+                );
                 continue;
               }
               if (data.done) {

@@ -72,6 +72,35 @@ flowchart LR
 4. During app exit, Rust triggers graceful Flask shutdown when possible.
 5. App exits after cleanup completes or fallback path is reached.
 
+## SQLite schema versioning and chat extensions
+
+Local chat data uses SQLite with `PRAGMA user_version` driven migrations in `server/src/infrastructure/schema_migrations.py`.
+
+- **`SCHEMA_USER_VERSION`**: the codebase target is **3**; `apply_schema_migrations` runs steps from low to high at startup. The app **does not downgrade** a database file whose `user_version` is already higher.
+- **Version 3 (Phase A contract)** adds nullable columns on `chat_records`: `content_type`, `attachment_ref`, `branch_id`, `savepoint_id`, `ending_tag`; and creates `story_branches`, `story_savepoints`, `story_endings`, `media_assets` with indexes.
+
+### HTTP: branches, savepoints, endings (`ChatController`)
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/story/branches` | List branch metadata for a conversation |
+| `POST` | `/api/story/branches` | Create a branch |
+| `GET` | `/api/story/savepoint` | List savepoints |
+| `POST` | `/api/story/savepoint` | Create a savepoint |
+| `GET` | `/api/story/ending` | List ending markers |
+| `POST` | `/api/story/ending` | Mark an ending |
+
+Query string or JSON body must include `conversation_id` (same as other conversation APIs).
+
+### HTTP: chat and multi-part messages (contract)
+
+- For `POST /api/chat` and `POST /api/chat-stream`, the JSON body may include **`message_parts`** (array: text segments and attachment metadata) and **`input_mode`** (`freeChat` | `storyAction`) in addition to `message`, `conversation_id`, `provider`, and `model`.
+- Today, non-text parts are normalized into persistence metadata (for example `attachment_ref`); the model path remains primarily text. **Full multimodal** (multipart upload, on-disk storage, LangChain image parts, capability-based UI fallback) is still in flight—see [`todo.md`](../todo.md).
+
+### Frontend types
+
+- `ChatMessage` and related types in `src/types/conversation.ts` expose optional fields such as `parts`, `attachments`, `branchId`, `savepointId`, `endingTag`, and `contentType`, aligned incrementally with backend payloads.
+
 ## Boundary rules for contributors
 
 - UI behavior belongs in `src/` hooks/components, not in Rust.

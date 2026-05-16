@@ -6,6 +6,21 @@
 
 import { StoryProgress } from './story';
 
+export interface ChatAttachment {
+  type: 'image' | 'file';
+  name: string;
+  mimeType?: string;
+  sizeBytes?: number;
+}
+
+export interface ChatMessagePart {
+  type: 'text' | 'image' | 'file';
+  content?: string;
+  name?: string;
+  mimeType?: string;
+  sizeBytes?: number;
+}
+
 /**
  * Chat message with role and content
  */
@@ -18,6 +33,13 @@ export interface ChatMessage {
   needsSummary?: boolean;
   messageCount?: number;
   storyProgress?: StoryProgress;
+  providerCapabilityNotice?: string;
+  parts?: ChatMessagePart[];
+  attachments?: ChatAttachment[];
+  branchId?: string;
+  savepointId?: string;
+  endingTag?: string;
+  contentType?: 'text' | 'multimodal';
 }
 
 /**

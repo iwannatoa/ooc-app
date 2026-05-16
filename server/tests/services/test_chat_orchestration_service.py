@@ -114,7 +114,11 @@ def test_process_chat_success_sets_persisted(
     assert result.get('persisted') is True
     assert result.get('conversation_id') == 'conv-2'
     mock_chat_service.save_user_message.assert_called_once_with(
-        'conv-2', 'hi', session=mock_sess
+        conversation_id='conv-2',
+        message='hi',
+        content_type='text',
+        attachment_ref=None,
+        session=mock_sess,
     )
     mock_chat_service.save_assistant_message.assert_called_once()
     call_kw = mock_chat_service.save_assistant_message.call_args[1]

@@ -101,6 +101,7 @@ describe('useConversationManagement', () => {
     }
   );
   const mockShowError = vi.fn();
+  const mockShowWarning = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -169,7 +170,7 @@ describe('useConversationManagement', () => {
     vi.mocked(useToast).mockReturnValue(
       createMockToast({
         showError: mockShowError,
-        showWarning: vi.fn(),
+        showWarning: mockShowWarning,
       })
     );
   });
@@ -541,8 +542,48 @@ describe('useConversationManagement', () => {
     expect(mockSendMessageStream).toHaveBeenCalledWith(
       'Hello',
       'conv_001',
-      expect.any(Function)
+      expect.any(Function),
+      undefined
     );
+  });
+
+  it('should show warning toast when provider capability notice is returned', async () => {
+    const mockAiMessage: ChatMessage = {
+      id: 'ai_msg1',
+      role: 'assistant',
+      content: 'AI response',
+      providerCapabilityNotice: 'Attachments were ignored.',
+      needsSummary: false,
+    };
+
+    mockSendMessageStream.mockResolvedValueOnce(mockAiMessage);
+    mockGetConversationMessages.mockResolvedValueOnce([]);
+    mockGetConversationsList.mockResolvedValueOnce([]);
+
+    vi.mocked(useChatState).mockReturnValue(
+      createMockChatState({
+        activeConversationId: 'conv_001',
+        messages: [],
+        setActiveConversation: mockSetActiveConversation,
+        setMessages: mockSetMessages,
+        removeConversation: mockRemoveConversation,
+      })
+    );
+
+    const store = createTestStore();
+    const { result } = renderHook(() => useConversationManagement(), {
+      wrapper: createWrapper(store),
+    });
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    await act(async () => {
+      await result.current.handleSendMessage('Hello');
+    });
+
+    expect(mockShowWarning).toHaveBeenCalledWith('Attachments were ignored.');
   });
 
   it('should create new conversation when sending message without active conversation', async () => {

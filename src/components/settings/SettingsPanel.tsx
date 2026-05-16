@@ -160,6 +160,65 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, open }) => {
     setLocalSettings(currentSettings);
   };
 
+  const profiles = localSettings.profiles || [];
+  const activeProfileId = localSettings.activeProfileId || profiles[0]?.id;
+
+  const handleSwitchProfile = (profileId: string) => {
+    const profile = profiles.find((p) => p.id === profileId);
+    if (!profile) return;
+    setLocalSettings((prev) => ({
+      ...prev,
+      activeProfileId: profileId,
+      ai: profile.ai,
+    }));
+  };
+
+  const handleAddProfile = () => {
+    const profileName = window.prompt('Profile name');
+    if (!profileName?.trim()) return;
+    const nextProfile = {
+      id: `profile_${Date.now()}`,
+      name: profileName.trim(),
+      ai: localSettings.ai,
+      storyLibraryPath: '',
+    };
+    setLocalSettings((prev) => ({
+      ...prev,
+      profiles: [...(prev.profiles || []), nextProfile],
+      activeProfileId: nextProfile.id,
+    }));
+  };
+
+  const handleRenameProfile = () => {
+    if (!activeProfileId) return;
+    const current = profiles.find((p) => p.id === activeProfileId);
+    if (!current) return;
+    const nextName = window.prompt('Rename profile', current.name);
+    if (!nextName?.trim()) return;
+    setLocalSettings((prev) => ({
+      ...prev,
+      profiles: (prev.profiles || []).map((profile) =>
+        profile.id === activeProfileId
+          ? { ...profile, name: nextName.trim() }
+          : profile
+      ),
+    }));
+  };
+
+  const handleDeleteProfile = () => {
+    if (!activeProfileId) return;
+    const target = profiles.find((p) => p.id === activeProfileId);
+    if (!target || target.id === 'default') return;
+    if (!window.confirm(`Delete profile "${target.name}"?`)) return;
+    const remaining = profiles.filter((p) => p.id !== activeProfileId);
+    setLocalSettings((prev) => ({
+      ...prev,
+      profiles: remaining,
+      activeProfileId: remaining[0]?.id,
+      ai: remaining[0]?.ai || prev.ai,
+    }));
+  };
+
   if (!open) return null;
 
   return (
@@ -167,6 +226,24 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, open }) => {
       <div className={styles.settingsPanel}>
         <div className={styles.settingsHeader}>
           <h2>{t('settingsPanel.title')}</h2>
+          <div className={styles.profileBar}>
+            <select
+              value={activeProfileId || ''}
+              onChange={(e) => handleSwitchProfile(e.target.value)}
+            >
+              {profiles.map((profile) => (
+                <option
+                  key={profile.id}
+                  value={profile.id}
+                >
+                  {profile.name}
+                </option>
+              ))}
+            </select>
+            <button onClick={handleAddProfile}>+Profile</button>
+            <button onClick={handleRenameProfile}>Rename</button>
+            <button onClick={handleDeleteProfile}>Delete</button>
+          </div>
           <button
             onClick={onClose}
             className={styles.closeButton}

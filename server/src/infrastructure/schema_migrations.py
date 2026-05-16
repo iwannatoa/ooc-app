@@ -20,7 +20,7 @@ from utils.logger import get_logger
 logger = get_logger(__name__)
 
 # Application code: increment when you add a new tuple to SCHEMA_MIGRATIONS.
-SCHEMA_USER_VERSION: int = 2
+SCHEMA_USER_VERSION: int = 3
 
 
 def get_schema_user_version(engine: Engine) -> int:
@@ -94,7 +94,124 @@ def apply_chat_record_lineage_columns(engine: Engine) -> None:
 SCHEMA_MIGRATIONS: List[Tuple[int, Callable[[Engine], None]]] = [
     (1, apply_legacy_sqlite_index_migrations),
     (2, apply_chat_record_lineage_columns),
+    (3, lambda engine: apply_phase_a_contract_migrations(engine)),
 ]
+
+
+def apply_phase_a_contract_migrations(engine: Engine) -> None:
+    """Phase A contract migration: chat record metadata + branching/support tables."""
+    insp = inspect(engine)
+    if not insp.has_table("chat_records"):
+        return
+
+    cols = {c["name"] for c in insp.get_columns("chat_records")}
+    with engine.begin() as conn:
+        if "content_type" not in cols:
+            conn.execute(
+                text(
+                    "ALTER TABLE chat_records ADD COLUMN content_type TEXT DEFAULT 'text' "
+                    "NOT NULL"
+                )
+            )
+        if "attachment_ref" not in cols:
+            conn.execute(
+                text("ALTER TABLE chat_records ADD COLUMN attachment_ref TEXT")
+            )
+        if "branch_id" not in cols:
+            conn.execute(
+                text("ALTER TABLE chat_records ADD COLUMN branch_id TEXT")
+            )
+        if "savepoint_id" not in cols:
+            conn.execute(
+                text("ALTER TABLE chat_records ADD COLUMN savepoint_id TEXT")
+            )
+        if "ending_tag" not in cols:
+            conn.execute(
+                text("ALTER TABLE chat_records ADD COLUMN ending_tag TEXT")
+            )
+
+        conn.execute(
+            text(
+                "CREATE TABLE IF NOT EXISTS story_branches ("
+                "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                "conversation_id TEXT NOT NULL,"
+                "branch_id TEXT NOT NULL,"
+                "parent_message_id INTEGER,"
+                "label TEXT,"
+                "created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP"
+                ")"
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE TABLE IF NOT EXISTS story_savepoints ("
+                "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                "conversation_id TEXT NOT NULL,"
+                "savepoint_id TEXT NOT NULL,"
+                "message_id INTEGER,"
+                "label TEXT,"
+                "created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP"
+                ")"
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE TABLE IF NOT EXISTS story_endings ("
+                "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                "conversation_id TEXT NOT NULL,"
+                "branch_id TEXT,"
+                "ending_tag TEXT NOT NULL,"
+                "message_id INTEGER,"
+                "created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP"
+                ")"
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE TABLE IF NOT EXISTS media_assets ("
+                "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                "conversation_id TEXT NOT NULL,"
+                "asset_ref TEXT NOT NULL,"
+                "filename TEXT,"
+                "mime_type TEXT,"
+                "size_bytes INTEGER,"
+                "storage_path TEXT,"
+                "created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP"
+                ")"
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS idx_chat_records_branch_id "
+                "ON chat_records (branch_id)"
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS idx_story_branches_conv "
+                "ON story_branches (conversation_id, branch_id)"
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS idx_story_savepoints_conv "
+                "ON story_savepoints (conversation_id, savepoint_id)"
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS idx_story_endings_conv "
+                "ON story_endings (conversation_id, ending_tag)"
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS idx_media_assets_conv "
+                "ON media_assets (conversation_id, asset_ref)"
+            )
+        )
+
+    logger.info("Phase A contract migrations checked")
 
 
 def apply_schema_migrations(engine: Optional[Engine] = None) -> None:

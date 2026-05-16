@@ -3,6 +3,7 @@
  * All Rights Reserved.
  */
 import {
+  ChatMessagePart,
   ChatMessage,
   ConversationSettings,
   ConversationWithSettings,
@@ -297,7 +298,13 @@ export const useConversationManagement = () => {
   );
 
   const handleSendMessage = useCallback(
-    async (message: string) => {
+    async (
+      message: string,
+      options?: {
+        messageParts?: ChatMessagePart[];
+        inputMode?: 'storyAction' | 'freeChat';
+      }
+    ) => {
       const convId = activeConversationId;
 
       if (!convId) {
@@ -313,8 +320,12 @@ export const useConversationManagement = () => {
           convId,
           (_: string, accumulated: string) => {
             applyStreamingAssistantChunk(accumulated);
-          }
+          },
+          options
         );
+        if (aiMessage.providerCapabilityNotice) {
+          showWarning(aiMessage.providerCapabilityNotice);
+        }
 
         await handleSelectConversation(convId);
 

@@ -32,6 +32,16 @@ This document captures operational safety practices for local desktop + sidecar 
 - Prefer structured, actionable error messages over noisy stack dumps in user flows.
 - Keep debug-level verbosity bounded in production builds.
 
+## Attachments, multimodal, and backups (in progress)
+
+These areas are still being productized; before changing behavior, align with [`todo.md`](../todo.md) and the HTTP contract notes under [`architecture.md`](./architecture.md).
+
+- **Attachments**: define allowlists for MIME types/extensions, per-file size, count per request, and retention; store files under an isolated path under the user data root, not arbitrary filesystem locations.
+- **Diagnostic bundles**: redact or hash filenames, directory paths, and profile identifiers in exports (same spirit as **Logging hygiene** above).
+- **Encrypted backups**: record algorithm and parameter versions in package metadata; wrong passwords and corrupt packages should return stable, testable error codes without silently overwriting good data.
+
+After implementation lands, extend this section with concrete module paths and configuration keys.
+
 ## Configuration touchpoints
 
 - Frontend build/runtime env: `.env*` files + Vite/Tauri config.

@@ -33,6 +33,7 @@ export interface ChatResponse {
   success: boolean;
   response: string;
   model: string;
+  provider_capability_notice?: string;
   conversation_id?: string;
   needs_summary?: boolean;
   message_count?: number;

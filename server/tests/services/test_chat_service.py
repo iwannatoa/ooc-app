@@ -45,6 +45,10 @@ class TestChatService:
             conversation_id='test_conv_001',
             role='user',
             content='Test message',
+            content_type='text',
+            attachment_ref=None,
+            branch_id=None,
+            savepoint_id=None,
             session=None,
         )
     

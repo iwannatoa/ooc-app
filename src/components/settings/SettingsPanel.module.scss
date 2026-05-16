@@ -59,6 +59,30 @@
   }
 }
 
+.profileBar {
+  display: flex;
+  align-items: center;
+  gap: $spacing-xs;
+  margin-left: auto;
+  margin-right: $spacing-sm;
+
+  select {
+    @include input-style;
+    min-width: 140px;
+    padding: $spacing-xs $spacing-sm;
+  }
+
+  button {
+    @include button-reset;
+    background: $bg-light;
+    border: 1px solid $border-color;
+    color: $text-primary;
+    border-radius: $border-radius;
+    padding: $spacing-xs $spacing-sm;
+    font-size: $font-size-sm;
+  }
+}
+
 .settingsTabs {
   display: flex;
   border-bottom: 1px solid $border-color;

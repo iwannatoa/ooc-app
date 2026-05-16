@@ -8,7 +8,12 @@
 
 import { BaseApiClient } from './base';
 import type { GetApiUrlFn } from './base';
-import { AppSettings, ChatMessage, ChatResponse } from '@/types';
+import {
+  AppSettings,
+  ChatMessage,
+  ChatMessagePart,
+  ChatResponse,
+} from '@/types';
 import { stripThinkContent } from '@/utils/parseThinkContent';
 
 export class AiApi extends BaseApiClient {
@@ -31,7 +36,11 @@ export class AiApi extends BaseApiClient {
    */
   async sendMessage(
     message: string,
-    conversationId?: string
+    conversationId?: string,
+    options?: {
+      messageParts?: ChatMessagePart[];
+      inputMode?: 'storyAction' | 'freeChat';
+    }
   ): Promise<ChatMessage> {
     const provider = this.settings.ai.provider;
     const config = this.settings.ai[provider];
@@ -41,6 +50,8 @@ export class AiApi extends BaseApiClient {
       model: config.model,
       message: message,
       conversation_id: conversationId,
+      message_parts: options?.messageParts,
+      input_mode: options?.inputMode || 'freeChat',
     });
 
     // Strip think content from response
@@ -51,6 +62,7 @@ export class AiApi extends BaseApiClient {
       content: cleanContent,
       model: response.model || config.model,
       timestamp: Date.now(),
+      providerCapabilityNotice: response.provider_capability_notice,
       needsSummary: response.needs_summary,
       messageCount: response.message_count,
       storyProgress: response.story_progress,
@@ -63,11 +75,16 @@ export class AiApi extends BaseApiClient {
   async sendMessageStream(
     message: string,
     conversationId: string,
-    onChunk: (chunk: string, accumulated: string) => void
+    onChunk: (chunk: string, accumulated: string) => void,
+    options?: {
+      messageParts?: ChatMessagePart[];
+      inputMode?: 'storyAction' | 'freeChat';
+    }
   ): Promise<ChatMessage> {
     const provider = this.settings.ai.provider;
     const config = this.settings.ai[provider];
 
+    const capabilityNoticeCollector: string[] = [];
     const accumulated = await this.stream(
       '/api/chat-stream',
       {
@@ -75,8 +92,14 @@ export class AiApi extends BaseApiClient {
         model: config.model,
         message: message,
         conversation_id: conversationId,
+        message_parts: options?.messageParts,
+        input_mode: options?.inputMode || 'freeChat',
       },
-      onChunk
+      onChunk,
+      undefined,
+      {
+        capabilityNoticeCollector,
+      }
     );
 
     // Strip think content from final response
@@ -87,6 +110,7 @@ export class AiApi extends BaseApiClient {
       content: finalContent,
       model: config.model,
       timestamp: Date.now(),
+      providerCapabilityNotice: capabilityNoticeCollector.join('\n').trim() || undefined,
     };
   }
 }

@@ -58,6 +58,13 @@ def create_stream_response(
                     if isinstance(pw, list):
                         yield f"data: {json.dumps({'parse_warnings': pw})}\n\n"
                         continue
+                    capability_notice = error_data.get('provider_capability_notice')
+                    if isinstance(capability_notice, str) and capability_notice.strip():
+                        payload = json.dumps({
+                            'provider_capability_notice': capability_notice
+                        }, ensure_ascii=False)
+                        yield f"data: {payload}\n\n"
+                        continue
                 except (json.JSONDecodeError, ValueError, AttributeError):
                     # Chunk is plain text
                     # Skip empty chunks to avoid sending unnecessary data

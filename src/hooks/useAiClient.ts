@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { AppSettings, ChatMessage } from '@/types';
+import { AppSettings, ChatMessage, ChatMessagePart } from '@/types';
 import { useApiClients } from './useApiClients';
 
 /**
@@ -24,11 +24,18 @@ export const useAiClient = (settings: AppSettings) => {
   }, [aiApi, settings]);
 
   const sendMessage = useCallback(
-    async (message: string, conversationId?: string): Promise<ChatMessage> => {
+    async (
+      message: string,
+      conversationId?: string,
+      options?: {
+        messageParts?: ChatMessagePart[];
+        inputMode?: 'storyAction' | 'freeChat';
+      }
+    ): Promise<ChatMessage> => {
       setLoading(true);
 
       try {
-        return await aiApi.sendMessage(message, conversationId);
+        return await aiApi.sendMessage(message, conversationId, options);
       } finally {
         setLoading(false);
       }
@@ -40,7 +47,11 @@ export const useAiClient = (settings: AppSettings) => {
     async (
       message: string,
       conversationId: string,
-      onChunk?: (chunk: string, accumulated: string) => void
+      onChunk?: (chunk: string, accumulated: string) => void,
+      options?: {
+        messageParts?: ChatMessagePart[];
+        inputMode?: 'storyAction' | 'freeChat';
+      }
     ): Promise<ChatMessage> => {
       setLoading(true);
 
@@ -48,7 +59,8 @@ export const useAiClient = (settings: AppSettings) => {
         return await aiApi.sendMessageStream(
           message,
           conversationId,
-          onChunk || (() => {})
+          onChunk || (() => {}),
+          options
         );
       } finally {
         setLoading(false);
