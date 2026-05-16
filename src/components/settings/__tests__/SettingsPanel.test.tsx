@@ -5,6 +5,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import SettingsPanel from '../SettingsPanel';
 import { renderWithProviders } from '@/test/utils';
 import { tick } from '@/test/utils';
+import { invoke } from '@tauri-apps/api/core';
 
 // Mock i18n
 vi.mock('@/i18n/i18n', () => ({
@@ -20,6 +21,16 @@ vi.mock('@/hooks/useSettingsState', () => ({
 
 vi.mock('@/hooks/useApiClients', () => ({
   useApiClients: vi.fn(),
+}));
+
+vi.mock('@/hooks/useFlaskPort', () => ({
+  useFlaskPort: vi.fn(() => ({
+    refetch: vi.fn().mockResolvedValue(undefined),
+  })),
+}));
+
+vi.mock('@tauri-apps/api/core', () => ({
+  invoke: vi.fn(),
 }));
 
 // Mock settings components
@@ -92,6 +103,7 @@ describe('SettingsPanel', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(invoke).mockResolvedValue({ success: true });
 
     mockFn(useSettingsState).mockReturnValue({
       settings: defaultSettings,

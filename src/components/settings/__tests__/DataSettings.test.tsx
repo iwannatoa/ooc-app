@@ -32,6 +32,7 @@ describe('DataSettings', () => {
     vi.clearAllMocks();
     // @ts-expect-error test-only runtime flag
     delete window.__TAURI_INTERNALS__;
+    mockInvoke.mockResolvedValue({ success: true, data: 'C:/profiles/default' });
   });
 
   it('shows desktop-only hint when not running in tauri', async () => {
@@ -73,7 +74,12 @@ describe('DataSettings', () => {
     // @ts-expect-error test-only runtime flag
     window.__TAURI_INTERNALS__ = {};
     mockSave.mockResolvedValue('C:/tmp/ooc-diagnostics.zip');
-    mockInvoke.mockResolvedValue('ok');
+    mockInvoke.mockImplementation((command: string) => {
+      if (command === 'get_profile_data_root') {
+        return Promise.resolve({ success: true, data: 'C:/profiles/profile-a' });
+      }
+      return Promise.resolve('ok');
+    });
 
     renderWithProviders(<DataSettings />, {
       initialState: {
@@ -88,9 +94,19 @@ describe('DataSettings', () => {
 
     await waitFor(() => {
       expect(mockInvoke).toHaveBeenCalledWith(
-        'export_diagnostic_bundle',
+        'get_profile_data_root',
+        expect.objectContaining({
+          profileId: 'profile-a',
+        })
+      );
+      const exportCall = mockInvoke.mock.calls.find(
+        (call) => call[0] === 'export_diagnostic_bundle'
+      );
+      expect(exportCall).toBeTruthy();
+      expect(exportCall?.[1]).toEqual(
         expect.objectContaining({
           zipPath: 'C:/tmp/ooc-diagnostics.zip',
+          profileId: 'profile-a',
           profileFingerprint: expect.any(String),
         })
       );

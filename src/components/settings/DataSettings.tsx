@@ -45,6 +45,28 @@ export const DataSettings: React.FC = () => {
   const [busy, setBusy] = useState(false);
   const [hint, setHint] = useState<string | null>(null);
   const [releaseNotes, setReleaseNotes] = useState<string | null>(null);
+  const [profileDataRoot, setProfileDataRoot] = useState<string | null>(null);
+
+  const activeProfileId =
+    settings.activeProfileId || settings.profiles?.[0]?.id || 'default';
+
+  React.useEffect(() => {
+    if (!isTauriRuntime()) {
+      setProfileDataRoot(null);
+      return;
+    }
+    invoke<{ success: boolean; data?: string }>('get_profile_data_root', {
+      profileId: activeProfileId,
+    })
+      .then((resp) => {
+        if (resp?.success && resp.data) {
+          setProfileDataRoot(resp.data);
+        } else {
+          setProfileDataRoot(null);
+        }
+      })
+      .catch(() => setProfileDataRoot(null));
+  }, [activeProfileId]);
 
   const onExportDiagnostics = useCallback(async () => {
     setHint(null);
@@ -63,6 +85,7 @@ export const DataSettings: React.FC = () => {
       await invoke<string>('export_diagnostic_bundle', {
         zipPath: path,
         profileFingerprint,
+        profileId: activeProfileId,
       });
       setHint(t('settingsPanel.dataDiagnosticsSaved'));
     } catch (e) {
@@ -70,7 +93,7 @@ export const DataSettings: React.FC = () => {
     } finally {
       setBusy(false);
     }
-  }, [settings.activeProfileId, t]);
+  }, [activeProfileId, settings.activeProfileId, t]);
 
   const onBackupDb = useCallback(async () => {
     setHint(null);
@@ -85,14 +108,17 @@ export const DataSettings: React.FC = () => {
     if (!path) return;
     setBusy(true);
     try {
-      await invoke<string>('backup_chat_database', { destPath: path });
+      await invoke<string>('backup_chat_database', {
+        destPath: path,
+        profileId: activeProfileId,
+      });
       setHint(t('settingsPanel.dataBackupDone'));
     } catch (e) {
       setHint(String(e));
     } finally {
       setBusy(false);
     }
-  }, [t]);
+  }, [activeProfileId, t]);
 
   const onRestoreDb = useCallback(async () => {
     setHint(null);
@@ -109,14 +135,17 @@ export const DataSettings: React.FC = () => {
     if (!ok) return;
     setBusy(true);
     try {
-      await invoke<string>('restore_chat_database', { srcPath: path });
+      await invoke<string>('restore_chat_database', {
+        srcPath: path,
+        profileId: activeProfileId,
+      });
       setHint(t('settingsPanel.dataRestoreDone'));
     } catch (e) {
       setHint(String(e));
     } finally {
       setBusy(false);
     }
-  }, [t]);
+  }, [activeProfileId, t]);
 
   const onCheckUpdate = useCallback(async () => {
     setHint(null);
@@ -164,6 +193,14 @@ export const DataSettings: React.FC = () => {
     <div className={styles.settingsSection}>
       <h3>{t('settingsPanel.tabs.data')}</h3>
       <p className={styles.dataHint}>{t('settingsPanel.dataIntro')}</p>
+      <p className={styles.dataHint}>
+        Active profile data root: {profileDataRoot || '(not available)'}
+      </p>
+      <p className={styles.dataHint}>
+        Story library path:{' '}
+        {settings.profiles?.find((p) => p.id === activeProfileId)
+          ?.storyLibraryPath || '(default in profile root)'}
+      </p>
       <div className={styles.dataActions}>
         <button
           type='button'

@@ -5,6 +5,7 @@ import { useAppSettings } from '../useAppSettings';
 import { createTestStore, tick } from '@/test/utils';
 import { Provider } from 'react-redux';
 import React from 'react';
+import { invoke } from '@tauri-apps/api/core';
 
 // Mock dependencies
 vi.mock('../useApiClients', () => ({
@@ -17,6 +18,10 @@ vi.mock('@/mock', () => ({
 
 vi.mock('@/utils/theme', () => ({
   loadAppearanceFromStorage: vi.fn(),
+}));
+
+vi.mock('@tauri-apps/api/core', () => ({
+  invoke: vi.fn(),
 }));
 
 import { useApiClients } from '../useApiClients';
@@ -40,6 +45,9 @@ describe('useAppSettings', () => {
     vi.clearAllMocks();
     mockFn(isMockMode).mockReturnValue(false);
     mockFn(loadAppearanceFromStorage).mockReturnValue(null);
+    vi.mocked(invoke).mockResolvedValue({ success: true });
+    // @ts-expect-error test-only runtime flag
+    delete window.__TAURI_INTERNALS__;
   });
 
   it('should not load settings in mock mode', () => {
@@ -300,5 +308,39 @@ describe('useAppSettings', () => {
     const state = store.getState();
     expect(state.settings.settings.activeProfileId).toBe('p-2');
     expect(state.settings.settings.ai.provider).toBe('openai');
+  });
+
+  it('should switch backend runtime profile in tauri mode', async () => {
+    // @ts-expect-error test-only runtime flag
+    window.__TAURI_INTERNALS__ = {};
+    mockGetAppSettings.mockResolvedValue({
+      ...DEFAULT_SETTINGS,
+      profiles: [
+        {
+          id: 'p-runtime',
+          name: 'Runtime',
+          ai: DEFAULT_SETTINGS.ai,
+          storyLibraryPath: '/tmp/runtime-library',
+        },
+      ],
+      activeProfileId: 'p-runtime',
+    });
+    mockFn(useApiClients).mockReturnValue({
+      settingsApi: mockSettingsApi,
+    });
+
+    const store = createTestStore();
+    renderHook(() => useAppSettings(), {
+      wrapper: createWrapper(store),
+    });
+
+    await tick();
+    expect(invoke).toHaveBeenCalledWith(
+      'switch_active_profile',
+      expect.objectContaining({
+        profileId: 'p-runtime',
+        storyLibraryPath: '/tmp/runtime-library',
+      })
+    );
   });
 });

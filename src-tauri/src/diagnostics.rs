@@ -11,6 +11,7 @@ use tokio::sync::Mutex as TokioMutex;
 use zip::write::{SimpleFileOptions, ZipWriter};
 use zip::CompressionMethod;
 
+use crate::profile_paths::resolve_profile_db_path;
 use crate::python_lifecycle::run_start_python_server;
 use crate::python_lifecycle::stop_python_server_internal;
 use crate::python_server::PythonServer;
@@ -70,6 +71,7 @@ pub async fn export_diagnostic_bundle(
     app_handle: AppHandle,
     zip_path: String,
     profile_fingerprint: Option<String>,
+    profile_id: Option<String>,
 ) -> Result<String, String> {
     let zip_path = PathBuf::from(zip_path);
     if let Some(parent) = zip_path.parent() {
@@ -84,11 +86,9 @@ pub async fn export_diagnostic_bundle(
         .app_data_dir()
         .map_err(|e| e.to_string())?;
 
-    let db_path: Option<String> = app_handle
-        .path()
-        .app_data_dir()
+    let db_path: Option<String> = resolve_profile_db_path(&app_handle, profile_id.as_deref())
         .ok()
-        .map(|d| d.join("chat.db").to_string_lossy().into_owned());
+        .map(|(_, path)| path.to_string_lossy().into_owned());
 
     let port_file = app_data.join("port.txt");
     let port_contents = std::fs::read_to_string(&port_file)
@@ -149,12 +149,9 @@ pub async fn export_diagnostic_bundle(
 pub async fn backup_chat_database(
     app_handle: AppHandle,
     dest_path: String,
+    profile_id: Option<String>,
 ) -> Result<String, String> {
-    let app_data = app_handle
-        .path()
-        .app_data_dir()
-        .map_err(|e| e.to_string())?;
-    let src = app_data.join("chat.db");
+    let (_, src) = resolve_profile_db_path(&app_handle, profile_id.as_deref())?;
     if !src.is_file() {
         return Err("chat.db not found in app data directory".to_string());
     }
@@ -172,17 +169,20 @@ pub async fn restore_chat_database(
     app_handle: AppHandle,
     server_state: State<'_, TokioMutex<PythonServer>>,
     src_path: String,
+    profile_id: Option<String>,
+    story_library_path: Option<String>,
 ) -> Result<String, String> {
     let src = PathBuf::from(src_path);
     if !src.is_file() {
         return Err("Source backup file does not exist".to_string());
     }
-    let app_data = app_handle
-        .path()
-        .app_data_dir()
-        .map_err(|e| e.to_string())?;
-    std::fs::create_dir_all(&app_data).map_err(|e| e.to_string())?;
-    let dest = app_data.join("chat.db");
+    let requested_profile = profile_id
+        .or_else(|| std::env::var("ACTIVE_PROFILE_ID").ok())
+        .unwrap_or_else(|| "default".to_string());
+    let (_, dest) = resolve_profile_db_path(&app_handle, Some(&requested_profile))?;
+    if let Some(parent) = dest.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
 
     stop_python_server_internal(&app_handle, &*server_state)
         .await
@@ -191,13 +191,22 @@ pub async fn restore_chat_database(
 
     // Keep a single pre-restore copy if dest exists
     if dest.is_file() {
-        let bak = app_data.join("chat.pre-restore.bak.db");
+        let bak = dest
+            .parent()
+            .unwrap_or_else(|| std::path::Path::new("."))
+            .join("chat.pre-restore.bak.db");
         let _ = std::fs::remove_file(&bak);
         std::fs::rename(&dest, &bak).map_err(|e| e.to_string())?;
     }
     std::fs::copy(&src, &dest).map_err(|e| e.to_string())?;
 
-    let start = run_start_python_server(app_handle.clone(), server_state).await?;
+    let start = run_start_python_server(
+        app_handle.clone(),
+        server_state,
+        Some(requested_profile),
+        story_library_path,
+    )
+    .await?;
     if !start.success {
         return Err(start
             .error

@@ -7,13 +7,14 @@ mod api;
 mod commands;
 mod diagnostics;
 mod logger;
+mod profile_paths;
 mod python_http;
 mod python_lifecycle;
 mod python_server;
 
 use commands::{
     check_python_server_status, get_database_path, get_flask_api_token, get_flask_port,
-    frontend_log, start_python_server,
+    get_profile_data_root, frontend_log, start_python_server, switch_active_profile,
     stop_python_server, stop_python_server_internal, PythonServer,
 };
 use diagnostics::{backup_chat_database, export_diagnostic_bundle, restore_chat_database};
@@ -77,8 +78,10 @@ fn main() {
             stop_python_server,
             check_python_server_status,
             get_database_path,
+            get_profile_data_root,
             get_flask_api_token,
             get_flask_port,
+            switch_active_profile,
             frontend_log,
             export_diagnostic_bundle,
             backup_chat_database,
@@ -133,6 +136,8 @@ fn main() {
                 let _ = start_python_server(
                     app_for_server.clone(),
                     app_for_server.state::<TokioMutex<PythonServer>>(),
+                    None,
+                    None,
                 )
                 .await;
             });

@@ -7,11 +7,29 @@ import { useApiClients } from './useApiClients';
 import { isMockMode } from '@/mock';
 import { loadAppearanceFromStorage } from '@/utils/theme';
 import type { ProfileSettings } from '@/types';
+import { invoke } from '@tauri-apps/api/core';
 
 /**
  * Hook to load app settings from backend on app startup
  */
 export const useAppSettings = () => {
+  const syncProfileRuntime = async (settings: AppSettings): Promise<void> => {
+    const isTauriRuntime =
+      typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
+    if (!isTauriRuntime || isMockMode()) {
+      return;
+    }
+    const profiles = settings.profiles ?? [];
+    const activeProfile =
+      profiles.find((profile) => profile.id === settings.activeProfileId) ??
+      profiles[0];
+    const profileId = activeProfile?.id ?? 'default';
+    await invoke('switch_active_profile', {
+      profileId,
+      storyLibraryPath: activeProfile?.storyLibraryPath || null,
+    });
+  };
+
   const dispatch = useAppDispatch();
   const { settingsApi } = useApiClients();
   const hasLoadedRef = useRef(false);
@@ -90,7 +108,11 @@ export const useAppSettings = () => {
         if ('compactMode' in mergedSettings.appearance) {
           delete mergedSettings.appearance.compactMode;
         }
-        dispatch(setSettings(applyActiveProfile(ensureDefaultProfile(mergedSettings))));
+        const normalizedSettings = applyActiveProfile(
+          ensureDefaultProfile(mergedSettings)
+        );
+        dispatch(setSettings(normalizedSettings));
+        await syncProfileRuntime(normalizedSettings);
       } catch (error) {
         console.error('Failed to load settings from backend:', error);
         
@@ -106,6 +128,9 @@ export const useAppSettings = () => {
           };
           dispatch(
             setSettings(applyActiveProfile(ensureDefaultProfile(fallbackSettings)))
+          );
+          await syncProfileRuntime(
+            applyActiveProfile(ensureDefaultProfile(fallbackSettings))
           );
         }
       }

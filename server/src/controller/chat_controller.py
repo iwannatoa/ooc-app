@@ -26,6 +26,7 @@ from utils.stream_response import create_stream_response
 from utils.i18n import get_i18n_text
 from utils.controller_helpers import error_response, handle_errors
 from utils.think_strip import strip_think_content
+from utils.db_path import get_story_library_dir
 
 logger = get_logger(__name__)
 
@@ -208,6 +209,12 @@ class ChatController:
         normalized_message = normalized.normalized_message
         content_type = normalized.content_type
         attachment_ref = normalized.attachment_ref
+        if attachment_ref:
+            story_library_root = get_story_library_dir()
+            logger.info(
+                'Attachment reference accepted; story library root=%s',
+                story_library_root,
+            )
         
         language = self.app_settings_service.get_language()
         if not normalized_message:

@@ -10,7 +10,12 @@ from pathlib import Path
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'src'))
 
-from utils.db_path import get_database_path, get_app_data_dir
+from utils.db_path import (
+    get_active_profile_id,
+    get_app_data_dir,
+    get_database_path,
+    get_story_library_dir,
+)
 
 
 class TestDbPath:
@@ -54,5 +59,24 @@ class TestDbPath:
         result = get_app_data_dir()
         assert result is not None
         assert isinstance(result, Path) or isinstance(result, str)
+
+    def test_get_active_profile_id_from_env(self, monkeypatch):
+        monkeypatch.setenv('ACTIVE_PROFILE_ID', 'profile-1')
+        assert get_active_profile_id() == 'profile-1'
+
+    def test_get_active_profile_id_default(self, monkeypatch):
+        monkeypatch.delenv('ACTIVE_PROFILE_ID', raising=False)
+        assert get_active_profile_id() == 'default'
+
+    def test_get_story_library_dir_from_env(self, monkeypatch):
+        monkeypatch.setenv('STORY_LIBRARY_PATH', 'tmp/library-path')
+        result = get_story_library_dir()
+        assert result == get_app_data_dir() / 'tmp/library-path'
+
+    def test_get_story_library_dir_default_under_app_data(self, monkeypatch):
+        monkeypatch.setenv('DB_PATH', '/tmp/ooc/profiles/default/chat.db')
+        monkeypatch.delenv('STORY_LIBRARY_PATH', raising=False)
+        result = get_story_library_dir()
+        assert result == Path('/tmp/ooc/profiles/default/story-library')
 
 

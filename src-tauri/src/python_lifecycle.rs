@@ -10,6 +10,9 @@ use tauri_plugin_shell::{process::CommandEvent, ShellExt};
 use tokio::sync::Mutex as TokioMutex;
 
 use crate::api::ApiResponse;
+use crate::profile_paths::{
+    normalize_profile_id, resolve_profile_db_path, resolve_profile_root, resolve_story_library_path,
+};
 #[cfg(target_os = "windows")]
 use crate::python_http::find_pid_by_port;
 use crate::python_http::{add_flask_security_headers, flask_api_token_from_env, flask_health_reachable};
@@ -113,6 +116,26 @@ fn ensure_flask_instance_id() -> String {
 fn clear_flask_runtime_vars() {
     std::env::remove_var("FLASK_API_TOKEN");
     std::env::remove_var("FLASK_INSTANCE_ID");
+}
+
+fn migrate_legacy_db_if_needed(
+    app_handle: &AppHandle,
+    normalized_profile_id: &str,
+    profile_db_path: &std::path::Path,
+) -> Result<(), String> {
+    if normalized_profile_id != "default" || profile_db_path.exists() {
+        return Ok(());
+    }
+    let app_data = app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("Failed to get app data directory: {}", e))?;
+    let legacy_db = app_data.join("chat.db");
+    if legacy_db.is_file() {
+        std::fs::copy(&legacy_db, profile_db_path)
+            .map_err(|e| format!("Failed to migrate legacy chat.db: {}", e))?;
+    }
+    Ok(())
 }
 
 fn parse_flask_port_from_line(line: &str) -> Option<u16> {
@@ -371,6 +394,8 @@ pub async fn stop_python_server_internal(
 pub async fn run_start_python_server(
     app_handle: AppHandle,
     server_state: State<'_, TokioMutex<PythonServer>>,
+    profile_id: Option<String>,
+    story_library_path: Option<String>,
 ) -> Result<ApiResponse<String>, String> {
     let server = server_state.lock().await;
 
@@ -419,21 +444,68 @@ pub async fn run_start_python_server(
     let mut server = server_state.lock().await;
     server.port = None;
     server.instance_id = Some(flask_instance_id.clone());
-
-    let db_path = match app_handle.path().app_data_dir() {
-        Ok(app_data_dir) => {
-            if let Err(e) = std::fs::create_dir_all(&app_data_dir) {
+    let normalized_profile_id = normalize_profile_id(
+        profile_id
+            .as_deref()
+            .or(Some(server.active_profile_id.as_str())),
+    );
+    let (_, profile_root) = match resolve_profile_root(&app_handle, Some(&normalized_profile_id)) {
+        Ok(value) => value,
+        Err(error) => {
+            return Ok(ApiResponse {
+                success: false,
+                data: None,
+                error: Some(error),
+            });
+        }
+    };
+    let (_, profile_db_path) =
+        match resolve_profile_db_path(&app_handle, Some(&normalized_profile_id)) {
+            Ok(value) => value,
+            Err(error) => {
                 return Ok(ApiResponse {
                     success: false,
                     data: None,
-                    error: Some(format!("Failed to create app data directory: {}", e)),
+                    error: Some(error),
                 });
             }
-            let db_path = app_data_dir.join("chat.db");
-            Some(db_path.to_string_lossy().to_string())
-        }
-        Err(_) => None,
-    };
+        };
+    if let Err(e) = std::fs::create_dir_all(&profile_root) {
+        return Ok(ApiResponse {
+            success: false,
+            data: None,
+            error: Some(format!("Failed to create profile data directory: {}", e)),
+        });
+    }
+    if let Err(error) = migrate_legacy_db_if_needed(&app_handle, &normalized_profile_id, &profile_db_path)
+    {
+        return Ok(ApiResponse {
+            success: false,
+            data: None,
+            error: Some(error),
+        });
+    }
+    let resolved_story_library = resolve_story_library_path(
+        &profile_root,
+        story_library_path
+            .as_deref()
+            .or(server.story_library_path.as_deref()),
+    );
+    if let Err(e) = std::fs::create_dir_all(&resolved_story_library) {
+        return Ok(ApiResponse {
+            success: false,
+            data: None,
+            error: Some(format!("Failed to create story library directory: {}", e)),
+        });
+    }
+    let db_path = profile_db_path.to_string_lossy().to_string();
+    let story_library_path = resolved_story_library.to_string_lossy().to_string();
+    std::env::set_var("DB_PATH", &db_path);
+    std::env::set_var("ACTIVE_PROFILE_ID", &normalized_profile_id);
+    std::env::set_var("STORY_LIBRARY_PATH", &story_library_path);
+    server.active_profile_id = normalized_profile_id;
+    server.story_library_path = Some(story_library_path);
+    server.db_path = Some(db_path.clone());
 
     // Use native tokio::process::Command on Windows to hide console window
     // Tauri shell plugin doesn't support CREATE_NO_WINDOW flag
@@ -479,11 +551,13 @@ pub async fn run_start_python_server(
             cmd.current_dir(&project_root);
             cmd.env("LOG_LEVEL_DEBUG", "true");
             cmd.env("FLASK_ENV", "development");
-            if let Some(path) = &db_path {
-                cmd.env("DB_PATH", path);
-            }
+            cmd.env("DB_PATH", &db_path);
             cmd.env("FLASK_API_TOKEN", &flask_api_token);
             cmd.env("FLASK_INSTANCE_ID", &flask_instance_id);
+            cmd.env("ACTIVE_PROFILE_ID", server.active_profile_id.clone());
+            if let Some(story_path) = server.story_library_path.as_deref() {
+                cmd.env("STORY_LIBRARY_PATH", story_path);
+            }
             cmd.env("TAURI_PARENT_PID", std::process::id().to_string());
             cmd.stdout(std::process::Stdio::piped());
             cmd.stderr(std::process::Stdio::piped());
@@ -503,11 +577,13 @@ pub async fn run_start_python_server(
             };
 
             let mut cmd = Command::new(&exe_path);
-            if let Some(path) = &db_path {
-                cmd.env("DB_PATH", path);
-            }
+            cmd.env("DB_PATH", &db_path);
             cmd.env("FLASK_API_TOKEN", &flask_api_token);
             cmd.env("FLASK_INSTANCE_ID", &flask_instance_id);
+            cmd.env("ACTIVE_PROFILE_ID", server.active_profile_id.clone());
+            if let Some(story_path) = server.story_library_path.as_deref() {
+                cmd.env("STORY_LIBRARY_PATH", story_path);
+            }
             cmd.env("TAURI_PARENT_PID", std::process::id().to_string());
             cmd.stdout(std::process::Stdio::piped());
             cmd.stderr(std::process::Stdio::piped());
@@ -635,21 +711,25 @@ pub async fn run_start_python_server(
             // Enable debug logging in development mode (debug_assertions means dev build)
             cmd = cmd.env("LOG_LEVEL_DEBUG", "true");
             cmd = cmd.env("FLASK_ENV", "development");
-            if let Some(path) = &db_path {
-                cmd = cmd.env("DB_PATH", path);
-            }
+            cmd = cmd.env("DB_PATH", &db_path);
             cmd = cmd.env("FLASK_API_TOKEN", &flask_api_token);
             cmd = cmd.env("FLASK_INSTANCE_ID", &flask_instance_id);
+            cmd = cmd.env("ACTIVE_PROFILE_ID", server.active_profile_id.clone());
+            if let Some(story_path) = server.story_library_path.as_deref() {
+                cmd = cmd.env("STORY_LIBRARY_PATH", story_path);
+            }
             cmd = cmd.env("TAURI_PARENT_PID", std::process::id().to_string());
             cmd
         } else {
             match app_handle.shell().sidecar("flask-api") {
                 Ok(mut cmd) => {
-                    if let Some(path) = &db_path {
-                        cmd = cmd.env("DB_PATH", path);
-                    }
+                    cmd = cmd.env("DB_PATH", &db_path);
                     cmd = cmd.env("FLASK_API_TOKEN", &flask_api_token);
                     cmd = cmd.env("FLASK_INSTANCE_ID", &flask_instance_id);
+                    cmd = cmd.env("ACTIVE_PROFILE_ID", server.active_profile_id.clone());
+                    if let Some(story_path) = server.story_library_path.as_deref() {
+                        cmd = cmd.env("STORY_LIBRARY_PATH", story_path);
+                    }
                     cmd = cmd.env("TAURI_PARENT_PID", std::process::id().to_string());
                     cmd
                 }

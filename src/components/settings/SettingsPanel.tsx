@@ -1,8 +1,10 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import { AppSettings } from '@/types';
 import { useSettingsState } from '@/hooks/useSettingsState';
 import { useI18n, type Locale } from '@/i18n/i18n';
 import { useApiClients } from '@/hooks/useApiClients';
+import { useFlaskPort } from '@/hooks/useFlaskPort';
 import {
   SettingsTabs,
   SettingsTabPane,
@@ -40,6 +42,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, open }) => {
   const { settings, updateSettings, updateAppearanceSettings } =
     useSettingsState();
   const { settingsApi } = useApiClients();
+  const { refetch: refetchFlaskPort } = useFlaskPort();
 
   const [localSettings, setLocalSettings] = useState(settings);
   const generalSettingsRef = useRef<GeneralSettingsRef>(null);
@@ -130,6 +133,17 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, open }) => {
           // Continue even if backend save fails
         }
       }
+      const activeProfile =
+        settingsToSave.profiles?.find(
+          (profile) => profile.id === settingsToSave.activeProfileId
+        ) ?? settingsToSave.profiles?.[0];
+      if (activeProfile) {
+        await invoke('switch_active_profile', {
+          profileId: activeProfile.id,
+          storyLibraryPath: activeProfile.storyLibraryPath || null,
+        });
+        await refetchFlaskPort();
+      }
 
       onClose();
     } catch (error) {
@@ -163,7 +177,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, open }) => {
   const profiles = localSettings.profiles || [];
   const activeProfileId = localSettings.activeProfileId || profiles[0]?.id;
 
-  const handleSwitchProfile = (profileId: string) => {
+  const handleSwitchProfile = async (profileId: string) => {
     const profile = profiles.find((p) => p.id === profileId);
     if (!profile) return;
     setLocalSettings((prev) => ({
@@ -171,6 +185,15 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, open }) => {
       activeProfileId: profileId,
       ai: profile.ai,
     }));
+    try {
+      await invoke('switch_active_profile', {
+        profileId,
+        storyLibraryPath: profile.storyLibraryPath || null,
+      });
+      await refetchFlaskPort();
+    } catch (error) {
+      console.error('Failed to switch profile runtime:', error);
+    }
   };
 
   const handleAddProfile = () => {
@@ -205,6 +228,25 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, open }) => {
     }));
   };
 
+  const handleSetStoryLibraryPath = () => {
+    if (!activeProfileId) return;
+    const current = profiles.find((p) => p.id === activeProfileId);
+    if (!current) return;
+    const nextPath = window.prompt(
+      'Set story library path (leave empty to use profile default)',
+      current.storyLibraryPath || ''
+    );
+    if (nextPath === null) return;
+    setLocalSettings((prev) => ({
+      ...prev,
+      profiles: (prev.profiles || []).map((profile) =>
+        profile.id === activeProfileId
+          ? { ...profile, storyLibraryPath: nextPath.trim() }
+          : profile
+      ),
+    }));
+  };
+
   const handleDeleteProfile = () => {
     if (!activeProfileId) return;
     const target = profiles.find((p) => p.id === activeProfileId);
@@ -229,7 +271,9 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, open }) => {
           <div className={styles.profileBar}>
             <select
               value={activeProfileId || ''}
-              onChange={(e) => handleSwitchProfile(e.target.value)}
+              onChange={(e) => {
+                void handleSwitchProfile(e.target.value);
+              }}
             >
               {profiles.map((profile) => (
                 <option
@@ -242,6 +286,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, open }) => {
             </select>
             <button onClick={handleAddProfile}>+Profile</button>
             <button onClick={handleRenameProfile}>Rename</button>
+            <button onClick={handleSetStoryLibraryPath}>Set Library</button>
             <button onClick={handleDeleteProfile}>Delete</button>
           </div>
           <button

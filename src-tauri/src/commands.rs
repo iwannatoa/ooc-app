@@ -2,6 +2,7 @@ use tauri::{AppHandle, Manager, State};
 use tokio::sync::Mutex as TokioMutex;
 
 use crate::api::ApiResponse;
+use crate::profile_paths::{normalize_profile_id, resolve_profile_db_path, resolve_profile_root};
 use crate::python_http::{add_flask_security_headers, flask_instance_id_from_env};
 use crate::python_lifecycle::run_start_python_server;
 
@@ -62,8 +63,10 @@ async fn probe_flask_health_with_instance(
 pub async fn start_python_server(
     app_handle: AppHandle,
     server_state: State<'_, TokioMutex<PythonServer>>,
+    profile_id: Option<String>,
+    story_library_path: Option<String>,
 ) -> Result<ApiResponse<String>, String> {
-    run_start_python_server(app_handle, server_state).await
+    run_start_python_server(app_handle, server_state, profile_id, story_library_path).await
 }
 
 #[tauri::command]
@@ -185,31 +188,96 @@ pub async fn stop_python_server(
 }
 
 #[tauri::command]
-pub async fn get_database_path(app_handle: AppHandle) -> Result<ApiResponse<String>, String> {
-    match app_handle.path().app_data_dir() {
-        Ok(app_data_dir) => {
-            if let Err(e) = std::fs::create_dir_all(&app_data_dir) {
-                return Ok(ApiResponse {
-                    success: false,
-                    data: None,
-                    error: Some(format!("Failed to create app data directory: {}", e)),
-                });
+pub async fn get_database_path(
+    app_handle: AppHandle,
+    profile_id: Option<String>,
+) -> Result<ApiResponse<String>, String> {
+    match resolve_profile_db_path(&app_handle, profile_id.as_deref()) {
+        Ok((_, db_path)) => {
+            if let Some(parent) = db_path.parent() {
+                if let Err(e) = std::fs::create_dir_all(parent) {
+                    return Ok(ApiResponse {
+                        success: false,
+                        data: None,
+                        error: Some(format!("Failed to create profile data directory: {}", e)),
+                    });
+                }
             }
-
-            let db_path = app_data_dir.join("chat.db");
-            let db_path_str = db_path.to_string_lossy().to_string();
-
             Ok(ApiResponse {
                 success: true,
-                data: Some(db_path_str),
+                data: Some(db_path.to_string_lossy().to_string()),
                 error: None,
             })
         }
         Err(e) => Ok(ApiResponse {
             success: false,
             data: None,
-            error: Some(format!("Failed to get app data directory: {}", e)),
+            error: Some(e),
         }),
+    }
+}
+
+#[tauri::command]
+pub async fn get_profile_data_root(
+    app_handle: AppHandle,
+    profile_id: Option<String>,
+) -> Result<ApiResponse<String>, String> {
+    match resolve_profile_root(&app_handle, profile_id.as_deref()) {
+        Ok((_, root)) => {
+            if let Err(e) = std::fs::create_dir_all(&root) {
+                return Ok(ApiResponse {
+                    success: false,
+                    data: None,
+                    error: Some(format!("Failed to create profile data directory: {}", e)),
+                });
+            }
+            Ok(ApiResponse {
+                success: true,
+                data: Some(root.to_string_lossy().to_string()),
+                error: None,
+            })
+        }
+        Err(e) => Ok(ApiResponse {
+            success: false,
+            data: None,
+            error: Some(e),
+        }),
+    }
+}
+
+#[tauri::command]
+pub async fn switch_active_profile(
+    app_handle: AppHandle,
+    server_state: State<'_, TokioMutex<PythonServer>>,
+    profile_id: String,
+    story_library_path: Option<String>,
+) -> Result<ApiResponse<String>, String> {
+    let normalized_profile_id = normalize_profile_id(Some(profile_id.as_str()));
+    {
+        let mut server = server_state.lock().await;
+        server.active_profile_id = normalized_profile_id.clone();
+        server.story_library_path = story_library_path.clone();
+    }
+
+    let result = run_start_python_server(
+        app_handle,
+        server_state,
+        Some(normalized_profile_id.clone()),
+        story_library_path,
+    )
+    .await?;
+    if result.success {
+        Ok(ApiResponse {
+            success: true,
+            data: Some(format!("Switched active profile to {}", normalized_profile_id)),
+            error: None,
+        })
+    } else {
+        Ok(ApiResponse {
+            success: false,
+            data: None,
+            error: result.error.or(Some("Failed to switch profile".to_string())),
+        })
     }
 }
 
