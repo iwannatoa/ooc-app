@@ -31,7 +31,7 @@ const { test: baseTest, expect } = createTauriTest({
 
 export const test = baseTest.extend({
   _tauriE2eCleanup: [
-    async ({}, use) => {
+    async (_fixtures, use) => {
       cleanupTauriE2eSidecars();
       await use();
       cleanupTauriE2eSidecars();
