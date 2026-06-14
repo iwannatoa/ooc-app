@@ -8,19 +8,35 @@
  * - Mock mode support
  */
 
-import { ApiResponse } from '@/types';
 import { API_CONSTANTS } from '@/constants';
-import { isMockMode } from '@/mock';
+import { mockRouter } from '@/mock/router';
+import { invoke } from '@tauri-apps/api/core';
 
 export interface RequestConfig extends RequestInit {
   timeout?: number;
   skipErrorHandling?: boolean;
 }
 
+/** Optional metadata emitted as JSON SSE lines on `/api/chat-stream` (before `done`). */
+export interface ChatStreamMeta {
+  needsSummary?: boolean;
+  messageCount?: number;
+}
+
+/** Optional side channels for SSE consumers (e.g. story `parse_warnings` frames). */
+export interface StreamExtras {
+  parseWarningsCollector?: string[];
+  capabilityNoticeCollector?: string[];
+  contextTraceCollector?: unknown[];
+  chatStreamMeta?: ChatStreamMeta;
+}
+
 export interface ApiError extends Error {
   code?: number;
   status?: number;
-  response?: any;
+  response?: unknown;
+  /** Stream ended with persist_failed SSE frame (chat saved to UI but not DB). */
+  persistFailed?: boolean;
 }
 
 /**
@@ -30,7 +46,7 @@ export function createApiError(
   message: string,
   status?: number,
   code?: number,
-  response?: any
+  response?: unknown
 ): ApiError {
   const error = new Error(message) as ApiError;
   error.status = status;
@@ -46,6 +62,75 @@ export function createApiError(
  */
 export type GetApiUrlFn = () => Promise<string>;
 
+interface ApiResponse<T> {
+  success: boolean;
+  data?: T;
+}
+
+let runtimeTokenPromise: Promise<string | null> | null = null;
+
+const reportFrontendApiLog = async (
+  level: 'error' | 'warn',
+  message: string
+): Promise<void> => {
+  try {
+    await invoke<ApiResponse<string>>('frontend_log', { level, message });
+  } catch {
+    // Best-effort diagnostics only.
+  }
+};
+
+const getRuntimeToken = async (): Promise<string | null> => {
+  if (!runtimeTokenPromise) {
+    runtimeTokenPromise = invoke<ApiResponse<string>>('get_flask_api_token')
+      .then((resp) => {
+        if (resp.success && resp.data && resp.data.trim()) {
+          return resp.data.trim();
+        }
+        return import.meta.env.VITE_FLASK_API_TOKEN?.trim() || null;
+      })
+      .catch(() => import.meta.env.VITE_FLASK_API_TOKEN?.trim() || null);
+  }
+
+  return runtimeTokenPromise;
+};
+
+const resetRuntimeToken = (): void => {
+  runtimeTokenPromise = null;
+};
+
+export const resetRuntimeTokenForTest = (): void => {
+  resetRuntimeToken();
+};
+
+const normalizeHeaders = (extra?: HeadersInit): Record<string, string> => {
+  if (!extra) {
+    return {};
+  }
+  if (extra instanceof Headers) {
+    const normalized: Record<string, string> = {};
+    extra.forEach((v, k) => {
+      normalized[k] = v;
+    });
+    return normalized;
+  }
+  if (Array.isArray(extra)) {
+    return Object.fromEntries(extra);
+  }
+  return { ...(extra as Record<string, string>) };
+};
+
+async function buildAuthHeaders(
+  extra?: HeadersInit
+): Promise<Record<string, string>> {
+  const token = await getRuntimeToken();
+  const base: Record<string, string> = {};
+  if (token) {
+    base.Authorization = `Bearer ${token}`;
+  }
+  return { ...base, ...normalizeHeaders(extra) };
+}
+
 /**
  * Base API client class
  */
@@ -53,9 +138,24 @@ export class BaseApiClient {
   protected getApiUrl: GetApiUrlFn;
   protected defaultTimeout: number;
 
-  constructor(getApiUrl: GetApiUrlFn, defaultTimeout = API_CONSTANTS.DEFAULT_TIMEOUT) {
+  constructor(
+    getApiUrl: GetApiUrlFn,
+    defaultTimeout = API_CONSTANTS.DEFAULT_TIMEOUT
+  ) {
     this.getApiUrl = getApiUrl;
     this.defaultTimeout = defaultTimeout;
+  }
+
+  protected getCorrelationHeaders(
+    _method: string,
+    _endpoint: string
+  ): Record<string, string> {
+    const clientRequestId =
+      globalThis.crypto?.randomUUID?.() ??
+      `req-${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
+    return {
+      'X-OOC-Client-Request-Id': clientRequestId,
+    };
   }
 
   /**
@@ -65,26 +165,58 @@ export class BaseApiClient {
     endpoint: string,
     config: RequestConfig = {}
   ): Promise<T> {
-    // Check mock mode first
-    if (isMockMode()) {
-      throw new Error('Mock mode should be handled by mock clients');
+    // Check mock router first
+    const mockResponse = await mockRouter.match(
+      config.method || 'GET',
+      endpoint,
+      {
+        body:
+          typeof config.body === 'string'
+            ? JSON.parse(config.body)
+            : undefined,
+      }
+    );
+
+    if (mockResponse !== null) {
+      return mockResponse as T;
     }
 
-    const { timeout = this.defaultTimeout, skipErrorHandling, ...fetchConfig } = config;
+    const {
+      timeout = this.defaultTimeout,
+      skipErrorHandling,
+      ...fetchConfig
+    } = config;
 
     // Get base URL
     const baseUrl = await this.getApiUrl();
     const url = `${baseUrl}${endpoint}`;
+    const method = (fetchConfig.method || 'GET').toUpperCase();
+    const requestHeaders = normalizeHeaders(fetchConfig.headers);
+    const correlationHeaders = this.getCorrelationHeaders(method, endpoint);
+    const mergedHeaders = {
+      ...correlationHeaders,
+      ...requestHeaders,
+    };
 
     // Create abort controller for timeout
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeout);
 
     try {
-      const response = await fetch(url, {
+      let response = await fetch(url, {
         ...fetchConfig,
+        headers: await buildAuthHeaders(mergedHeaders),
         signal: controller.signal,
       });
+
+      if (response.status === 401 || response.status === 403) {
+        resetRuntimeToken();
+        response = await fetch(url, {
+          ...fetchConfig,
+          headers: await buildAuthHeaders(mergedHeaders),
+          signal: controller.signal,
+        });
+      }
 
       clearTimeout(timeoutId);
 
@@ -93,6 +225,10 @@ export class BaseApiClient {
         const errorData = await response.json().catch(() => ({
           error: `HTTP ${response.status}: ${response.statusText}`,
         }));
+        await reportFrontendApiLog(
+          'error',
+          `[API_FAIL] ${method} ${endpoint} -> ${response.status} (${response.statusText}) payload=${JSON.stringify(errorData)}`
+        );
 
         if (skipErrorHandling) {
           throw createApiError(
@@ -111,9 +247,16 @@ export class BaseApiClient {
       }
 
       // Parse JSON response
-      const data: any = await response.json();
+      const data = (await response.json()) as {
+        success: boolean;
+        error?: string;
+        code?: number;
+        [key: string]: unknown;
+      };
 
-      if (!data.success) {
+      // Some endpoints (e.g. /api/health) intentionally return plain payload
+      // without a `success` wrapper. Only enforce this contract when provided.
+      if ('success' in data && !data.success) {
         throw createApiError(
           data.error || 'Request failed',
           response.status,
@@ -127,6 +270,12 @@ export class BaseApiClient {
       return data as T;
     } catch (error) {
       clearTimeout(timeoutId);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error occurred';
+      await reportFrontendApiLog(
+        'error',
+        `[API_EXCEPTION] ${method} ${endpoint} url=${url} message=${errorMessage}`
+      );
 
       if (error instanceof Error) {
         if (error.name === 'AbortError') {
@@ -149,7 +298,7 @@ export class BaseApiClient {
    */
   protected async post<T>(
     endpoint: string,
-    body?: any,
+    body?: unknown,
     config: RequestConfig = {}
   ): Promise<T> {
     return this.request<T>(endpoint, {
@@ -160,6 +309,22 @@ export class BaseApiClient {
         ...config.headers,
       },
       body: body ? JSON.stringify(body) : undefined,
+    });
+  }
+
+  protected async postForm<T>(
+    endpoint: string,
+    formData: FormData,
+    config: RequestConfig = {}
+  ): Promise<T> {
+    const headers = normalizeHeaders(config.headers);
+    delete headers['Content-Type'];
+    delete headers['content-type'];
+    return this.request<T>(endpoint, {
+      ...config,
+      method: 'POST',
+      headers,
+      body: formData,
     });
   }
 
@@ -184,7 +349,7 @@ export class BaseApiClient {
    */
   protected async delete<T>(
     endpoint: string,
-    body?: any,
+    body?: unknown,
     config: RequestConfig = {}
   ): Promise<T> {
     return this.request<T>(endpoint, {
@@ -203,33 +368,64 @@ export class BaseApiClient {
    */
   protected async stream(
     endpoint: string,
-    body: any,
+    body: unknown,
     onChunk: (chunk: string, accumulated: string) => void,
-    config: RequestConfig = {}
+    config: RequestConfig = {},
+    streamExtras?: StreamExtras
   ): Promise<string> {
-    if (isMockMode()) {
-      throw new Error('Mock mode should be handled by mock clients');
-    }
+    // Check mock router first for streaming endpoints
+    const mockResponse = await mockRouter.match('POST', endpoint, { body });
 
-    const { timeout = API_CONSTANTS.STREAMING_TIMEOUT } = config;
+    if (mockResponse !== null && mockResponse.success) {
+      // Simulate streaming by sending chunks
+      const content = mockResponse.response || mockResponse.outline || '';
+      const words = content.split('');
+      let accumulated = '';
+
+      for (let i = 0; i < words.length; i += 5) {
+        const chunk = words.slice(i, i + 5).join('');
+        accumulated += chunk;
+        onChunk(chunk, accumulated);
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+
+      return accumulated;
+    }
 
     // Get base URL
     const baseUrl = await this.getApiUrl();
     const url = `${baseUrl}${endpoint}`;
+    const requestHeaders = normalizeHeaders(config.headers);
+    const correlationHeaders = this.getCorrelationHeaders('POST', endpoint);
+    const mergedHeaders = {
+      'Content-Type': 'application/json',
+      ...correlationHeaders,
+      ...requestHeaders,
+    };
 
-    const response = await fetch(url, {
+    let response = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...config.headers,
-      },
+      headers: await buildAuthHeaders(mergedHeaders),
       body: JSON.stringify(body),
     });
+
+    if (response.status === 401 || response.status === 403) {
+      resetRuntimeToken();
+      response = await fetch(url, {
+        method: 'POST',
+        headers: await buildAuthHeaders(mergedHeaders),
+        body: JSON.stringify(body),
+      });
+    }
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({
         error: 'Failed to start stream',
       }));
+      await reportFrontendApiLog(
+        'error',
+        `[STREAM_FAIL] POST ${endpoint} -> ${response.status} (${response.statusText}) payload=${JSON.stringify(errorData)}`
+      );
       throw createApiError(
         errorData.error || 'Failed to start stream',
         response.status
@@ -260,9 +456,54 @@ export class BaseApiClient {
               if (data.error) {
                 throw createApiError(data.error);
               }
+              if (data.persist_failed) {
+                const err = createApiError(
+                  data.error || 'Failed to save chat messages'
+                ) as ApiError;
+                err.persistFailed = true;
+                throw err;
+              }
+              if ('parse_warnings' in data && Array.isArray(data.parse_warnings)) {
+                if (streamExtras?.parseWarningsCollector) {
+                  for (const w of data.parse_warnings) {
+                    if (typeof w === 'string') {
+                      streamExtras.parseWarningsCollector.push(w);
+                    }
+                  }
+                }
+                continue;
+              }
+              if (
+                typeof data.provider_capability_notice === 'string' &&
+                data.provider_capability_notice.trim()
+              ) {
+                streamExtras?.capabilityNoticeCollector?.push(
+                  data.provider_capability_notice
+                );
+                continue;
+              }
+              if ('context_trace' in data && data.context_trace) {
+                streamExtras?.contextTraceCollector?.push(data.context_trace);
+                continue;
+              }
+              if (
+                streamExtras?.chatStreamMeta &&
+                (typeof data.needs_summary === 'boolean' ||
+                  typeof data.message_count === 'number')
+              ) {
+                if (typeof data.needs_summary === 'boolean') {
+                  streamExtras.chatStreamMeta.needsSummary = data.needs_summary;
+                }
+                if (typeof data.message_count === 'number') {
+                  streamExtras.chatStreamMeta.messageCount = data.message_count;
+                }
+                continue;
+              }
               if (data.done) {
                 return accumulated;
               }
+              // Parsed JSON but not a recognized SSE control payload — do not append to story text.
+              continue;
             } catch (e) {
               // If JSON parse fails, treat as plain text chunk
               if (!(e instanceof SyntaxError)) {
@@ -281,6 +522,158 @@ export class BaseApiClient {
       }
 
       return accumulated;
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown stream error';
+      await reportFrontendApiLog(
+        'error',
+        `[STREAM_EXCEPTION] POST ${endpoint} url=${url} message=${errorMessage}`
+      );
+      throw error;
+    } finally {
+      reader.releaseLock();
+    }
+  }
+
+  protected async streamFormData(
+    endpoint: string,
+    formData: FormData,
+    onChunk: (chunk: string, accumulated: string) => void,
+    config: RequestConfig = {},
+    streamExtras?: StreamExtras
+  ): Promise<string> {
+    const baseUrl = await this.getApiUrl();
+    const url = `${baseUrl}${endpoint}`;
+    const requestHeaders = normalizeHeaders(config.headers);
+    const correlationHeaders = this.getCorrelationHeaders('POST', endpoint);
+    const mergedHeaders = {
+      ...correlationHeaders,
+      ...requestHeaders,
+    };
+    delete mergedHeaders['Content-Type'];
+    delete mergedHeaders['content-type'];
+
+    let response = await fetch(url, {
+      method: 'POST',
+      headers: await buildAuthHeaders(mergedHeaders),
+      body: formData,
+    });
+
+    if (response.status === 401 || response.status === 403) {
+      resetRuntimeToken();
+      response = await fetch(url, {
+        method: 'POST',
+        headers: await buildAuthHeaders(mergedHeaders),
+        body: formData,
+      });
+    }
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({
+        error: 'Failed to start stream',
+      }));
+      await reportFrontendApiLog(
+        'error',
+        `[STREAM_FAIL] POST ${endpoint} -> ${response.status} (${response.statusText}) payload=${JSON.stringify(errorData)}`
+      );
+      throw createApiError(
+        errorData.error || 'Failed to start stream',
+        response.status
+      );
+    }
+
+    const reader = response.body?.getReader();
+    const decoder = new TextDecoder();
+    let accumulated = '';
+
+    if (!reader) {
+      throw createApiError('Stream reader not available');
+    }
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n');
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) {
+            continue;
+          }
+          const dataStr = line.slice(6);
+          try {
+            const data = JSON.parse(dataStr);
+            if (data.error) {
+              throw createApiError(data.error);
+            }
+            if (data.persist_failed) {
+              const err = createApiError(
+                data.error || 'Failed to save chat messages'
+              ) as ApiError;
+              err.persistFailed = true;
+              throw err;
+            }
+            if ('parse_warnings' in data && Array.isArray(data.parse_warnings)) {
+              if (streamExtras?.parseWarningsCollector) {
+                for (const w of data.parse_warnings) {
+                  if (typeof w === 'string') {
+                    streamExtras.parseWarningsCollector.push(w);
+                  }
+                }
+              }
+              continue;
+            }
+            if (
+              typeof data.provider_capability_notice === 'string' &&
+              data.provider_capability_notice.trim()
+            ) {
+              streamExtras?.capabilityNoticeCollector?.push(
+                data.provider_capability_notice
+              );
+              continue;
+            }
+            if ('context_trace' in data && data.context_trace) {
+              streamExtras?.contextTraceCollector?.push(data.context_trace);
+              continue;
+            }
+            if (
+              streamExtras?.chatStreamMeta &&
+              (typeof data.needs_summary === 'boolean' ||
+                typeof data.message_count === 'number')
+            ) {
+              if (typeof data.needs_summary === 'boolean') {
+                streamExtras.chatStreamMeta.needsSummary = data.needs_summary;
+              }
+              if (typeof data.message_count === 'number') {
+                streamExtras.chatStreamMeta.messageCount = data.message_count;
+              }
+              continue;
+            }
+            if (data.done) {
+              return accumulated;
+            }
+            continue;
+          } catch (e) {
+            if (!(e instanceof SyntaxError)) {
+              throw e;
+            }
+            if (!dataStr || !dataStr.trim()) {
+              continue;
+            }
+            accumulated += dataStr;
+            onChunk(dataStr, accumulated);
+          }
+        }
+      }
+      return accumulated;
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown stream error';
+      await reportFrontendApiLog(
+        'error',
+        `[STREAM_EXCEPTION] POST ${endpoint} url=${url} message=${errorMessage}`
+      );
+      throw error;
     } finally {
       reader.releaseLock();
     }

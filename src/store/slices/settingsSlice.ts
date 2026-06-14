@@ -4,6 +4,13 @@ import {
   AIProvider,
   OllamaConfig,
   DeepSeekConfig,
+  OpenAICompatibleConfig,
+  OpenAIConfig,
+  AzureConfig,
+  AnthropicConfig,
+  GLMConfig,
+  KimiConfig,
+  MiniMaxConfig,
 } from '@/types';
 import { DEFAULT_SETTINGS } from '@/types/constants';
 
@@ -13,6 +20,15 @@ interface SettingsState {
   hasUnsavedChanges: boolean;
   currentTab: string;
 }
+
+type ActiveAiProviderConfigPatch = Partial<{
+  baseUrl: string;
+  model: string;
+  timeout: number;
+  maxTokens: number;
+  temperature: number;
+  apiKey: string;
+}>;
 
 const initialState: SettingsState = {
   settings: DEFAULT_SETTINGS,
@@ -64,6 +80,130 @@ const settingsSlice = createSlice({
         ...state.settings.ai.deepseek,
         ...action.payload,
       };
+      state.hasUnsavedChanges = true;
+    },
+    updateOpenAICompatibleConfig: (
+      state,
+      action: PayloadAction<Partial<OpenAICompatibleConfig>>
+    ) => {
+      state.settings.ai.openai_compatible = {
+        ...state.settings.ai.openai_compatible,
+        ...action.payload,
+      };
+      state.hasUnsavedChanges = true;
+    },
+    updateOpenAIConfig: (
+      state,
+      action: PayloadAction<Partial<OpenAIConfig>>
+    ) => {
+      state.settings.ai.openai = {
+        ...state.settings.ai.openai,
+        ...action.payload,
+      };
+      state.hasUnsavedChanges = true;
+    },
+    updateAzureConfig: (
+      state,
+      action: PayloadAction<Partial<AzureConfig>>
+    ) => {
+      state.settings.ai.azure = {
+        ...state.settings.ai.azure,
+        ...action.payload,
+      };
+      state.hasUnsavedChanges = true;
+    },
+    updateAnthropicConfig: (
+      state,
+      action: PayloadAction<Partial<AnthropicConfig>>
+    ) => {
+      state.settings.ai.anthropic = {
+        ...state.settings.ai.anthropic,
+        ...action.payload,
+      };
+      state.hasUnsavedChanges = true;
+    },
+    updateGLMConfig: (
+      state,
+      action: PayloadAction<Partial<GLMConfig>>
+    ) => {
+      state.settings.ai.glm = {
+        ...state.settings.ai.glm,
+        ...action.payload,
+      };
+      state.hasUnsavedChanges = true;
+    },
+    updateKimiConfig: (
+      state,
+      action: PayloadAction<Partial<KimiConfig>>
+    ) => {
+      state.settings.ai.kimi = {
+        ...state.settings.ai.kimi,
+        ...action.payload,
+      };
+      state.hasUnsavedChanges = true;
+    },
+    updateMiniMaxConfig: (
+      state,
+      action: PayloadAction<Partial<MiniMaxConfig>>
+    ) => {
+      state.settings.ai.minimax = {
+        ...state.settings.ai.minimax,
+        ...action.payload,
+      };
+      state.hasUnsavedChanges = true;
+    },
+    updateActiveAiProviderConfig: (
+      state,
+      action: PayloadAction<ActiveAiProviderConfigPatch>
+    ) => {
+      const provider = state.settings.ai.provider;
+      if (provider === 'ollama') {
+        const { apiKey: _apiKey, ...patch } = action.payload;
+        state.settings.ai.ollama = {
+          ...state.settings.ai.ollama,
+          ...patch,
+        };
+      } else if (provider === 'deepseek') {
+        state.settings.ai.deepseek = {
+          ...state.settings.ai.deepseek,
+          ...action.payload,
+        };
+      } else if (provider === 'openai_compatible') {
+        state.settings.ai.openai_compatible = {
+          ...state.settings.ai.openai_compatible,
+          ...action.payload,
+        };
+      } else if (provider === 'openai') {
+        state.settings.ai.openai = {
+          ...state.settings.ai.openai,
+          ...action.payload,
+        };
+      } else if (provider === 'azure') {
+        state.settings.ai.azure = {
+          ...state.settings.ai.azure,
+          ...action.payload,
+        };
+      } else if (provider === 'anthropic') {
+        state.settings.ai.anthropic = {
+          ...state.settings.ai.anthropic,
+          ...action.payload,
+        };
+      } else if (provider === 'glm') {
+        state.settings.ai.glm = {
+          ...state.settings.ai.glm,
+          ...action.payload,
+        };
+      } else if (provider === 'kimi') {
+        state.settings.ai.kimi = {
+          ...state.settings.ai.kimi,
+          ...action.payload,
+        };
+      } else if (provider === 'minimax') {
+        state.settings.ai.minimax = {
+          ...state.settings.ai.minimax,
+          ...action.payload,
+        };
+      }
       state.hasUnsavedChanges = true;
     },
 
@@ -125,6 +265,14 @@ export const {
   updateAiProvider,
   updateOllamaConfig,
   updateDeepSeekConfig,
+  updateOpenAICompatibleConfig,
+  updateOpenAIConfig,
+  updateAzureConfig,
+  updateAnthropicConfig,
+  updateGLMConfig,
+  updateKimiConfig,
+  updateMiniMaxConfig,
+  updateActiveAiProviderConfig,
   updateGeneralSettings,
   updateAppearanceSettings,
   updateAdvancedSettings,

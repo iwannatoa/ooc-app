@@ -1,8 +1,5 @@
 /**
  * Hook for conversation client operations
- * 
- * @deprecated This hook is maintained for backward compatibility.
- * Consider using useApiClients hook directly for new code.
  */
 
 import { useMemo } from 'react';
@@ -30,13 +27,19 @@ export const useConversationClient = () => {
         return await conversationApi.getConversationSettings(conversationId);
       },
 
+      getStoryTemplates: async () => {
+        return await conversationApi.getStoryTemplates();
+      },
+
       createOrUpdateSettings: async (
         settings: Partial<ConversationSettings>
       ): Promise<ConversationSettings> => {
         return await conversationApi.createOrUpdateSettings(settings);
       },
 
-      getConversationMessages: async (conversationId: string): Promise<any[]> => {
+      getConversationMessages: async (
+        conversationId: string
+      ): Promise<ChatMessage[]> => {
         return await conversationApi.getConversationMessages(conversationId);
       },
 
@@ -86,7 +89,11 @@ export const useConversationClient = () => {
         provider: string,
         model?: string
       ): Promise<string> => {
-        return await conversationApi.generateSummary(conversationId, provider, model);
+        return await conversationApi.generateSummary(
+          conversationId,
+          provider,
+          model
+        );
       },
 
       saveSummary: async (
@@ -96,7 +103,9 @@ export const useConversationClient = () => {
         return await conversationApi.saveSummary(conversationId, summary);
       },
 
-      getProgress: async (conversationId: string): Promise<StoryProgress | null> => {
+      getProgress: async (
+        conversationId: string
+      ): Promise<StoryProgress | null> => {
         return await conversationApi.getProgress(conversationId);
       },
 
@@ -115,7 +124,10 @@ export const useConversationClient = () => {
         conversationId: string,
         includeUnavailable: boolean = true
       ): Promise<CharacterRecord[]> => {
-        return await conversationApi.getCharacters(conversationId, includeUnavailable);
+        return await conversationApi.getCharacters(
+          conversationId,
+          includeUnavailable
+        );
       },
 
       updateCharacter: async (
@@ -127,7 +139,11 @@ export const useConversationClient = () => {
           notes?: string;
         }
       ): Promise<CharacterRecord> => {
-        return await conversationApi.updateCharacter(conversationId, name, updates);
+        return await conversationApi.updateCharacter(
+          conversationId,
+          name,
+          updates
+        );
       },
 
       generateCharacter: async (
@@ -142,17 +158,86 @@ export const useConversationClient = () => {
         characters?: Array<{ name: string; personality: string }>;
         character?: { name: string; personality: string };
       }> => {
-        return await conversationApi.generateCharacter(conversationId, provider, {
-          model,
-          characterHints,
-          background,
-          characters,
-          characterPersonality,
-        });
+        return await conversationApi.generateCharacter(
+          conversationId,
+          provider,
+          {
+            model,
+            characterHints,
+            background,
+            characters,
+            characterPersonality,
+          }
+        );
       },
 
       deleteLastMessage: async (conversationId: string): Promise<boolean> => {
         return await conversationApi.deleteLastMessage(conversationId);
+      },
+
+      getAssistantVariants: async (conversationId: string) => {
+        return await conversationApi.getAssistantVariants(conversationId);
+      },
+
+      restoreAssistantVariant: async (
+        conversationId: string,
+        messageId: number
+      ): Promise<boolean> => {
+        return await conversationApi.restoreAssistantVariant(
+          conversationId,
+          messageId
+        );
+      },
+
+      getStoryBranches: async (conversationId: string) => {
+        return await conversationApi.getStoryBranches(conversationId);
+      },
+
+      createStoryBranch: async (
+        conversationId: string,
+        payload: { parent_message_id?: number; label?: string; branch_id?: string }
+      ) => {
+        return await conversationApi.createStoryBranch(conversationId, payload);
+      },
+
+      getStorySavepoints: async (conversationId: string) => {
+        return await conversationApi.getStorySavepoints(conversationId);
+      },
+
+      createStorySavepoint: async (
+        conversationId: string,
+        payload: { message_id?: number; label?: string; savepoint_id?: string }
+      ) => {
+        return await conversationApi.createStorySavepoint(conversationId, payload);
+      },
+
+      restoreStorySavepoint: async (
+        conversationId: string,
+        savepointId: string
+      ): Promise<boolean> => {
+        return await conversationApi.restoreStorySavepoint(
+          conversationId,
+          savepointId
+        );
+      },
+
+      markStoryEnding: async (
+        conversationId: string,
+        payload: { ending_tag: string; branch_id?: string; message_id?: number }
+      ) => {
+        return await conversationApi.markStoryEnding(conversationId, payload);
+      },
+
+      exportStoryPdf: async (conversationId: string, title?: string) => {
+        return await conversationApi.exportStoryPdf(conversationId, title);
+      },
+
+      exportProjectBundle: async (conversationId: string, title?: string) => {
+        return await conversationApi.exportProjectBundle(conversationId, title);
+      },
+
+      validateProjectBundle: async (bundle: Record<string, unknown>) => {
+        return await conversationApi.validateProjectBundle(bundle);
       },
     };
   }, [conversationApi]);

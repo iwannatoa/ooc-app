@@ -1,4 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import type { ConversationSettings } from '@/types';
 
 /**
  * Dialog Types
@@ -27,7 +28,7 @@ export interface ConversationSettingsDialog extends BaseDialog {
   type: 'conversationSettings';
   payload: {
     conversationId: string;
-    settings?: any;
+    settings?: ConversationSettings;
     isNewConversation?: boolean;
   };
 }
@@ -44,7 +45,7 @@ export interface StorySettingsViewDialog extends BaseDialog {
   type: 'storySettingsView';
   payload: {
     conversationId: string;
-    settings: any;
+    settings: ConversationSettings;
   };
 }
 
@@ -205,7 +206,7 @@ const dialogSlice = createSlice({
           payload: {
             ...dialog.payload,
             ...payload,
-          } as any,
+          } as Dialog['payload'],
         };
       }
     },

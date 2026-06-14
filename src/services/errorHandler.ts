@@ -10,6 +10,7 @@
  * - Error categorization
  * - Error reporting (optional)
  */
+import { trackTelemetryEvent } from './telemetryService';
 
 export enum ErrorCategory {
   NETWORK = 'network',
@@ -22,7 +23,7 @@ export interface ErrorInfo {
   message: string;
   category: ErrorCategory;
   originalError?: Error;
-  context?: Record<string, any>;
+  context?: Record<string, unknown>;
   timestamp: number;
 }
 
@@ -35,7 +36,7 @@ class ErrorHandlerService {
    */
   handleError(
     error: Error | string | unknown,
-    context?: Record<string, any>
+    context?: Record<string, unknown>
   ): ErrorInfo {
     const errorInfo = this.parseError(error, context);
     this.logError(errorInfo);
@@ -48,7 +49,7 @@ class ErrorHandlerService {
    */
   private parseError(
     error: Error | string | unknown,
-    context?: Record<string, any>
+    context?: Record<string, unknown>
   ): ErrorInfo {
     let message = 'An unknown error occurred';
     let category = ErrorCategory.UNKNOWN;
@@ -90,6 +91,9 @@ class ErrorHandlerService {
     } else {
       console.error(logMessage, errorInfo.context);
     }
+    void trackTelemetryEvent('app_error', {
+      category: errorInfo.category,
+    });
   }
 
   /**
@@ -132,17 +136,12 @@ class ErrorHandlerService {
     }
 
     // Otherwise use category-based message
-    return categoryMessage || t('error.unknown', { defaultValue: 'An error occurred' });
+    return categoryMessage || t('error.unknown');
   }
 }
 
 // Singleton instance
 const errorHandlerService = new ErrorHandlerService();
-
-/**
- * Get error handler service instance
- */
-export const getErrorHandlerService = () => errorHandlerService;
 
 /**
  * Get error handler service instance

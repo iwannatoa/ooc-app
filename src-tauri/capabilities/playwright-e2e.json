@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "playwright-e2e",
+  "description": "Playwright control bridge for desktop E2E (requires e2e-testing Cargo feature)",
+  "windows": ["main"],
+  "permissions": ["playwright:default"]
+}

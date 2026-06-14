@@ -8,6 +8,17 @@
   @include scrollbar;
 }
 
+.loadMoreButton {
+  @include button-reset;
+  margin: 0 auto $spacing-md;
+  display: block;
+  padding: $spacing-xs $spacing-sm;
+  border: 1px solid $border-color;
+  border-radius: $border-radius;
+  background: $bg-light;
+  color: $text-secondary;
+}
+
 .message {
   margin-bottom: $spacing-lg;
   padding: $spacing-md;
@@ -82,6 +93,37 @@
   line-height: 1.5;
   word-wrap: break-word;
   white-space: pre-wrap;
+}
+
+.attachmentList {
+  margin-top: $spacing-sm;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-xs;
+}
+
+.attachmentCard {
+  border: 1px solid $border-color;
+  border-radius: $border-radius;
+  padding: $spacing-xs $spacing-sm;
+  background: rgba(255, 255, 255, 0.04);
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+
+  strong {
+    flex: 1;
+  }
+
+  small {
+    opacity: 0.75;
+  }
+}
+
+.providerNotice {
+  margin-top: $spacing-sm;
+  font-size: $font-size-sm;
+  color: $text-secondary;
 }
 
 .typingIndicator {

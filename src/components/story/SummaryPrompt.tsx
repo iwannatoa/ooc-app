@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useI18n } from '@/i18n';
+import { useI18n } from '@/i18n/i18n';
 import { useToast } from '@/hooks/useToast';
 import styles from './SummaryPrompt.module.scss';
 
@@ -60,7 +60,7 @@ const SummaryPrompt: React.FC<SummaryPromptProps> = ({
 
   return (
     <div className={styles.overlay}>
-      <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+      <div className={styles.modal}>
         <div className={styles.header}>
           <h2>{t('summaryPrompt.title')}</h2>
           <button className={styles.closeButton} onClick={onCancel}>

@@ -2,6 +2,7 @@
 Global AI configuration service layer
 """
 from typing import Optional, Dict, List
+from infrastructure.provider_capabilities import get_provider_capability
 from repository.ai_config_repository import AIConfigRepository
 from utils.logger import get_logger
 
@@ -100,24 +101,33 @@ class AIConfigService:
         Returns:
             Config dictionary, containing provider, model, api_key, base_url, max_tokens, temperature
         """
-        global_config = self.get_config(provider, include_api_key=True)
-        
-        if not global_config:
-            default_model = f'{provider}-chat' if provider == 'deepseek' else 'llama2'
+        capability = get_provider_capability(provider)
+        if capability is None:
             return {
                 'provider': provider,
-                'model': model or default_model,
+                'model': model or 'configured-model',
                 'api_key': '',
                 'base_url': '',
                 'max_tokens': 2048,
                 'temperature': 0.7
             }
         
+        global_config = self.get_config(provider, include_api_key=True)
+        if not global_config:
+            return {
+                'provider': provider,
+                'model': model or capability.default_model,
+                'api_key': '',
+                'base_url': capability.default_base_url,
+                'max_tokens': 2048,
+                'temperature': 0.7
+            }
+        
         return {
             'provider': provider,
-            'model': model or global_config.get('model') or (f'{provider}-chat' if provider == 'deepseek' else 'llama2'),
+            'model': model or global_config.get('model') or capability.default_model,
             'api_key': global_config.get('api_key') or '',
-            'base_url': global_config.get('base_url') or '',
+            'base_url': global_config.get('base_url') or capability.default_base_url,
             'max_tokens': global_config.get('max_tokens') or 2048,
             'temperature': global_config.get('temperature') or 0.7
         }

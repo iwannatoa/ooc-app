@@ -31,18 +31,20 @@ const ToastItem: React.FC<ToastProps> = ({ toast, onClose }) => {
   return (
     <div
       className={`${styles.toast} ${styles[toast.type]} ${isVisible ? styles.visible : ''}`}
-      onClick={() => {
-        setIsVisible(false);
-        setTimeout(() => onClose(toast.id), 300);
-      }}
+      role="status"
+      aria-live="polite"
     >
       <div className={styles.content}>
         <span className={styles.message}>{toast.message}</span>
-        <button className={styles.closeBtn} onClick={(e) => {
-          e.stopPropagation();
-          setIsVisible(false);
-          setTimeout(() => onClose(toast.id), 300);
-        }}>
+        <button
+          type="button"
+          className={styles.closeBtn}
+          aria-label="Dismiss notification"
+          onClick={() => {
+            setIsVisible(false);
+            setTimeout(() => onClose(toast.id), 300);
+          }}
+        >
           ×
         </button>
       </div>

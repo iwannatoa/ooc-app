@@ -1,12 +1,9 @@
 import { useState, useCallback, useEffect } from 'react';
-import { AppSettings, ChatMessage } from '@/types';
+import { AppSettings, ChatMessage, ChatMessagePart } from '@/types';
 import { useApiClients } from './useApiClients';
 
 /**
  * Hook for AI client operations
- *
- * @deprecated This hook is maintained for backward compatibility.
- * Consider using useApiClients hook directly for new code.
  */
 export const useAiClient = (settings: AppSettings) => {
   const [loading, setLoading] = useState(false);
@@ -17,18 +14,28 @@ export const useAiClient = (settings: AppSettings) => {
     if (
       aiApi &&
       'updateSettings' in aiApi &&
-      typeof aiApi.updateSettings === 'function'
+      typeof (aiApi as { updateSettings?: (settings: AppSettings) => void })
+        .updateSettings === 'function'
     ) {
-      (aiApi as any).updateSettings(settings);
+      (
+        aiApi as { updateSettings: (settings: AppSettings) => void }
+      ).updateSettings(settings);
     }
   }, [aiApi, settings]);
 
   const sendMessage = useCallback(
-    async (message: string, conversationId?: string): Promise<ChatMessage> => {
+    async (
+      message: string,
+      conversationId?: string,
+      options?: {
+        messageParts?: ChatMessagePart[];
+        inputMode?: 'storyAction' | 'freeChat';
+      }
+    ): Promise<ChatMessage> => {
       setLoading(true);
 
       try {
-        return await aiApi.sendMessage(message, conversationId);
+        return await aiApi.sendMessage(message, conversationId, options);
       } finally {
         setLoading(false);
       }
@@ -40,7 +47,11 @@ export const useAiClient = (settings: AppSettings) => {
     async (
       message: string,
       conversationId: string,
-      onChunk?: (chunk: string, accumulated: string) => void
+      onChunk?: (chunk: string, accumulated: string) => void,
+      options?: {
+        messageParts?: ChatMessagePart[];
+        inputMode?: 'storyAction' | 'freeChat';
+      }
     ): Promise<ChatMessage> => {
       setLoading(true);
 
@@ -48,7 +59,8 @@ export const useAiClient = (settings: AppSettings) => {
         return await aiApi.sendMessageStream(
           message,
           conversationId,
-          onChunk || (() => {})
+          onChunk || (() => {}),
+          options
         );
       } finally {
         setLoading(false);

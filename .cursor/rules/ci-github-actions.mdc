@@ -1,0 +1,30 @@
+---
+description: GitHub Actions workflow conventions for CI/build updates
+globs: .github/**/*.yml
+alwaysApply: false
+---
+
+# CI and GitHub Actions Rules
+
+## Workflow intent in this repo
+
+- `ci.yml` covers type-check, lint/test, e2e, backend and Rust smoke checks.
+- `build.yml` covers release-like multi-platform build flow.
+
+## Editing guidance
+
+- Keep workflow jobs aligned with local scripts in `package.json`.
+- Prefer using existing npm scripts rather than inlining long command chains.
+- Keep OS-specific setup steps explicit and minimal.
+- Preserve caching strategy unless there is a measured reason to change it.
+
+## Reliability and security
+
+- Avoid introducing secret-dependent logic without documenting required secrets.
+- Keep failure artifacts/uploads focused (for example Playwright reports on failure).
+- Do not weaken quality gates silently (for example removing lint/test jobs).
+
+## Validation expectations
+
+- For CI edits, run closest local script equivalents when feasible.
+- Mention non-runnable CI-only validation assumptions in PR notes.

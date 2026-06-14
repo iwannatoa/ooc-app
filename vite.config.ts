@@ -16,7 +16,9 @@ export default defineConfig({
       localsConvention: 'camelCase',
     },
     preprocessorOptions: {
-      scss: {},
+      scss: {
+        silenceDeprecations: ['legacy-js-api'],
+      },
     },
   },
 

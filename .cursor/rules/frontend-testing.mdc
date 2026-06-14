@@ -1,0 +1,37 @@
+---
+description: Frontend unit and integration testing conventions (Vitest + RTL)
+globs: **/*.{ts,tsx}
+alwaysApply: false
+---
+
+# Frontend Testing Rules
+
+Testing stack in this repo:
+
+- Runner: Vitest
+- Component testing: React Testing Library
+- Assertions: `@testing-library/jest-dom`
+
+## Test placement and naming
+
+- Prefer colocated tests (`__tests__` or `*.test.ts(x)`) near components/hooks.
+- Keep test names behavior-focused and readable.
+- Group tests by feature behavior rather than implementation details.
+
+## Test utilities
+
+- Reuse shared setup from `src/test/setup.ts` and helpers in `src/test/utils.tsx`.
+- For Redux-aware components, use existing provider-aware render utilities.
+- Mock Tauri APIs and platform-specific dependencies through existing patterns.
+
+## Coverage priorities
+
+- Focus on user-visible behavior and critical state transitions.
+- Add tests for bug fixes to lock regressions.
+- Avoid snapshot-only tests when assertions can be explicit.
+
+## Commands
+
+- `npm test` for standard run.
+- `npm run test:watch` for local iterative loop.
+- `npm run test:ui` for interactive triage.

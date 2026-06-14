@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ConversationSettings, CharacterRecord } from '@/types';
-import { useI18n } from '@/i18n';
+import { useI18n } from '@/i18n/i18n';
 import { useConversationClient } from '@/hooks/useConversationClient';
 import styles from './StorySettingsView.module.scss';
 
@@ -129,10 +129,7 @@ const StorySettingsView: React.FC<StorySettingsViewProps> = ({
 
   return (
     <div className={styles.overlay}>
-      <div
-        className={styles.modal}
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className={styles.modal}>
         <div className={styles.header}>
           <h2>{t('storySettings.titleAndOutline')}</h2>
           <div className={styles.headerActions}>

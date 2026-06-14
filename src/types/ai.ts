@@ -76,7 +76,16 @@ export interface ModelsResponse {
 /**
  * AI provider type
  */
-export type AIProvider = 'ollama' | 'deepseek';
+export type AIProvider =
+  | 'ollama'
+  | 'deepseek'
+  | 'openai_compatible'
+  | 'openai'
+  | 'azure'
+  | 'anthropic'
+  | 'glm'
+  | 'kimi'
+  | 'minimax';
 
 /**
  * Base configuration for AI providers
@@ -105,6 +114,42 @@ export interface DeepSeekConfig extends AIProviderConfig {
   apiKey: string;
 }
 
+/** OpenAI-compatible HTTP API (user base URL + optional API key). */
+export interface OpenAICompatibleConfig extends AIProviderConfig {
+  provider: 'openai_compatible';
+  apiKey: string;
+}
+
+export interface OpenAIConfig extends AIProviderConfig {
+  provider: 'openai';
+  apiKey: string;
+}
+
+export interface AzureConfig extends AIProviderConfig {
+  provider: 'azure';
+  apiKey: string;
+}
+
+export interface AnthropicConfig extends AIProviderConfig {
+  provider: 'anthropic';
+  apiKey: string;
+}
+
+export interface GLMConfig extends AIProviderConfig {
+  provider: 'glm';
+  apiKey: string;
+}
+
+export interface KimiConfig extends AIProviderConfig {
+  provider: 'kimi';
+  apiKey: string;
+}
+
+export interface MiniMaxConfig extends AIProviderConfig {
+  provider: 'minimax';
+  apiKey: string;
+}
+
 /**
  * AI settings configuration
  */
@@ -112,5 +157,24 @@ export interface AISettings {
   provider: AIProvider;
   ollama: OllamaConfig;
   deepseek: DeepSeekConfig;
+  openai_compatible: OpenAICompatibleConfig;
+  openai: OpenAIConfig;
+  azure: AzureConfig;
+  anthropic: AnthropicConfig;
+  glm: GLMConfig;
+  kimi: KimiConfig;
+  minimax: MiniMaxConfig;
 }
+
+export type AIProviderConfigByProvider = {
+  ollama: OllamaConfig;
+  deepseek: DeepSeekConfig;
+  openai_compatible: OpenAICompatibleConfig;
+  openai: OpenAIConfig;
+  azure: AzureConfig;
+  anthropic: AnthropicConfig;
+  glm: GLMConfig;
+  kimi: KimiConfig;
+  minimax: MiniMaxConfig;
+};
 

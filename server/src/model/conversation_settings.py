@@ -3,9 +3,8 @@ Conversation settings data model
 """
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean
-from sqlalchemy.ext.declarative import declarative_base
 
-Base = declarative_base()
+from model.base import Base
 
 
 class ConversationSettings(Base):

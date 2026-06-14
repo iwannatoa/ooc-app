@@ -1,12 +1,19 @@
 """
 Chat orchestration service layer
 """
-from typing import Optional, Dict
+from typing import Optional, Dict, List
+import uuid
+import json
+
+from infrastructure.database import unit_of_work
 from service.ai_service import AIService
+from service.attachment_storage_service import AttachmentStorageService
 from service.chat_service import ChatService
 from service.ai_config_service import AIConfigService
+from service.conversation_service import ConversationService
 from utils.logger import get_logger
-import uuid
+from utils.i18n import get_i18n_text
+from utils.think_strip import strip_think_content
 
 logger = get_logger(__name__)
 
@@ -17,8 +24,10 @@ class ChatOrchestrationService:
     def __init__(
         self,
         ai_service: AIService,
+        attachment_storage_service: AttachmentStorageService,
         chat_service: ChatService,
-        ai_config_service: AIConfigService
+        ai_config_service: AIConfigService,
+        conversation_service: ConversationService,
     ):
         """
         Initialize service
@@ -29,15 +38,55 @@ class ChatOrchestrationService:
             ai_config_service: AI config service instance
         """
         self.ai_service = ai_service
+        self.attachment_storage_service = attachment_storage_service
         self.chat_service = chat_service
         self.ai_config_service = ai_config_service
+        self.conversation_service = conversation_service
+
+    @staticmethod
+    def _merge_conversation_llm_overrides(
+        api_config: Dict,
+        settings: Optional[Dict],
+    ) -> Dict:
+        if not settings:
+            return api_config
+        additional = settings.get('additional_settings')
+        if not isinstance(additional, dict):
+            return api_config
+        out = dict(api_config)
+        conversation_temp = additional.get('conversationTemperature')
+        conversation_max_tokens = additional.get('conversationMaxTokens')
+        conversation_stop_words = additional.get('conversationStopWords')
+        try:
+            if conversation_temp is not None and str(conversation_temp).strip() != '':
+                out['temperature'] = float(conversation_temp)
+        except (TypeError, ValueError):
+            pass
+        try:
+            if conversation_max_tokens is not None and str(conversation_max_tokens).strip() != '':
+                out['max_tokens'] = int(conversation_max_tokens)
+        except (TypeError, ValueError):
+            pass
+        if isinstance(conversation_stop_words, list):
+            sanitized = [
+                str(word).strip()
+                for word in conversation_stop_words
+                if str(word).strip()
+            ]
+            if sanitized:
+                out['stop_words'] = sanitized
+        return out
     
     def process_chat(
         self,
         message: str,
         provider: str,
         conversation_id: Optional[str] = None,
-        model: Optional[str] = None
+        model: Optional[str] = None,
+        content_type: str = 'text',
+        attachment_ref: Optional[str] = None,
+        message_parts: Optional[List[Dict]] = None,
+        language: str = 'en',
     ) -> Dict:
         """
         Process complete chat flow
@@ -47,6 +96,7 @@ class ChatOrchestrationService:
             provider: AI provider
             conversation_id: Conversation ID, auto-generated if not provided
             model: Model name, use default model from global config if not provided
+            language: Locale for user-facing persistence error messages ('zh' or 'en').
         
         Returns:
             Processing result dictionary
@@ -58,6 +108,12 @@ class ChatOrchestrationService:
             provider=provider,
             model=model
         )
+        settings = (
+            self.conversation_service.get_settings(conversation_id)
+            if conversation_id
+            else None
+        )
+        api_config = self._merge_conversation_llm_overrides(api_config, settings)
         
         result = self.ai_service.chat(
             provider=api_config['provider'],
@@ -66,35 +122,74 @@ class ChatOrchestrationService:
             api_key=api_config['api_key'],
             base_url=api_config['base_url'],
             max_tokens=api_config['max_tokens'],
-            temperature=api_config['temperature']
+            temperature=api_config['temperature'],
+            stop_words=api_config.get('stop_words'),
+            message_parts=message_parts,
         )
         
         if result.get('success'):
             try:
-                # Import here to avoid circular dependency
-                from service.conversation_service import ConversationService
-                # Note: This is a temporary solution. In production, ConversationService
-                # should be injected via dependency injection
-                # For now, we'll strip think content using a simple regex
-                import re
                 response_content = result.get('response', '')
-                # Remove think content before saving
-                clean_content = re.sub(r'<think>.*?</think>', '', response_content, flags=re.DOTALL | re.IGNORECASE)
-                clean_content = re.sub(r'```think\s*\n.*?\n```', '', clean_content, flags=re.DOTALL | re.IGNORECASE)
-                clean_content = re.sub(r'```think\s*```', '', clean_content, flags=re.IGNORECASE)
-                clean_content = re.sub(r'\n\s*\n\s*\n+', '\n\n', clean_content)
-                clean_content = clean_content.strip()
-                
-                self.chat_service.save_user_message(conversation_id, message)
-                self.chat_service.save_assistant_message(
-                    conversation_id=conversation_id,
-                    content=clean_content,
-                    model=result.get('model'),
-                    provider=api_config['provider']
-                )
+                clean_content = strip_think_content(response_content)
+
+                with unit_of_work() as session:
+                    user_message = self.chat_service.save_user_message(
+                        conversation_id=conversation_id,
+                        message=message,
+                        content_type=content_type,
+                        attachment_ref=attachment_ref,
+                        session=session,
+                    )
+                    asset_refs = _extract_asset_refs(attachment_ref)
+                    if asset_refs:
+                        self.attachment_storage_service.attach_to_message(
+                            asset_refs=asset_refs,
+                            message_id=int(user_message['id']),
+                            conversation_id=conversation_id,
+                            session=session,
+                        )
+                    self.chat_service.save_assistant_message(
+                        conversation_id=conversation_id,
+                        content=clean_content,
+                        model=result.get('model'),
+                        provider=api_config['provider'],
+                        content_type=content_type,
+                        attachment_ref=attachment_ref,
+                        session=session,
+                    )
                 result['conversation_id'] = conversation_id
-            except Exception as e:
-                logger.warning(f"Failed to save messages: {str(e)}")
-        
+                result['persisted'] = True
+            except Exception:
+                logger.error(
+                    "Failed to persist chat messages after successful AI call",
+                    exc_info=True,
+                )
+                result['success'] = False
+                result['persisted'] = False
+                result['conversation_id'] = conversation_id
+                result['error'] = get_i18n_text(
+                    language,
+                    'error_messages.persist_chat_messages_failed',
+                )
+
         return result
+
+
+def _extract_asset_refs(attachment_ref: Optional[str]) -> List[str]:
+    if not attachment_ref:
+        return []
+    try:
+        payload = json.loads(attachment_ref)
+    except Exception:
+        return []
+    if not isinstance(payload, list):
+        return []
+    refs: List[str] = []
+    for item in payload:
+        if not isinstance(item, dict):
+            continue
+        asset_ref = str(item.get('asset_ref') or '').strip()
+        if asset_ref:
+            refs.append(asset_ref)
+    return refs
 

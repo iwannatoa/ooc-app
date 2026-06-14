@@ -8,6 +8,8 @@ from pathlib import Path
 from typing import Optional
 from logging.handlers import RotatingFileHandler
 
+from middleware.request_context import current_request_log_context
+
 # Delayed import of Config to avoid circular dependency
 def _get_config():
     from config import Config
@@ -19,6 +21,18 @@ MAX_LOG_FILE_SIZE = 10 * 1024 * 1024
 MAX_LOG_BACKUP_COUNT = 5
 # Maximum total size for all log files: ~50MB (5 * 10MB)
 MAX_TOTAL_LOG_SIZE = MAX_LOG_FILE_SIZE * MAX_LOG_BACKUP_COUNT
+
+
+class RequestContextFilter(logging.Filter):
+    """Inject request-scoped correlation fields into each log record."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        context = current_request_log_context()
+        record.request_id = context['request_id']
+        record.conversation_id = context['conversation_id']
+        record.profile_id = context['profile_id']
+        record.client_request_id = context['client_request_id']
+        return True
 
 
 def _get_log_dir() -> Optional[Path]:
@@ -49,7 +63,8 @@ def _setup_file_handler(
     logger: logging.Logger,
     log_dir: Path,
     log_level: int,
-    format_string: str
+    format_string: str,
+    context_filter: logging.Filter,
 ) -> None:
     """
     Setup rotating file handler for error logs.
@@ -67,6 +82,7 @@ def _setup_file_handler(
     
     formatter = logging.Formatter(format_string)
     file_handler.setFormatter(formatter)
+    file_handler.addFilter(context_filter)
     
     logger.addHandler(file_handler)
     
@@ -164,12 +180,14 @@ def setup_logger(
     # Set encoding to UTF-8 to support Chinese characters
     console_handler = logging.StreamHandler(sys.stderr)
     console_handler.setLevel(log_level_int)
+    request_context_filter = RequestContextFilter()
     
     # Set format
     formatter = logging.Formatter(
         format_string or Config.LOG_FORMAT
     )
     console_handler.setFormatter(formatter)
+    console_handler.addFilter(request_context_filter)
     
     # Ensure UTF-8 encoding for console output
     if hasattr(sys.stderr, 'reconfigure'):
@@ -185,7 +203,13 @@ def setup_logger(
     try:
         log_dir = _get_log_dir()
         if log_dir:
-            _setup_file_handler(logger, log_dir, log_level_int, format_string or Config.LOG_FORMAT)
+            _setup_file_handler(
+                logger,
+                log_dir,
+                log_level_int,
+                format_string or Config.LOG_FORMAT,
+                request_context_filter,
+            )
     except Exception:
         # Silently fail if file handler setup fails
         pass

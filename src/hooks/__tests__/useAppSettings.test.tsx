@@ -1,0 +1,346 @@
+import { mockFn } from '@/test/mockFn';
+import { renderHook } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { useAppSettings } from '../useAppSettings';
+import { createTestStore, tick } from '@/test/utils';
+import { Provider } from 'react-redux';
+import React from 'react';
+import { invoke } from '@tauri-apps/api/core';
+
+// Mock dependencies
+vi.mock('../useApiClients', () => ({
+  useApiClients: vi.fn(),
+}));
+
+vi.mock('@/mock', () => ({
+  isMockMode: vi.fn(),
+}));
+
+vi.mock('@/utils/theme', () => ({
+  loadAppearanceFromStorage: vi.fn(),
+}));
+
+vi.mock('@tauri-apps/api/core', () => ({
+  invoke: vi.fn(),
+}));
+
+import { useApiClients } from '../useApiClients';
+import { isMockMode } from '@/mock';
+import { loadAppearanceFromStorage } from '@/utils/theme';
+import { DEFAULT_SETTINGS } from '@/types/constants';
+
+const createWrapper = (store: ReturnType<typeof createTestStore>) => {
+  return ({ children }: { children: React.ReactNode }) => (
+    <Provider store={store}>{children}</Provider>
+  );
+};
+
+describe('useAppSettings', () => {
+  const mockGetAppSettings = vi.fn();
+  const mockSettingsApi = {
+    getAppSettings: mockGetAppSettings,
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockFn(isMockMode).mockReturnValue(false);
+    mockFn(loadAppearanceFromStorage).mockReturnValue(null);
+    vi.mocked(invoke).mockResolvedValue({ success: true });
+    // @ts-expect-error test-only runtime flag
+    delete window.__TAURI_INTERNALS__;
+  });
+
+  it('should not load settings in mock mode', () => {
+    mockFn(isMockMode).mockReturnValue(true);
+    mockFn(useApiClients).mockReturnValue({
+      settingsApi: mockSettingsApi,
+    });
+
+    const store = createTestStore();
+    renderHook(() => useAppSettings(), {
+      wrapper: createWrapper(store),
+    });
+
+    expect(mockGetAppSettings).not.toHaveBeenCalled();
+  });
+
+  it('should not load settings when API is not available', () => {
+    mockFn(useApiClients).mockReturnValue({
+      settingsApi: null,
+    });
+
+    const store = createTestStore();
+    renderHook(() => useAppSettings(), {
+      wrapper: createWrapper(store),
+    });
+
+    expect(mockGetAppSettings).not.toHaveBeenCalled();
+  });
+
+  it('should load and merge settings from API', async () => {
+    const loadedSettings = {
+      general: {
+        language: 'en',
+      },
+      appearance: {
+        theme: 'dark',
+        fontSize: 'large',
+      },
+      ai: {
+        provider: 'ollama',
+        ollama: {
+          model: 'llama3',
+        },
+      },
+    };
+
+    mockGetAppSettings.mockResolvedValue(loadedSettings);
+    mockFn(useApiClients).mockReturnValue({
+      settingsApi: mockSettingsApi,
+    });
+
+    const store = createTestStore();
+    renderHook(() => useAppSettings(), {
+      wrapper: createWrapper(store),
+    });
+
+    await tick();
+    expect(mockGetAppSettings).toHaveBeenCalled();
+
+    const state = store.getState();
+    expect(state.settings.settings.general.language).toBe('en');
+    expect(state.settings.settings.appearance.theme).toBe('dark');
+    expect(state.settings.settings.appearance.fontSize).toBe('large');
+    expect(state.settings.settings.ai.provider).toBe('ollama');
+    expect(state.settings.settings.ai.ollama.model).toBe('llama3');
+  });
+
+  it('should merge with default settings', async () => {
+    const loadedSettings = {
+      general: {
+        language: 'en',
+      },
+    };
+
+    mockGetAppSettings.mockResolvedValue(loadedSettings);
+    mockFn(useApiClients).mockReturnValue({
+      settingsApi: mockSettingsApi,
+    });
+
+    const store = createTestStore();
+    renderHook(() => useAppSettings(), {
+      wrapper: createWrapper(store),
+    });
+
+    await tick();
+    expect(mockGetAppSettings).toHaveBeenCalled();
+
+    const state = store.getState();
+    // Should have default appearance settings
+    expect(state.settings.settings.appearance).toBeDefined();
+    expect(state.settings.settings.appearance.theme).toBe(
+      DEFAULT_SETTINGS.appearance.theme
+    );
+  });
+
+  it('should handle invalid fontSize and use default', async () => {
+    const loadedSettings = {
+      appearance: {
+        fontSize: 'invalid' as never,
+      },
+    };
+
+    mockGetAppSettings.mockResolvedValue(loadedSettings);
+    mockFn(useApiClients).mockReturnValue({
+      settingsApi: mockSettingsApi,
+    });
+
+    const store = createTestStore();
+    renderHook(() => useAppSettings(), {
+      wrapper: createWrapper(store),
+    });
+
+    await tick();
+    expect(mockGetAppSettings).toHaveBeenCalled();
+
+    const state = store.getState();
+    expect(state.settings.settings.appearance.fontSize).toBe(
+      DEFAULT_SETTINGS.appearance.fontSize
+    );
+  });
+
+  it('should remove compactMode from appearance if present', async () => {
+    const loadedSettings = {
+      appearance: {
+        theme: 'dark',
+        compactMode: true,
+      },
+    };
+
+    mockGetAppSettings.mockResolvedValue(loadedSettings);
+    mockFn(useApiClients).mockReturnValue({
+      settingsApi: mockSettingsApi,
+    });
+
+    const store = createTestStore();
+    renderHook(() => useAppSettings(), {
+      wrapper: createWrapper(store),
+    });
+
+    await tick();
+    expect(mockGetAppSettings).toHaveBeenCalled();
+
+    const state = store.getState();
+    expect(state.settings.settings.appearance.compactMode).toBeUndefined();
+  });
+
+  it('should fallback to localStorage on error', async () => {
+    const storedAppearance = {
+      theme: 'light',
+      fontSize: 'small',
+      fontFamily: 'Arial',
+    };
+
+    mockFn(loadAppearanceFromStorage).mockReturnValue(storedAppearance);
+    mockGetAppSettings.mockRejectedValue(new Error('API Error'));
+    mockFn(useApiClients).mockReturnValue({
+      settingsApi: mockSettingsApi,
+    });
+
+    const store = createTestStore();
+    renderHook(() => useAppSettings(), {
+      wrapper: createWrapper(store),
+    });
+
+    await tick();
+    expect(mockGetAppSettings).toHaveBeenCalled();
+
+    const state = store.getState();
+    expect(state.settings.settings.appearance.theme).toBe('light');
+    expect(state.settings.settings.appearance.fontSize).toBe('small');
+    expect(state.settings.settings.appearance.fontFamily).toBe('Arial');
+  });
+
+  it('should only load settings once', async () => {
+    mockGetAppSettings.mockResolvedValue({});
+    mockFn(useApiClients).mockReturnValue({
+      settingsApi: mockSettingsApi,
+    });
+
+    const store = createTestStore();
+    const { rerender } = renderHook(() => useAppSettings(), {
+      wrapper: createWrapper(store),
+    });
+
+    // Wait for the first load to complete
+    await tick();
+
+    expect(mockGetAppSettings).toHaveBeenCalledTimes(1);
+
+    rerender();
+
+    // Wait a bit to ensure no additional calls
+    await tick();
+
+    expect(mockGetAppSettings).toHaveBeenCalledTimes(1);
+  });
+
+  it('should create a default profile when profiles are missing', async () => {
+    mockGetAppSettings.mockResolvedValue({
+      ai: {
+        ...DEFAULT_SETTINGS.ai,
+        provider: 'deepseek',
+      },
+      profiles: [],
+    });
+    mockFn(useApiClients).mockReturnValue({
+      settingsApi: mockSettingsApi,
+    });
+
+    const store = createTestStore();
+    renderHook(() => useAppSettings(), {
+      wrapper: createWrapper(store),
+    });
+
+    await tick();
+
+    const state = store.getState();
+    expect(state.settings.settings.profiles).toBeDefined();
+    expect(state.settings.settings.profiles).toHaveLength(1);
+    expect(state.settings.settings.profiles?.[0].id).toBe('default');
+    expect(state.settings.settings.activeProfileId).toBe('default');
+  });
+
+  it('should apply active profile AI configuration', async () => {
+    mockGetAppSettings.mockResolvedValue({
+      ai: DEFAULT_SETTINGS.ai,
+      profiles: [
+        {
+          id: 'p-1',
+          name: 'Profile 1',
+          ai: {
+            ...DEFAULT_SETTINGS.ai,
+            provider: 'deepseek',
+          },
+        },
+        {
+          id: 'p-2',
+          name: 'Profile 2',
+          ai: {
+            ...DEFAULT_SETTINGS.ai,
+            provider: 'openai',
+          },
+        },
+      ],
+      activeProfileId: 'p-2',
+    });
+    mockFn(useApiClients).mockReturnValue({
+      settingsApi: mockSettingsApi,
+    });
+
+    const store = createTestStore();
+    renderHook(() => useAppSettings(), {
+      wrapper: createWrapper(store),
+    });
+
+    await tick();
+
+    const state = store.getState();
+    expect(state.settings.settings.activeProfileId).toBe('p-2');
+    expect(state.settings.settings.ai.provider).toBe('openai');
+  });
+
+  it('should switch backend runtime profile in tauri mode', async () => {
+    // @ts-expect-error test-only runtime flag
+    window.__TAURI_INTERNALS__ = {};
+    mockGetAppSettings.mockResolvedValue({
+      ...DEFAULT_SETTINGS,
+      profiles: [
+        {
+          id: 'p-runtime',
+          name: 'Runtime',
+          ai: DEFAULT_SETTINGS.ai,
+          storyLibraryPath: '/tmp/runtime-library',
+        },
+      ],
+      activeProfileId: 'p-runtime',
+    });
+    mockFn(useApiClients).mockReturnValue({
+      settingsApi: mockSettingsApi,
+    });
+
+    const store = createTestStore();
+    renderHook(() => useAppSettings(), {
+      wrapper: createWrapper(store),
+    });
+
+    await tick();
+    expect(invoke).toHaveBeenCalledWith(
+      'switch_active_profile',
+      expect.objectContaining({
+        profileId: 'p-runtime',
+        storyLibraryPath: '/tmp/runtime-library',
+      })
+    );
+  });
+});

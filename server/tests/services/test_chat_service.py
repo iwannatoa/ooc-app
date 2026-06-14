@@ -1,0 +1,159 @@
+﻿"""
+Unit tests for ChatService
+"""
+import pytest
+import sys
+from pathlib import Path
+from unittest.mock import Mock
+
+# Add src to path for imports
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'src'))
+
+from service.chat_service import ChatService
+from service.attachment_storage_service import AttachmentStorageService
+from repository.chat_repository import ChatRepository
+from model.chat_record import ChatRecord
+
+
+class TestChatService:
+    """Test ChatService"""
+    
+    @pytest.fixture
+    def mock_repo(self):
+        """Mock chat repository"""
+        return Mock(spec=ChatRepository)
+    
+    @pytest.fixture
+    def service(self, mock_repo):
+        """Create ChatService instance"""
+        mock_attachment_service = Mock(spec=AttachmentStorageService)
+        mock_attachment_service.list_by_message_ids.return_value = {}
+        return ChatService(mock_repo, mock_attachment_service)
+    
+    def test_save_user_message(self, service, mock_repo):
+        """Test saving user message"""
+        mock_record = Mock(spec=ChatRecord)
+        mock_record.to_dict.return_value = {
+            'id': 1,
+            'role': 'user',
+            'content': 'Test message'
+        }
+        mock_repo.save_message.return_value = mock_record
+        
+        result = service.save_user_message('test_conv_001', 'Test message')
+        
+        assert result['role'] == 'user'
+        assert result['content'] == 'Test message'
+        mock_repo.save_message.assert_called_once_with(
+            conversation_id='test_conv_001',
+            role='user',
+            content='Test message',
+            content_type='text',
+            attachment_ref=None,
+            branch_id=None,
+            savepoint_id=None,
+            session=None,
+        )
+    
+    def test_save_assistant_message(self, service, mock_repo):
+        """Test saving assistant message"""
+        mock_record = Mock(spec=ChatRecord)
+        mock_record.to_dict.return_value = {
+            'id': 2,
+            'role': 'assistant',
+            'content': 'AI response',
+            'model': 'deepseek-chat'
+        }
+        mock_repo.save_message.return_value = mock_record
+        
+        result = service.save_assistant_message(
+            'test_conv_001',
+            'AI response',
+            model='deepseek-chat',
+            provider='deepseek'
+        )
+        
+        assert result['role'] == 'assistant'
+        assert result['content'] == 'AI response'
+        mock_repo.save_message.assert_called_once()
+    
+    def test_get_conversation(self, service, mock_repo):
+        """Test getting conversation messages"""
+        mock_records = [
+            Mock(spec=ChatRecord),
+            Mock(spec=ChatRecord),
+        ]
+        mock_records[0].to_dict.return_value = {
+            'id': 1,
+            'role': 'user',
+            'content': 'Message 1'
+        }
+        mock_records[1].to_dict.return_value = {
+            'id': 2,
+            'role': 'assistant',
+            'content': 'Response 1'
+        }
+        mock_repo.get_conversation_messages.return_value = mock_records
+        
+        result = service.get_conversation('test_conv_001')
+        
+        assert len(result) == 2
+        assert result[0]['role'] == 'user'
+        assert result[1]['role'] == 'assistant'
+    
+    def test_delete_last_message(self, service, mock_repo):
+        """Test deleting last message"""
+        # Create a mock ChatRecord object
+        mock_message = Mock(spec=ChatRecord)
+        mock_message.to_dict.return_value = {
+            'id': 1,
+            'role': 'assistant',
+            'content': 'Test message'
+        }
+        mock_repo.delete_last_message.return_value = mock_message
+        
+        result = service.delete_last_message('test_conv_001')
+        
+        assert result == mock_message.to_dict.return_value
+        mock_repo.delete_last_message.assert_called_once_with('test_conv_001')
+        mock_message.to_dict.assert_called_once()
+
+    def test_get_assistant_variants(self, service, mock_repo):
+        mock_rows = [Mock(spec=ChatRecord), Mock(spec=ChatRecord)]
+        mock_rows[0].to_dict.return_value = {'id': 11, 'role': 'assistant'}
+        mock_rows[1].to_dict.return_value = {'id': 10, 'role': 'assistant'}
+        mock_repo.get_assistant_messages.return_value = mock_rows
+
+        out = service.get_assistant_variants('test_conv_001', limit=20)
+
+        assert len(out) == 2
+        assert out[0]['id'] == 11
+        mock_repo.get_assistant_messages.assert_called_once_with(
+            'test_conv_001',
+            limit=20,
+        )
+
+    def test_restore_assistant_variant(self, service, mock_repo):
+        source = Mock(spec=ChatRecord)
+        source.id = 9
+        source.role = 'assistant'
+        source.content = 'old variant'
+        source.model = 'gpt'
+        source.provider = 'openai'
+        source.variant_group_id = 'vg-1'
+        restored = Mock(spec=ChatRecord)
+        restored.to_dict.return_value = {'id': 12, 'parent_message_id': 9}
+        mock_repo.get_message_by_id.return_value = source
+        mock_repo.save_message.return_value = restored
+
+        out = service.restore_assistant_variant('test_conv_001', 9)
+
+        assert out == {'id': 12, 'parent_message_id': 9}
+        mock_repo.get_message_by_id.assert_called_once_with(
+            'test_conv_001',
+            9,
+            session=None,
+        )
+        mock_repo.save_message.assert_called_once()
+
+

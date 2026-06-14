@@ -10,7 +10,7 @@ import { useStoryActions } from './useStoryActions';
 import { useSettingsState } from './useSettingsState';
 import { useToast } from './useToast';
 import { useStoryProgress } from './useStoryProgress';
-import { useI18n } from '@/i18n';
+import { useI18n } from '@/i18n/i18n';
 import { confirmDialog } from '@/services/confirmDialogService';
 import {
   ConversationWithSettings,
@@ -61,7 +61,7 @@ export const useAppLogic = () => {
   // ===== State Management Hooks =====
   const { messages, setMessages: setMessagesRedux } = useChatState();
   const { settings } = useSettingsState();
-  const { showError, showSuccess } = useToast();
+  const { showError, showSuccess, showWarning } = useToast();
   const { t } = useI18n();
   const conversationClient = useConversationClient();
   const { progress } = useStoryProgress();
@@ -89,7 +89,6 @@ export const useAppLogic = () => {
     conversations,
     activeConversationId,
     pendingConversationId,
-    summaryMessageCount,
     handleSaveSettings,
     handleGenerateSummary,
     handleSaveSummary,
@@ -139,15 +138,28 @@ export const useAppLogic = () => {
     setMessages,
     settings,
     showError,
+    showWarning,
     onConversationSelect: handleSelectConversation,
   });
 
   const {
     handleGenerateStory,
-    handleConfirmSection,
+    handleConfirmSection: runConfirmSection,
     handleRewriteSection,
     handleModifySection,
+    latestContextTrace,
   } = storyActions;
+
+  const handleConfirmSection = useCallback(async () => {
+    const confirmed = await confirmDialog({
+      message: t('storyActions.confirmNextChapterBody'),
+      confirmText: t('storyActions.confirmNextChapterConfirm'),
+      cancelText: t('common.cancel'),
+      confirmButtonStyle: 'default',
+    });
+    if (!confirmed) return;
+    await runConfirmSection();
+  }, [runConfirmSection, t]);
 
   // ===== Delete Last Message Logic =====
   const handleDeleteLastMessage = useCallback(async () => {
@@ -196,10 +208,7 @@ export const useAppLogic = () => {
 
   return {
     // State
-    messages,
     currentSettings,
-    settings,
-    summaryMessageCount,
     canGenerate,
     canConfirm,
     canDeleteLast: messages.length > 0,
@@ -216,8 +225,6 @@ export const useAppLogic = () => {
     handleRewriteSection,
     handleModifySection,
     handleDeleteLastMessage,
-
-    // Others
-    t,
+    latestContextTrace,
   };
 };

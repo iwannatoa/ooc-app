@@ -1,0 +1,20 @@
+{
+  "id": "builtin_fantasy",
+  "title": "Fantasy starter (EN)",
+  "background": "A small border town where rumors of an ancient seal breaking draw unlikely allies together.",
+  "outline_hint": "Act 1: arrival and uneasy alliances; Act 2: descent into ruins; Act 3: choice that reshapes the region.",
+  "characters": [
+    "Alden",
+    "Mira",
+    "Brother Sol"
+  ],
+  "character_personality": {
+    "Alden": "A pragmatic scout who hides guilt with dry humor.",
+    "Mira": "A scholar-mage who trusts evidence over prophecy.",
+    "Brother Sol": "A calm healer whose faith is shaken by forbidden relics."
+  },
+  "additional_settings": {
+    "conversationTemperature": 0.8,
+    "conversationMaxTokens": 2400
+  }
+}

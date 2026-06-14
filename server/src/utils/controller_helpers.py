@@ -39,7 +39,7 @@ def error_response(
 
 def validate_required(
     language: str,
-    value: any,
+    value: Any,
     field_name: str,
     error_key: Optional[str] = None
 ):

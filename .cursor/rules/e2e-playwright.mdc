@@ -1,0 +1,35 @@
+---
+description: End-to-end testing guidance for Playwright and Tauri desktop mode
+globs: "{e2e/**/*.{ts,tsx},playwright*.ts}"
+alwaysApply: false
+---
+
+# Playwright and Desktop E2E Rules
+
+## Test modes in this repository
+
+- Web preview E2E uses `playwright.config.ts` and runs against `vite preview`.
+- Desktop E2E uses `playwright.tauri.config.ts` and `tauri-plugin-playwright`.
+
+## File placement
+
+- Keep E2E specs under `e2e/`.
+- Reuse shared fixtures/helpers (for example `e2e/tauri-fixtures.ts`, `e2e/axe-helpers.ts`).
+- Do not duplicate setup logic already centralized in Playwright configs.
+
+## Reliability conventions
+
+- Prefer deterministic selectors and explicit waits via Playwright expect APIs.
+- Avoid fixed sleeps unless there is no event-driven alternative.
+- Mark CI-only assumptions clearly when desktop/web environments differ.
+
+## Accessibility and smoke coverage
+
+- Keep at least one smoke path for critical story flow.
+- Reuse existing axe-based helpers for a11y checks where appropriate.
+
+## Commands
+
+- Web E2E: `npm run test:e2e`
+- Desktop E2E: `npm run test:e2e:tauri`
+- Browser install: `npm run test:e2e:install`

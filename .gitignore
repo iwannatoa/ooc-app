@@ -8,9 +8,9 @@
 # Build output
 dist/
 build/
+release/
 src-tauri/target/
-src-tauri/resources/python-api/dist/
-src-tauri/resources/python-api/build/
+src-tauri/resources/flask-api*
 
 # Dependencies
 node_modules/
@@ -24,6 +24,7 @@ logs/
 .vscode/launch.json
 .vscode/tasks.json
 .vscode/*.code-workspace
+.vscode/settings.json
 .idea/
 *.swp
 *.swo
@@ -45,6 +46,17 @@ __pycache__/
 *$py.class
 *.so
 .Python
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+*.egg-info/
+
+# Playwright
+playwright-report/
+test-results/
+.blob-report/
 
 # Test coverage
 coverage/

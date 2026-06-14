@@ -14,7 +14,8 @@
     "expand": "展开",
     "collapse": "折叠",
     "refresh": "刷新",
-    "requestFailed": "请求失败"
+    "requestFailed": "请求失败",
+    "loadMore": "加载更早消息"
   },
   "app": {
     "title": "AI 故事生成器",
@@ -23,7 +24,9 @@
     "mockModeOff": "⚪ Mock",
     "mockModeTooltipOn": "关闭 Mock 模式",
     "mockModeTooltipOff": "开启 Mock 模式",
-    "switchLanguage": "切换到中文"
+    "switchLanguage": "切换到中文",
+    "languagePreferenceLoadFailed": "无法从服务器加载语言偏好，将使用本地设置。",
+    "languagePreferenceSaveFailed": "语言偏好未能保存到服务器。"
   },
   "conversation": {
     "title": "故事历史",
@@ -31,6 +34,7 @@
     "newConversation": "新建故事",
     "unnamedConversation": "未命名故事",
     "noConversations": "暂无故事",
+    "loadFailedDetail": "加载故事列表失败：{detail}",
     "deleteConversation": "删除故事",
     "confirmDeleteConversation": "确定要删除这个故事吗？此操作不可撤销。",
     "editSettings": "编辑设置",
@@ -38,6 +42,7 @@
   },
   "storySettings": {
     "title": "故事设定",
+    "titleShort": "设定",
     "titleAndOutline": "故事设定与大纲",
     "edit": "编辑",
     "editSettings": "编辑设定",
@@ -96,7 +101,58 @@
     "deleteLastMessageTooltip": "删除最后一条消息及相关的人物记录",
     "confirmDeleteLastMessage": "确定要删除最后一条消息吗？这将同时删除相关的人物记录。",
     "deleteLastMessageSuccess": "删除成功",
-    "deleteLastMessageFailed": "删除最后一条消息失败: {error}"
+    "deleteLastMessageFailed": "删除最后一条消息失败: {error}",
+    "loadingGenerate": "正在生成章节…",
+    "loadingConfirm": "正在进入下一章…",
+    "loadingRewrite": "正在重写…",
+    "loadingModify": "正在修改…",
+    "loadingChatStream": "正在发送消息…",
+    "confirmNextChapterBody": "确定要定稿并进入下一章吗？此操作难以撤销；若只想在本章继续扩写，请使用「续写当前章节」。",
+    "confirmNextChapterConfirm": "进入下一章",
+    "confirmDestructiveRewrite": "确定按此反馈执行重写吗？将追加一条新的助手回复。",
+    "confirmDestructiveModify": "确定按此反馈执行修改吗？将追加一条新的助手回复。",
+    "copyLastAssistant": "复制最后一条回复",
+    "copyLastAssistantSuccess": "已复制到剪贴板",
+    "copyLastAssistantEmpty": "暂无可复制内容"
+  },
+  "storyContext": {
+    "section": "第 {number} 段",
+    "outlinePending": "尚未保存大纲",
+    "outlineOk": "大纲已就绪",
+    "progressStatus": "进度：{status}",
+    "status_pending": "草稿",
+    "status_generating": "生成中",
+    "status_completed": "已完成"
+  },
+  "onboarding": {
+    "title": "开始使用",
+    "stepPickStory": "在左侧列表创建或选择一个故事。",
+    "stepOutline": "打开故事设定，补充背景与大纲。",
+    "stepModel": "在上方或「设置」中选择 AI 提供商与模型。",
+    "openSettings": "打开设定",
+    "newStory": "新建故事"
+  },
+  "serverBanner": {
+    "connecting": "正在连接本地服务…",
+    "failed": "无法连接本地 API。",
+    "retry": "重试"
+  },
+  "storyWarnings": {
+    "characterParseNotice": "本段输出的角色标签解析不完整，正文已保留；人物列表可能与模型声明不一致，可在设定中核对。"
+  },
+  "storyErrors": {
+    "unknownDetail": "未知错误",
+    "generateFailedDetail": "无法生成故事：{detail}",
+    "confirmFailedDetail": "无法确认章节：{detail}",
+    "rewriteFailedDetail": "无法重写段落：{detail}",
+    "modifyFailedDetail": "无法修改段落：{detail}",
+    "persistStreamBodySavedNotHistory": "回复已显示但可能未写入历史。可尝试重新发送或查看服务端日志。",
+    "hint_network": "请确认本地 API 已启动且端口正确。",
+    "hint_auth": "请在设置中核对 API Token 与桌面端一致。",
+    "hint_timeout": "请求超时，请重试或缩小上下文。",
+    "hint_ollama": "请启动 Ollama，或在 AI 设置中更换提供商。",
+    "hint_api_key": "请在 设置 > AI设置 中配置 API Key。",
+    "hint_provider_config": "请在 设置 > AI设置 中检查提供商、模型与 API URL 配置后重试。"
   },
   "serverStatus": {
     "pythonServer": "Python 服务器",
@@ -125,17 +181,27 @@
   },
   "settingsPanel": {
     "title": "设置",
+    "activeProfile": "当前配置文件",
     "tabs": {
       "general": "通用",
       "ai": "AI 设置",
       "appearance": "外观",
-      "advanced": "高级"
+      "advanced": "高级",
+      "data": "数据与备份"
     },
     "language": "语言",
     "provider": "AI 提供商",
     "selectProvider": "选择提供商",
     "providerOllama": "Ollama (本地)",
     "providerDeepSeek": "DeepSeek",
+    "providerOpenAICompatible": "OpenAI 兼容 API",
+    "providerOpenAI": "OpenAI",
+    "providerAzure": "Azure OpenAI",
+    "providerAnthropic": "Anthropic",
+    "providerGLM": "GLM",
+    "providerKimi": "Kimi",
+    "providerMiniMax": "MiniMax",
+    "apiUrlOpenAICompatiblePlaceholder": "例如 http://127.0.0.1:1234（若未含 /v1 将自动补全）",
     "config": "配置",
     "model": "模型",
     "currentModel": "当前模型",
@@ -166,7 +232,38 @@
     "logLevelWarn": "警告",
     "logLevelInfo": "信息",
     "logLevelDebug": "调试",
-    "enableDiagnostics": "启用诊断信息"
+    "enableDiagnostics": "启用诊断信息",
+    "enableAnonymousTelemetry": "启用匿名 telemetry（使用量与崩溃计数）",
+    "enableFreeformNote": "在聊天区显示旁白/用户备注栏（追加为一条用户消息）",
+    "fieldRequired": "此字段为必填项",
+    "dataIntro": "导出本地诊断 ZIP（不含 API Key）、复制 SQLite 数据库，或从备份恢复。恢复时会短暂停止本地 API；请勿在生成过程中操作。",
+    "dataCheckUpdate": "检查更新…",
+    "dataUpdaterNoUpdate": "当前已是最新版本。",
+    "dataUpdaterAvailable": "发现可用更新 {version}。",
+    "dataUpdaterInstallConfirm": "是否立即安装更新 {version}？",
+    "dataUpdaterInstalled": "更新已下载，请重启应用完成安装。",
+    "dataUpdaterFailed": "检查或安装更新失败：{error}",
+    "dataExportDiagnostics": "导出诊断 ZIP…",
+    "dataBackupDb": "备份数据库…",
+    "dataRestoreDb": "恢复数据库…",
+    "dataDesktopOnly": "以下功能仅在桌面版（Tauri）中可用。",
+    "dataDiagnosticsSaved": "诊断包已保存。",
+    "dataBackupDone": "数据库备份已保存。",
+    "dataRestoreConfirm": "用所选文件替换当前数据库？应用将重启本地 API。",
+    "dataRestoreDone": "数据库已恢复。若列表未更新，请刷新或重新打开会话。",
+    "dataEncryptedExport": "导出加密备份包…",
+    "dataEncryptedRestore": "恢复加密备份包…",
+    "dataEncryptedExportDone": "加密备份包已导出。",
+    "dataEncryptedRestoreDone": "加密备份包已恢复。",
+    "dataEncryptedPasswordPrompt": "请输入备份密码",
+    "dataEncryptedPasswordConfirmPrompt": "请再次输入备份密码",
+    "dataEncryptedPasswordMismatch": "两次输入的密码不一致。",
+    "dataEncryptedErrInvalidPassword": "密码错误，无法解密备份包。",
+    "dataEncryptedErrCorruptedPackage": "备份包已损坏或格式无效。",
+    "dataEncryptedErrVersionUnsupported": "备份包版本不受支持。",
+    "dataEncryptedErrIo": "读写备份包失败，请检查文件权限与磁盘空间。",
+    "dataEncryptedErrCrypto": "加密或解密失败，请重试。",
+    "dataEncryptedUnknownError": "备份恢复失败，请重试。"
   },
   "conversationSettingsForm": {
     "title": "故事设置",
@@ -205,7 +302,12 @@
     "allowAutoGenerateCharacters": "允许AI自动生成角色",
     "allowAutoGenerateCharactersTooltip": "允许AI在生成故事时自动添加新角色",
     "allowAutoGenerateMainCharacters": "允许AI自动生成主要角色",
-    "allowAutoGenerateMainCharactersTooltip": "允许AI在生成故事时自动添加主要角色（需要同时开启\"允许AI自动生成角色\"）"
+    "allowAutoGenerateMainCharactersTooltip": "允许AI在生成故事时自动添加主要角色（需要同时开启\"允许AI自动生成角色\"）",
+    "storyLengthMode": "篇幅与连载",
+    "serializationOpen": "连载（无预定总段数）",
+    "serializationFinite": "固定总段数",
+    "totalSectionsLabel": "总段数",
+    "totalSectionsHint": "固定总段数时进度区会显示「第 i/N」；连载不显示 N。保存设置后会同步到故事进度。"
   },
   "summaryPrompt": {
     "title": "故事总结",
@@ -240,21 +342,29 @@
   "chat": {
     "chapter": "第{number}章",
     "export": "导出故事",
+    "exportMd": "Markdown",
+    "exportMarkdown": "导出会话为 Markdown",
     "exportStory": "导出当前故事内容为文本文件",
     "exportSuccess": "故事已成功导出",
-    "exportFailed": "导出故事失败"
+    "exportFailed": "导出故事失败",
+    "sendMessageFailedDetail": "发送消息失败：{detail}",
+    "userNotePlaceholder": "用户备注或旁白（保存为用户消息）",
+    "userNoteSubmit": "追加"
   },
   "modelSelector": {
+    "label": "AI 模型",
     "noModelsAvailable": "无可用模型"
   },
   "language": {
     "zh": "中文",
-    "en": "English"
+    "en": "English",
+    "ja": "日本語"
   },
   "titleBar": {
     "minimize": "最小化",
     "maximize": "最大化/还原",
-    "close": "关闭"
+    "close": "关闭",
+    "releases": "发布页"
   }
 }
 

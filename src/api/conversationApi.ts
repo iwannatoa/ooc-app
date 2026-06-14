@@ -14,6 +14,8 @@
 import { BaseApiClient } from './base';
 import type { GetApiUrlFn } from './base';
 import {
+  AppSettings,
+  ChatAttachment,
   ConversationWithSettings,
   ConversationSettings,
   ConversationSummary,
@@ -22,23 +24,106 @@ import {
   ChatMessage,
 } from '@/types';
 
-export type TranslationFn = (key: string, params?: Record<string, any>) => string;
+/** Row shape from GET /api/conversations/list (fields merged into `settings` client-side). */
+interface ConversationsListRow {
+  conversation_id: string;
+  title?: string;
+  created_at?: string;
+  updated_at?: string;
+  characters?: string[];
+  character_personality?: Record<string, string>;
+  [key: string]: unknown;
+}
+
+/** Message row from GET /api/conversation */
+interface ConversationMessageRow {
+  role: ChatMessage['role'];
+  content: string;
+  created_at?: string;
+  id?: string | number;
+  content_type?: 'text' | 'multimodal';
+  attachments?: ChatAttachment[];
+  parts?: ChatMessage['parts'];
+  provider_capability_notice?: string;
+}
+
+export type TranslationFn = (
+  key: string,
+  params?: Record<string, string | number>
+) => string;
+
+export interface StoryTemplateItem {
+  id: string;
+  title: string;
+  background?: string;
+  outline_hint?: string;
+  characters?: string[];
+  character_personality?: Record<string, string>;
+  additional_settings?: Record<string, unknown>;
+}
+
+export interface StoryBranch {
+  branch_id: string;
+  parent_message_id?: number;
+  label?: string;
+  created_at?: string;
+}
+
+export interface StorySavepoint {
+  savepoint_id: string;
+  message_id?: number;
+  label?: string;
+  created_at?: string;
+}
+
+export interface StoryEnding {
+  branch_id?: string;
+  ending_tag: string;
+  message_id?: number;
+  created_at?: string;
+}
+
+export interface StoryPdfExport {
+  pdf_base64: string;
+  filename?: string;
+}
+
+export interface ProjectBundleExport {
+  bundle: Record<string, unknown>;
+  filename?: string;
+}
 
 export class ConversationApi extends BaseApiClient {
   private t: TranslationFn;
+  private settings: AppSettings;
 
-  constructor(getApiUrl: GetApiUrlFn, t: TranslationFn) {
+  constructor(getApiUrl: GetApiUrlFn, t: TranslationFn, settings: AppSettings) {
     super(getApiUrl);
     this.t = t;
+    this.settings = settings;
+  }
+
+  protected getCorrelationHeaders(
+    method: string,
+    endpoint: string
+  ): Record<string, string> {
+    const headers = super.getCorrelationHeaders(method, endpoint);
+    const profileId = this.settings.activeProfileId?.trim();
+    if (profileId) {
+      headers['X-OOC-Profile-Id'] = profileId;
+    }
+    return headers;
   }
 
   /**
    * Get list of all conversations
    */
   async getConversationsList(): Promise<ConversationWithSettings[]> {
-    const response = await this.get<{ conversations: any[] }>('/api/conversations/list');
-    
-    return response.conversations.map((conv: any) => ({
+    const response = await this.get<{ conversations: ConversationsListRow[] }>(
+      '/api/conversations/list'
+    );
+
+    return response.conversations.map((conv) => ({
       id: conv.conversation_id,
       title: conv.title || this.t('conversation.unnamedConversation'),
       messages: [],
@@ -57,6 +142,16 @@ export class ConversationApi extends BaseApiClient {
   }
 
   /**
+   * Get built-in story templates
+   */
+  async getStoryTemplates(): Promise<StoryTemplateItem[]> {
+    const response = await this.get<{ templates: StoryTemplateItem[] }>(
+      '/api/story-templates'
+    );
+    return response.templates || [];
+  }
+
+  /**
    * Get conversation settings
    */
   async getConversationSettings(
@@ -72,7 +167,7 @@ export class ConversationApi extends BaseApiClient {
         character_personality: response.settings.character_personality || {},
       };
     } catch (error) {
-      if ((error as any).status === 404) {
+      if (error && typeof error === 'object' && 'status' in error && (error as { status: unknown }).status === 404) {
         return null;
       }
       throw error;
@@ -85,7 +180,7 @@ export class ConversationApi extends BaseApiClient {
   async createOrUpdateSettings(
     settings: Partial<ConversationSettings>
   ): Promise<ConversationSettings> {
-    const settingsToSend: any = {
+    const settingsToSend: Record<string, unknown> = {
       conversation_id: settings.conversation_id,
       title: settings.title,
       background: settings.background,
@@ -110,17 +205,21 @@ export class ConversationApi extends BaseApiClient {
    * Get conversation messages
    */
   async getConversationMessages(conversationId: string): Promise<ChatMessage[]> {
-    const response = await this.get<{ messages: any[] }>(
+    const response = await this.get<{ messages: ConversationMessageRow[] }>(
       `/api/conversation?conversation_id=${conversationId}`
     );
 
-    return (response.messages || []).map((msg: any) => ({
+    return (response.messages || []).map((msg) => ({
       role: msg.role,
       content: msg.content,
       timestamp: msg.created_at
         ? new Date(msg.created_at).getTime()
         : Date.now(),
       id: msg.id?.toString() || `msg_${Date.now()}_${Math.random()}`,
+      contentType: msg.content_type,
+      attachments: msg.attachments,
+      parts: msg.parts,
+      providerCapabilityNotice: msg.provider_capability_notice,
     }));
   }
 
@@ -199,7 +298,7 @@ export class ConversationApi extends BaseApiClient {
       );
       return response.summary;
     } catch (error) {
-      if ((error as any).status === 404) {
+      if (error && typeof error === 'object' && 'status' in error && (error as { status: unknown }).status === 404) {
         return null;
       }
       throw error;
@@ -370,6 +469,163 @@ export class ConversationApi extends BaseApiClient {
       }
     );
     return response.success;
+  }
+
+  async getAssistantVariants(
+    conversationId: string
+  ): Promise<
+    Array<{
+      id: number;
+      content: string;
+      model?: string;
+      provider?: string;
+      created_at?: string;
+      variant_group_id?: string;
+      parent_message_id?: number;
+    }>
+  > {
+    const response = await this.get<{
+      variants: Array<{
+        id: number;
+        content: string;
+        model?: string;
+        provider?: string;
+        created_at?: string;
+        variant_group_id?: string;
+        parent_message_id?: number;
+      }>;
+    }>(`/api/conversation/assistant-variants?conversation_id=${conversationId}`);
+    return response.variants || [];
+  }
+
+  async restoreAssistantVariant(
+    conversationId: string,
+    messageId: number
+  ): Promise<boolean> {
+    const response = await this.post<{ success: boolean }>(
+      '/api/conversation/assistant-variants/restore',
+      {
+        conversation_id: conversationId,
+        message_id: messageId,
+      }
+    );
+    return Boolean(response.success);
+  }
+
+  async getStoryBranches(conversationId: string): Promise<StoryBranch[]> {
+    const response = await this.get<{ branches: StoryBranch[] }>(
+      `/api/story/branches?conversation_id=${conversationId}`
+    );
+    return response.branches || [];
+  }
+
+  async createStoryBranch(
+    conversationId: string,
+    payload: { parent_message_id?: number; label?: string; branch_id?: string }
+  ): Promise<StoryBranch> {
+    const response = await this.post<{ branch: StoryBranch }>(
+      '/api/story/branches',
+      {
+        conversation_id: conversationId,
+        ...payload,
+      }
+    );
+    return response.branch;
+  }
+
+  async getStorySavepoints(conversationId: string): Promise<StorySavepoint[]> {
+    const response = await this.get<{ savepoints: StorySavepoint[] }>(
+      `/api/story/savepoint?conversation_id=${conversationId}`
+    );
+    return response.savepoints || [];
+  }
+
+  async createStorySavepoint(
+    conversationId: string,
+    payload: { message_id?: number; label?: string; savepoint_id?: string }
+  ): Promise<StorySavepoint> {
+    const response = await this.post<{ savepoint: StorySavepoint }>(
+      '/api/story/savepoint',
+      {
+        conversation_id: conversationId,
+        ...payload,
+      }
+    );
+    return response.savepoint;
+  }
+
+  async restoreStorySavepoint(
+    conversationId: string,
+    savepointId: string
+  ): Promise<boolean> {
+    const response = await this.post<{ success: boolean }>(
+      '/api/story/savepoint/restore',
+      {
+        conversation_id: conversationId,
+        savepoint_id: savepointId,
+      }
+    );
+    return Boolean(response.success);
+  }
+
+  async getStoryEndings(conversationId: string): Promise<StoryEnding[]> {
+    const response = await this.get<{ endings: StoryEnding[] }>(
+      `/api/story/ending?conversation_id=${conversationId}`
+    );
+    return response.endings || [];
+  }
+
+  async markStoryEnding(
+    conversationId: string,
+    payload: { ending_tag: string; branch_id?: string; message_id?: number }
+  ): Promise<StoryEnding> {
+    const response = await this.post<{ ending: StoryEnding }>(
+      '/api/story/ending',
+      {
+        conversation_id: conversationId,
+        ...payload,
+      }
+    );
+    return response.ending;
+  }
+
+  async exportStoryPdf(
+    conversationId: string,
+    title?: string
+  ): Promise<StoryPdfExport> {
+    const response = await this.post<{
+      pdf_base64: string;
+      filename?: string;
+    }>('/api/export/pdf', {
+      conversation_id: conversationId,
+      title,
+    });
+    return {
+      pdf_base64: response.pdf_base64,
+      filename: response.filename,
+    };
+  }
+
+  async exportProjectBundle(
+    conversationId: string,
+    title?: string
+  ): Promise<ProjectBundleExport> {
+    const response = await this.post<{
+      bundle: Record<string, unknown>;
+      filename?: string;
+    }>('/api/export/project-bundle', {
+      conversation_id: conversationId,
+      title,
+    });
+    return { bundle: response.bundle, filename: response.filename };
+  }
+
+  async validateProjectBundle(bundle: Record<string, unknown>): Promise<boolean> {
+    const response = await this.post<{ success: boolean; valid?: boolean }>(
+      '/api/import/project-bundle/validate',
+      { bundle }
+    );
+    return Boolean(response.success && (response.valid ?? true));
   }
 }
 

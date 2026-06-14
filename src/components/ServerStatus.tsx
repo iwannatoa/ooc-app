@@ -1,15 +1,16 @@
 import React, { useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { ApiResponse, HealthResponse, ModelsResponse } from '@/types';
+import { ApiResponse } from '@/types';
 import { ENV_CONFIG } from '@/types/constants';
 import { useServerState } from '@/hooks/useServerState';
 import { useChatState } from '@/hooks/useChatState';
 import { useSettingsState } from '@/hooks/useSettingsState';
 import { useFlaskPort } from '@/hooks/useFlaskPort';
-import { useI18n } from '@/i18n';
+import { useI18n } from '@/i18n/i18n';
 import { useConversationClient } from '@/hooks/useConversationClient';
 import { useConversationManagement } from '@/hooks/useConversationManagement';
-import { isMockMode, mockServerClient } from '@/mock';
+import { useApiClients } from '@/hooks/useApiClients';
+import { isMockMode } from '@/mock';
 import StatusIndicator from './common/StatusIndicator';
 import styles from './ServerStatus.module.scss';
 
@@ -24,24 +25,22 @@ const ServerStatus: React.FC = () => {
   const { apiUrl, refetch: refetchPort } = useFlaskPort();
   const { t } = useI18n();
 
-  const { setModels, setSelectedModel, activeConversationId, setMessages } = useChatState();
+  const { setModels, setSelectedModel, activeConversationId, setMessages } =
+    useChatState();
   const { settings, updateOllamaConfig } = useSettingsState();
   const conversationClient = useConversationClient();
   const { loadConversations } = useConversationManagement();
+  const { serverApi } = useApiClients();
   const intervalId = useRef<number | null>(null);
   const hasGetModels = useRef<boolean>(false);
-  const apiUrlRef = useRef<string>(apiUrl);
+  const isFetchingModels = useRef<boolean>(false);
   const isServerHealthy = useRef<boolean>(false);
   const lastReloadedConversationId = useRef<string | null>(null);
-  
+
   // Short interval: used when server is not healthy (3 seconds)
   const SHORT_INTERVAL = 3000;
   // Long interval: used when server is healthy (15 seconds)
   const LONG_INTERVAL = 15000;
-
-  useEffect(() => {
-    apiUrlRef.current = apiUrl;
-  }, [apiUrl]);
 
   useEffect(() => {
     initializeCheckServerStatusInterval();
@@ -80,22 +79,8 @@ const ServerStatus: React.FC = () => {
 
   const checkPythonServerStatus = async (): Promise<void> => {
     try {
-      const currentApiUrl = apiUrlRef.current;
-      
-      let data: HealthResponse;
-      
-      if (isMockMode()) {
-        data = await mockServerClient.checkHealth();
-      } else {
-        const response = await fetch(
-          `${currentApiUrl}/api/health`
-        );
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        data = await response.json();
-      }
-      
+      const data = await serverApi.checkHealth(settings.ai.provider);
+
       setOllamaStatus(
         settings.ai.provider !== 'ollama' || data.ollama_available
           ? 'connected'
@@ -109,22 +94,24 @@ const ServerStatus: React.FC = () => {
         if (!wasHealthy) {
           startHealthCheckInterval();
           // Refresh port first to ensure using correct port number
-          refetchPort().then(() => {
-            // Wait a bit to ensure React state is updated
-            setTimeout(() => {
-              // Reload conversations list
-              loadConversations().catch((error) => {
-                console.error('Failed to reload conversations list:', error);
-              });
-              // Reload current conversation history
-              if (activeConversationId) {
-                reloadConversationHistory(activeConversationId);
-                lastReloadedConversationId.current = activeConversationId;
-              }
-            }, 100);
-          }).catch((error) => {
-            console.error('Failed to refetch port:', error);
-          });
+          refetchPort()
+            .then(() => {
+              // Wait a bit to ensure React state is updated
+              setTimeout(() => {
+                // Reload conversations list (tests may mock without returning a Promise)
+                void Promise.resolve(loadConversations()).catch((error) => {
+                  console.error('Failed to reload conversations list:', error);
+                });
+                // Reload current conversation history
+                if (activeConversationId) {
+                  reloadConversationHistory(activeConversationId);
+                  lastReloadedConversationId.current = activeConversationId;
+                }
+              }, 100);
+            })
+            .catch((error) => {
+              console.error('Failed to refetch port:', error);
+            });
         }
         if (settings.ai.provider === 'ollama' && !hasGetModels.current) {
           fetchModels();
@@ -133,28 +120,35 @@ const ServerStatus: React.FC = () => {
         const wasHealthy = isServerHealthy.current;
         setPythonServerStatus('error');
         isServerHealthy.current = false;
+        hasGetModels.current = false;
+        isFetchingModels.current = false;
         // If changed from healthy to unhealthy, switch to short interval
         if (wasHealthy) {
           startHealthCheckInterval();
           lastReloadedConversationId.current = null;
         }
       }
-    } catch (error) {
+    } catch {
       const wasHealthy = isServerHealthy.current;
       setPythonServerStatus('error');
       setOllamaStatus('disconnected');
       isServerHealthy.current = false;
-      // 如果从正常状态变为异常状态，切换到短 interval
+      hasGetModels.current = false;
+      isFetchingModels.current = false;
       if (wasHealthy) {
         startHealthCheckInterval();
         lastReloadedConversationId.current = null;
       }
     }
   };
-  
-  const reloadConversationHistory = async (conversationId: string): Promise<void> => {
+
+  const reloadConversationHistory = async (
+    conversationId: string
+  ): Promise<void> => {
     try {
-      const messages = await conversationClient.getConversationMessages(conversationId);
+      const messages = await conversationClient.getConversationMessages(
+        conversationId
+      );
       setMessages(messages);
     } catch (error) {
       console.error('Failed to reload conversation history:', error);
@@ -162,21 +156,17 @@ const ServerStatus: React.FC = () => {
   };
 
   const fetchModels = async (): Promise<void> => {
-    if (settings.ai.provider !== 'ollama') return;
+    if (
+      settings.ai.provider !== 'ollama' ||
+      hasGetModels.current ||
+      isFetchingModels.current
+    )
+      return;
 
+    isFetchingModels.current = true;
     try {
-      const currentApiUrl = apiUrlRef.current;
-      let data: ModelsResponse;
-      
-      if (isMockMode()) {
-        data = await mockServerClient.getModels('ollama');
-      } else {
-        const response = await fetch(
-          `${currentApiUrl}/api/models`
-        );
-        data = await response.json();
-      }
-      
+      const data = await serverApi.getModels('ollama');
+
       if (data.success) {
         setModels(data.models);
         hasGetModels.current = true;
@@ -190,6 +180,8 @@ const ServerStatus: React.FC = () => {
       }
     } catch (error) {
       console.error(t('serverStatus.fetchModelsFailed'), error);
+    } finally {
+      isFetchingModels.current = false;
     }
   };
 
@@ -198,7 +190,7 @@ const ServerStatus: React.FC = () => {
       setPythonServerStatus('restarting');
       await invoke<ApiResponse<string>>('stop_python_server');
       await invoke<ApiResponse<string>>('start_python_server');
-    } catch (error) {
+    } catch {
       setPythonServerStatus('error');
       setError(t('serverStatus.restartFailed'));
     }
@@ -223,7 +215,9 @@ const ServerStatus: React.FC = () => {
         <>
           <span className={styles.devBadge}>{t('serverStatus.devMode')}</span>
           {isMockMode() && (
-            <span className={styles.mockBadge}>{t('serverStatus.mockMode')}</span>
+            <span className={styles.mockBadge}>
+              {t('serverStatus.mockMode')}
+            </span>
           )}
         </>
       )}
@@ -236,9 +230,7 @@ const ServerStatus: React.FC = () => {
             <p>{t('serverStatus.pleaseEnsure')}</p>
             <ul>
               <li>{t('serverStatus.ollamaInstalled')}</li>
-              <li>
-                {t('serverStatus.ollamaRunning')}
-              </li>
+              <li>{t('serverStatus.ollamaRunning')}</li>
               <li>{t('serverStatus.defaultPort')}</li>
             </ul>
           </div>

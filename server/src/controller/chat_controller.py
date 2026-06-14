@@ -1,12 +1,14 @@
 """
 Chat controller
 """
+import json
+import uuid
+import base64
+import hashlib
+from datetime import datetime, timezone
+from typing import Dict, List, Optional
 from flask import Flask, request, jsonify
 from injector import inject
-import json
-import threading
-import time
-import os
 from service.chat_orchestration_service import ChatOrchestrationService
 from service.summary_service import SummaryService
 from service.summary_orchestration_service import SummaryOrchestrationService
@@ -19,15 +21,67 @@ from service.ai_config_service import AIConfigService
 from service.app_settings_service import AppSettingsService
 from service.conversation_service import ConversationService
 from service.story_service import StoryService
+from service.attachment_storage_service import AttachmentStorageService
+from infrastructure.provider_capabilities import (
+    get_provider_capability,
+    apply_provider_multimodal_policy,
+)
 from utils.logger import get_logger
 from utils.exceptions import APIError, ValidationError, ProviderError
 from utils.stream_response import create_stream_response
 from utils.i18n import get_i18n_text
 from utils.controller_helpers import error_response, handle_errors
-import re
+from utils.think_strip import strip_think_content
+from utils.db_path import get_story_library_dir
 
 logger = get_logger(__name__)
 
+
+def _escape_pdf_text(value: str) -> str:
+    return value.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+
+
+def _build_simple_pdf(lines: List[str]) -> bytes:
+    safe_lines = lines if lines else ["(empty)"]
+    content_parts = ["BT", "/F1 10 Tf", "50 800 Td", "14 TL"]
+    for line in safe_lines:
+        content_parts.append(f"({_escape_pdf_text(line)}) Tj")
+        content_parts.append("T*")
+    content_parts.append("ET")
+    content_stream = "\n".join(content_parts).encode("utf-8")
+
+    objects: List[bytes] = []
+    objects.append(b"<< /Type /Catalog /Pages 2 0 R >>")
+    objects.append(b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>")
+    objects.append(
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources "
+        b"<< /Font << /F1 4 0 R >> >> /Contents 5 0 R >>"
+    )
+    objects.append(b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>")
+    objects.append(
+        f"<< /Length {len(content_stream)} >>\nstream\n".encode("utf-8")
+        + content_stream
+        + b"\nendstream"
+    )
+
+    body = b"%PDF-1.4\n"
+    offsets = [0]
+    for idx, obj in enumerate(objects, start=1):
+        offsets.append(len(body))
+        body += f"{idx} 0 obj\n".encode("utf-8") + obj + b"\nendobj\n"
+
+    xref_start = len(body)
+    xref = f"xref\n0 {len(objects) + 1}\n0000000000 65535 f \n".encode("utf-8")
+    for offset in offsets[1:]:
+        xref += f"{offset:010d} 00000 n \n".encode("utf-8")
+    trailer = (
+        f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\nstartxref\n{xref_start}\n%%EOF\n"
+    ).encode("utf-8")
+    return body + xref + trailer
+
+
+def _canonical_json(value: Dict) -> str:
+    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
 class ChatController:
     """Chat controller"""
@@ -46,7 +100,8 @@ class ChatController:
         ai_config_service: AIConfigService,
         app_settings_service: AppSettingsService,
         conversation_service: ConversationService,
-        story_service: StoryService
+        story_service: StoryService,
+        attachment_storage_service: AttachmentStorageService,
     ):
         """
         Initialize controller
@@ -77,6 +132,7 @@ class ChatController:
         self.app_settings_service = app_settings_service
         self.conversation_service = conversation_service
         self.story_service = story_service
+        self.attachment_storage_service = attachment_storage_service
     
     def register_routes(self, app: Flask):
         """
@@ -140,10 +196,62 @@ class ChatController:
         @app.route('/api/story/modify', methods=['POST'])
         def modify_section():
             return self.modify_section()
+
+        @app.route('/api/story/user-note', methods=['POST'])
+        def save_user_note():
+            return self.save_user_note()
         
         @app.route('/api/conversation/delete-last-message', methods=['POST'])
         def delete_last_message():
             return self.delete_last_message()
+
+        @app.route('/api/conversation/assistant-variants', methods=['GET'])
+        def get_assistant_variants():
+            return self.get_assistant_variants()
+
+        @app.route('/api/conversation/assistant-variants/restore', methods=['POST'])
+        def restore_assistant_variant():
+            return self.restore_assistant_variant()
+
+        @app.route('/api/story/branches', methods=['GET'])
+        def list_story_branches():
+            return self.list_story_branches()
+
+        @app.route('/api/story/branches', methods=['POST'])
+        def create_story_branch():
+            return self.create_story_branch()
+
+        @app.route('/api/story/savepoint', methods=['POST'])
+        def create_story_savepoint():
+            return self.create_story_savepoint()
+
+        @app.route('/api/story/savepoint', methods=['GET'])
+        def list_story_savepoints():
+            return self.list_story_savepoints()
+
+        @app.route('/api/story/savepoint/restore', methods=['POST'])
+        def restore_story_savepoint():
+            return self.restore_story_savepoint()
+
+        @app.route('/api/story/ending', methods=['POST'])
+        def mark_story_ending():
+            return self.mark_story_ending()
+
+        @app.route('/api/story/ending', methods=['GET'])
+        def list_story_endings():
+            return self.list_story_endings()
+
+        @app.route('/api/export/pdf', methods=['POST'])
+        def export_story_pdf():
+            return self.export_story_pdf()
+
+        @app.route('/api/export/project-bundle', methods=['POST'])
+        def export_project_bundle():
+            return self.export_project_bundle()
+
+        @app.route('/api/import/project-bundle/validate', methods=['POST'])
+        def validate_project_bundle():
+            return self.validate_project_bundle()
     
     @handle_errors
     def chat(self):
@@ -161,12 +269,28 @@ class ChatController:
             - response: AI response content
             - conversation_id: Conversation ID
         """
-        data = request.json or {}
-        message = data.get('message', '')
-        provider = data.get('provider')
+        payload = self._parse_chat_payload()
+        data = payload['data']
+        message = payload['message']
+        provider = payload['provider']
+        conversation_id = payload['conversation_id']
+        normalized = apply_provider_multimodal_policy(
+            provider=provider,
+            message=message,
+            message_parts=payload['message_parts'],
+        )
+        normalized_message = normalized.normalized_message
+        content_type = normalized.content_type
+        attachment_ref = normalized.attachment_ref
+        if attachment_ref:
+            story_library_root = get_story_library_dir()
+            logger.info(
+                'Attachment reference accepted; story library root=%s',
+                story_library_root,
+            )
         
         language = self.app_settings_service.get_language()
-        if not message:
+        if not normalized_message:
             error_msg = get_i18n_text(language, 'error_messages.message_required')
             return jsonify({
                 "success": False,
@@ -181,38 +305,23 @@ class ChatController:
             }), 400
         
         result = self.chat_orchestration_service.process_chat(
-            message=message,
+            message=normalized_message,
             provider=provider,
-            conversation_id=data.get('conversation_id'),
-            model=data.get('model')
+            conversation_id=conversation_id,
+            model=data.get('model'),
+            content_type=content_type,
+            attachment_ref=attachment_ref,
+            message_parts=normalized.normalized_parts,
+            language=language,
         )
+        if normalized.provider_capability_notice:
+            result['provider_capability_notice'] = normalized.provider_capability_notice
         
         return jsonify(result)
     
     def _strip_think_content(self, text: str) -> str:
-        """
-        Remove think content from AI response
-        
-        Args:
-            text: Response text that may contain think content
-        
-        Returns:
-            Text with think content removed
-        """
-        # Remove <think>...</think> tags
-        text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL | re.IGNORECASE)
-        
-        # Remove ```think\n...\n``` code blocks
-        text = re.sub(r'```think\s*\n.*?\n```', '', text, flags=re.DOTALL | re.IGNORECASE)
-        
-        # Remove standalone ```think``` markers
-        text = re.sub(r'```think\s*```', '', text, flags=re.IGNORECASE)
-        
-        # Clean up extra whitespace
-        text = re.sub(r'\n\s*\n\s*\n+', '\n\n', text)
-        text = text.strip()
-        
-        return text
+        """Remove think content from AI response (delegates to shared util)."""
+        return strip_think_content(text)
     
     def chat_stream(self):
         """
@@ -228,13 +337,22 @@ class ChatController:
             SSE stream with chunks of AI response
         """
         try:
-            data = request.json or {}
-            message = data.get('message', '')
-            provider = data.get('provider')
-            conversation_id = data.get('conversation_id')
+            payload = self._parse_chat_payload()
+            data = payload['data']
+            message = payload['message']
+            provider = payload['provider']
+            normalized = apply_provider_multimodal_policy(
+                provider=provider,
+                message=message,
+                message_parts=payload['message_parts'],
+            )
+            normalized_message = normalized.normalized_message
+            content_type = normalized.content_type
+            attachment_ref = normalized.attachment_ref
+            conversation_id = payload['conversation_id']
             
             language = self.app_settings_service.get_language()
-            if not message:
+            if not normalized_message:
                 error_msg = get_i18n_text(language, 'error_messages.message_required')
                 return jsonify({
                     "success": False,
@@ -248,13 +366,18 @@ class ChatController:
                     "error": error_msg
                 }), 400
             
-            if not conversation_id:
-                import uuid
-                conversation_id = str(uuid.uuid4())
-            
             api_config = self.ai_config_service.get_config_for_api(
                 provider=provider,
                 model=data.get('model')
+            )
+            settings = (
+                self.conversation_service.get_settings(conversation_id)
+                if conversation_id
+                else None
+            )
+            api_config = ChatOrchestrationService._merge_conversation_llm_overrides(
+                api_config,
+                settings,
             )
             
             # Get conversation history for context
@@ -262,43 +385,67 @@ class ChatController:
             if conversation_id:
                 history = self.chat_service.get_conversation(conversation_id, limit=10)
                 messages = [
-                    {"role": msg['role'], "content": msg['content']}
+                    {
+                        "role": msg['role'],
+                        "content": msg['content'],
+                        "parts": msg.get('parts'),
+                    }
                     for msg in history
                 ]
             
             # Create stream generator
             def stream_generator():
-                return self.ai_service_streaming.chat_stream(
+                if normalized.provider_capability_notice:
+                    yield json.dumps({
+                        "provider_capability_notice": normalized.provider_capability_notice
+                    }, ensure_ascii=False)
+                yield from self.ai_service_streaming.chat_stream(
                     provider=api_config['provider'],
-                    message=message,
+                    message=normalized_message,
                     model=api_config['model'],
                     api_key=api_config['api_key'],
                     base_url=api_config['base_url'],
                     max_tokens=api_config['max_tokens'],
                     temperature=api_config['temperature'],
-                    messages=messages if messages else None
+                    messages=messages if messages else None,
+                    stop_words=api_config.get('stop_words'),
+                    message_parts=normalized.normalized_parts,
                 )
             
-            # Define on_complete callback to save messages
+            persist_metadata: dict = {}
+
             def on_complete(accumulated_content: str):
-                # Remove think content from final text before saving
                 final_content = self._strip_think_content(accumulated_content)
-                
-                # Save messages after streaming completes
                 try:
-                    self.chat_service.save_user_message(conversation_id, message)
+                    user_message = self.chat_service.save_user_message(
+                        conversation_id=conversation_id,
+                        message=normalized_message,
+                        content_type=content_type,
+                        attachment_ref=attachment_ref,
+                    )
+                    self._attach_refs_to_message(attachment_ref, conversation_id, user_message)
                     self.chat_service.save_assistant_message(
                         conversation_id=conversation_id,
                         content=final_content,
                         model=api_config['model'],
-                        provider=api_config['provider']
+                        provider=api_config['provider'],
+                        content_type=content_type,
+                        attachment_ref=attachment_ref,
                     )
-                except Exception as e:
-                    logger.warning(f"Failed to save messages: {str(e)}")
-            
+                except Exception:
+                    logger.error(
+                        "Failed to persist streamed chat messages",
+                        exc_info=True,
+                    )
+                    persist_metadata['persist_failed'] = get_i18n_text(
+                        language,
+                        'error_messages.persist_chat_messages_failed',
+                    )
+
             return create_stream_response(
                 stream_generator=stream_generator(),
-                on_complete=on_complete
+                on_complete=on_complete,
+                persist_metadata=persist_metadata,
             )
         
         except ValidationError as e:
@@ -316,6 +463,299 @@ class ChatController:
                 status_code=500
             )
             return jsonify(error.to_dict()), 500
+
+    def _parse_chat_payload(self) -> Dict:
+        content_type = (request.content_type or '').lower()
+        data: Dict = {}
+        message_parts: List[Dict] = []
+        uploads = []
+        if content_type.startswith('multipart/form-data'):
+            data = request.form.to_dict(flat=True)
+            raw_parts = data.get('message_parts') or data.get('message_parts_json')
+            if raw_parts:
+                try:
+                    parsed = json.loads(raw_parts)
+                    if isinstance(parsed, list):
+                        message_parts = [item for item in parsed if isinstance(item, dict)]
+                except json.JSONDecodeError:
+                    message_parts = []
+            uploads = request.files.getlist('files')
+        else:
+            data = request.json or {}
+            raw_parts = data.get('message_parts')
+            if isinstance(raw_parts, list):
+                message_parts = [item for item in raw_parts if isinstance(item, dict)]
+
+        conversation_id = str(data.get('conversation_id') or '').strip() or str(uuid.uuid4())
+        provider = str(data.get('provider') or '').strip()
+        message = str(data.get('message') or '').strip()
+
+        if uploads:
+            saved = self.attachment_storage_service.save_uploads(
+                conversation_id=conversation_id,
+                uploads=uploads,
+            )
+            for item in saved:
+                message_parts.append(
+                    {
+                        'type': 'image'
+                        if str(item.get('mime_type', '')).startswith('image/')
+                        else 'file',
+                        'name': item.get('filename'),
+                        'mime_type': item.get('mime_type'),
+                        'size_bytes': item.get('size_bytes'),
+                        'asset_ref': item.get('asset_ref'),
+                        'storage_path': item.get('storage_path'),
+                    }
+                )
+        return {
+            'data': data,
+            'message': message,
+            'provider': provider,
+            'conversation_id': conversation_id,
+            'message_parts': message_parts,
+        }
+
+    def _attach_refs_to_message(
+        self,
+        attachment_ref: Optional[str],
+        conversation_id: str,
+        user_message: Dict,
+    ) -> None:
+        if not attachment_ref:
+            return
+        try:
+            payload = json.loads(attachment_ref)
+        except Exception:
+            return
+        if not isinstance(payload, list):
+            return
+        refs: List[str] = []
+        for item in payload:
+            if not isinstance(item, dict):
+                continue
+            asset_ref = str(item.get('asset_ref') or '').strip()
+            if asset_ref:
+                refs.append(asset_ref)
+        if not refs:
+            return
+        message_id = user_message.get('id')
+        if message_id is None:
+            return
+        self.attachment_storage_service.attach_to_message(
+            asset_refs=refs,
+            message_id=int(message_id),
+            conversation_id=conversation_id,
+        )
+
+    @handle_errors
+    def create_story_branch(self):
+        data = request.json or {}
+        conversation_id = data.get('conversation_id')
+        language = self.app_settings_service.get_language()
+        if not conversation_id:
+            return error_response(language, 'error_messages.conversation_id_required')
+        branch = self.chat_service.create_branch(
+            conversation_id=conversation_id,
+            parent_message_id=data.get('parent_message_id'),
+            label=data.get('label'),
+            branch_id=data.get('branch_id'),
+        )
+        return jsonify({"success": True, "branch": branch})
+
+    @handle_errors
+    def list_story_branches(self):
+        conversation_id = request.args.get('conversation_id')
+        language = self.app_settings_service.get_language()
+        if not conversation_id:
+            return error_response(language, 'error_messages.conversation_id_required')
+        branches = self.chat_service.list_branches(conversation_id)
+        return jsonify({"success": True, "branches": branches})
+
+    @handle_errors
+    def create_story_savepoint(self):
+        data = request.json or {}
+        conversation_id = data.get('conversation_id')
+        language = self.app_settings_service.get_language()
+        if not conversation_id:
+            return error_response(language, 'error_messages.conversation_id_required')
+        savepoint = self.chat_service.create_savepoint(
+            conversation_id=conversation_id,
+            message_id=data.get('message_id'),
+            label=data.get('label'),
+            savepoint_id=data.get('savepoint_id'),
+        )
+        return jsonify({"success": True, "savepoint": savepoint})
+
+    @handle_errors
+    def list_story_savepoints(self):
+        conversation_id = request.args.get('conversation_id')
+        language = self.app_settings_service.get_language()
+        if not conversation_id:
+            return error_response(language, 'error_messages.conversation_id_required')
+        savepoints = self.chat_service.list_savepoints(conversation_id)
+        return jsonify({"success": True, "savepoints": savepoints})
+
+    @handle_errors
+    def restore_story_savepoint(self):
+        data = request.json or {}
+        conversation_id = data.get('conversation_id')
+        savepoint_id = data.get('savepoint_id')
+        language = self.app_settings_service.get_language()
+        if not conversation_id:
+            return error_response(language, 'error_messages.conversation_id_required')
+        if not savepoint_id:
+            return jsonify({"success": False, "error": "savepoint_id is required"}), 400
+        restored = self.chat_service.restore_savepoint(
+            conversation_id=conversation_id,
+            savepoint_id=str(savepoint_id),
+        )
+        if not restored:
+            return jsonify({"success": False, "error": "savepoint not found"}), 404
+        message_id = restored.get("message_id")
+        if message_id is not None:
+            self.story_service.update_progress(
+                conversation_id=conversation_id,
+                status='completed',
+            )
+        return jsonify({"success": True, "savepoint": restored})
+
+    @handle_errors
+    def mark_story_ending(self):
+        data = request.json or {}
+        conversation_id = data.get('conversation_id')
+        ending_tag = data.get('ending_tag')
+        language = self.app_settings_service.get_language()
+        if not conversation_id:
+            return error_response(language, 'error_messages.conversation_id_required')
+        if not ending_tag:
+            return jsonify({"success": False, "error": "ending_tag is required"}), 400
+        ending = self.chat_service.mark_ending(
+            conversation_id=conversation_id,
+            ending_tag=ending_tag,
+            branch_id=data.get('branch_id'),
+            message_id=data.get('message_id'),
+        )
+        return jsonify({"success": True, "ending": ending})
+
+    @handle_errors
+    def list_story_endings(self):
+        conversation_id = request.args.get('conversation_id')
+        language = self.app_settings_service.get_language()
+        if not conversation_id:
+            return error_response(language, 'error_messages.conversation_id_required')
+        endings = self.chat_service.list_endings(conversation_id)
+        return jsonify({"success": True, "endings": endings})
+
+    @handle_errors
+    def export_story_pdf(self):
+        data = request.json or {}
+        conversation_id = data.get('conversation_id')
+        title = (data.get('title') or 'Story Export').strip()
+        language = self.app_settings_service.get_language()
+        if not conversation_id:
+            return error_response(language, 'error_messages.conversation_id_required')
+        messages = self.chat_service.get_conversation(conversation_id)
+        assistant_rows = [row for row in messages if row.get('role') == 'assistant']
+
+        lines: List[str] = []
+        lines.append(title)
+        lines.append("=" * max(3, min(40, len(title))))
+        lines.append("")
+        lines.append("Metadata")
+        lines.append(f"- conversation_id: {conversation_id}")
+        lines.append(f"- exported_at: {datetime.now(timezone.utc).isoformat()}")
+        lines.append("")
+        lines.append("Table of Contents")
+        if assistant_rows:
+            for index, _row in enumerate(assistant_rows, start=1):
+                lines.append(f"{index}. Section {index}")
+        else:
+            lines.append("1. (no assistant sections)")
+        lines.append("")
+        lines.append("Content")
+        for index, row in enumerate(assistant_rows, start=1):
+            lines.append("")
+            lines.append(f"## Section {index}")
+            content = str(row.get('content') or '').replace('\r', '')
+            lines.extend(content.split('\n'))
+        pdf_bytes = _build_simple_pdf(lines)
+        return jsonify(
+            {
+                "success": True,
+                "pdf_base64": base64.b64encode(pdf_bytes).decode("ascii"),
+                "filename": f"{title.replace(' ', '_')}.pdf",
+            }
+        )
+
+    @handle_errors
+    def export_project_bundle(self):
+        data = request.json or {}
+        conversation_id = data.get('conversation_id')
+        language = self.app_settings_service.get_language()
+        if not conversation_id:
+            return error_response(language, 'error_messages.conversation_id_required')
+        settings = self.conversation_service.get_settings(conversation_id)
+        progress = self.story_service.get_progress(conversation_id)
+        messages = self.chat_service.get_conversation(conversation_id)
+        payload = {
+            "version": 3,
+            "conversation_id": conversation_id,
+            "settings": settings,
+            "progress": progress,
+            "messages": messages,
+        }
+        checksum = hashlib.sha256(_canonical_json(payload).encode("utf-8")).hexdigest()
+        bundle = {
+            **payload,
+            "integrity": {
+                "sha256": checksum,
+                "message_count": len(messages),
+            },
+        }
+        title = (
+            (settings or {}).get("title")
+            or str(data.get("title") or "story")
+        )
+        filename = f"{title.replace(' ', '_')}.ooc-project.json"
+        return jsonify({"success": True, "bundle": bundle, "filename": filename})
+
+    @handle_errors
+    def validate_project_bundle(self):
+        data = request.json or {}
+        bundle = data.get("bundle")
+        if not isinstance(bundle, dict):
+            return jsonify(
+                {"success": False, "error": "bundle is required", "code": "BUNDLE_ERR_BAD_REQUEST"}
+            ), 400
+        version = int(bundle.get("version") or 0)
+        if version != 3:
+            return jsonify(
+                {
+                    "success": False,
+                    "error": "bundle version mismatch",
+                    "code": "BUNDLE_ERR_VERSION_MISMATCH",
+                }
+            ), 400
+        integrity = bundle.get("integrity") or {}
+        expected = str(integrity.get("sha256") or "")
+        payload = {
+            "version": version,
+            "conversation_id": bundle.get("conversation_id"),
+            "settings": bundle.get("settings"),
+            "progress": bundle.get("progress"),
+            "messages": bundle.get("messages"),
+        }
+        actual = hashlib.sha256(_canonical_json(payload).encode("utf-8")).hexdigest()
+        if not expected or expected != actual:
+            return jsonify(
+                {
+                    "success": False,
+                    "error": "bundle integrity validation failed",
+                    "code": "BUNDLE_ERR_INTEGRITY_FAILED",
+                }
+            ), 400
+        return jsonify({"success": True, "valid": True})
     
     def generate_story_section(self):
         """
@@ -465,11 +905,16 @@ class ChatController:
             if not provider:
                 return error_response(language, 'error_messages.provider_required')
             
+            raw_op = data.get('feedback_operation')
+            feedback_operation = (
+                raw_op if raw_op in ('rewrite', 'modify') else None
+            )
             result = self.story_generation_service.rewrite_section(
                 conversation_id=conversation_id,
                 feedback=feedback,
                 provider=provider,
-                model=data.get('model')
+                model=data.get('model'),
+                feedback_operation=feedback_operation,
             )
             
             return jsonify(result)
@@ -522,7 +967,20 @@ class ChatController:
                 "success": False,
                 "error": f"Server error: {str(e)}"
             }), 500
-    
+
+    def save_user_note(self):
+        """Append a free-form user note as a normal user chat row (no AI call)."""
+        data = request.json or {}
+        conversation_id = data.get('conversation_id')
+        text = (data.get('text') or data.get('message') or '').strip()
+        language = self.app_settings_service.get_language()
+        if not conversation_id:
+            return error_response(language, 'error_messages.conversation_id_required')
+        if not text:
+            return jsonify({'success': False, 'error': 'text_required'}), 400
+        saved = self.chat_service.save_user_message(conversation_id, text)
+        return jsonify({'success': True, 'message': saved})
+
     def get_models(self):
         """
         Get available models list
@@ -535,7 +993,28 @@ class ChatController:
         try:
             provider = request.args.get('provider', 'ollama')
             logger.info(f"Fetching models for provider: {provider}")
-            
+
+            capability = get_provider_capability(provider)
+            if capability is None:
+                raise ProviderError(
+                    f"Unsupported provider: {provider}",
+                    provider=provider,
+                    status_code=400,
+                )
+
+            if provider != 'ollama':
+                cfg = self.ai_config_service.get_config(provider, include_api_key=False)
+                name = (cfg or {}).get('model') or 'configured-model'
+                return jsonify({
+                    'success': True,
+                    'models': [{
+                        'name': name,
+                        'model': name,
+                        'modified_at': '',
+                        'size': 0,
+                    }],
+                })
+
             result = self.ai_service.get_models(provider=provider)
             return jsonify(result)
         
@@ -572,26 +1051,6 @@ class ChatController:
                 "ollama_available": False,
                 "error": str(e)
             }), 503
-    
-    def stop_server(self):
-        """
-        Stop server endpoint
-        
-        Returns:
-            - success: Whether successful
-            - message: Message
-        """
-        def shutdown():
-            time.sleep(1)
-            os._exit(0)
-        
-        logger.info("Server shutdown requested")
-        threading.Thread(target=shutdown, daemon=True).start()
-        
-        return jsonify({
-            "success": True,
-            "message": "Server is shutting down"
-        })
     
     @handle_errors
     def get_conversation(self):
@@ -873,4 +1332,56 @@ class ChatController:
                 "success": False,
                 "error": f"Failed to delete last message: {str(e)}"
             }), 500
+
+    def get_assistant_variants(self):
+        data = request.args
+        conversation_id = data.get('conversation_id')
+        language = self.app_settings_service.get_language()
+        if not conversation_id:
+            return error_response(language, 'error_messages.conversation_id_required')
+        rows = self.chat_service.get_assistant_variants(conversation_id, limit=50)
+        return jsonify({
+            "success": True,
+            "variants": rows,
+        })
+
+    def restore_assistant_variant(self):
+        data = request.json or {}
+        conversation_id = data.get('conversation_id')
+        message_id = data.get('message_id')
+        language = self.app_settings_service.get_language()
+        if not conversation_id:
+            return error_response(language, 'error_messages.conversation_id_required')
+        if message_id is None:
+            return jsonify({
+                "success": False,
+                "error": "message_id is required",
+            }), 400
+        try:
+            message_id_int = int(message_id)
+        except (TypeError, ValueError):
+            return jsonify({
+                "success": False,
+                "error": "invalid message_id",
+            }), 400
+
+        restored = self.chat_service.restore_assistant_variant(
+            conversation_id=conversation_id,
+            message_id=message_id_int,
+        )
+        if not restored:
+            return jsonify({
+                "success": False,
+                "error": "Variant message not found",
+            }), 404
+
+        self.story_service.update_progress(
+            conversation_id=conversation_id,
+            last_generated_content=restored.get("content"),
+            status='completed',
+        )
+        return jsonify({
+            "success": True,
+            "restored": restored,
+        })
 

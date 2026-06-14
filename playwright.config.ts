@@ -1,0 +1,32 @@
+import { defineConfig, devices } from '@playwright/test';
+
+const port = Number(process.env.PLAYWRIGHT_PREVIEW_PORT) || 4173;
+const baseURL = `http://127.0.0.1:${port}`;
+
+export default defineConfig({
+  testDir: './e2e',
+  testIgnore: [
+    '**/tauri-desktop.spec.ts',
+    '**/tauri-desktop.spec.mjs',
+    '**/flask-integration.spec.ts',
+  ],
+  fullyParallel: true,
+  forbidOnly: !!process.env.CI,
+  retries: process.env.CI ? 1 : 0,
+  workers: process.env.CI ? 1 : undefined,
+  reporter: process.env.CI ? 'github' : 'list',
+  use: {
+    baseURL,
+    trace: 'on-first-retry',
+  },
+  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  webServer: {
+    command: `npm run build && npx vite preview --host 127.0.0.1 --port ${port} --strictPort`,
+    url: baseURL,
+    reuseExistingServer: !process.env.CI,
+    timeout: 180_000,
+    env: {
+      VITE_FLASK_BASE_URL: baseURL,
+    },
+  },
+});

@@ -1,0 +1,31 @@
+---
+description: Python quality, linting, and pytest conventions
+globs: server/**/*.py
+alwaysApply: false
+---
+
+# Python Quality and Testing Rules
+
+## Lint and formatting expectations
+
+- Follow `server/.flake8` project settings.
+- Keep line length and ignore rules aligned with existing backend style.
+- Avoid broad `except Exception` unless it maps to a clear fallback and logging path.
+
+## Test organization
+
+- Tests live in `server/tests/` and should follow `test_*.py` naming.
+- Group tests by feature area (`controllers`, `infrastructure`, `services`, `utils`, etc.).
+- Reuse fixtures from `server/tests/conftest.py` and existing helper utilities.
+
+## Coverage and regression safety
+
+- Add focused tests for bug fixes and endpoint behavior changes.
+- Validate both success and error branches for controller/service changes.
+- Keep provider integration tests deterministic by mocking network dependencies where possible.
+
+## Commands
+
+- Lint: `npm run lint:python`
+- Test: `npm run test:python`
+- Coverage: `npm run test:python:coverage`

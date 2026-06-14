@@ -1,11 +1,12 @@
 import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { ChatMessage, OllamaModel } from '@/types';
+import { ChatMessage, ChatStoryOperation, OllamaModel } from '@/types';
 
 interface ChatState {
   messages: ChatMessage[];
   models: OllamaModel[];
   selectedModel: string;
   isSending: boolean;
+  storyOperation: ChatStoryOperation;
   currentMessage: string;
   conversationHistory: {
     id: string;
@@ -22,6 +23,7 @@ const initialState: ChatState = {
   models: [],
   selectedModel: '',
   isSending: false,
+  storyOperation: 'idle',
   currentMessage: '',
   conversationHistory: [],
   activeConversationId: null,
@@ -46,6 +48,7 @@ export const sendChatMessage = createAsyncThunk(
 
     dispatch(addMessage(userMessage));
     dispatch(setSending(true));
+    dispatch(setStoryOperation('chat_stream'));
 
     try {
       const aiMessage = await sendAIMessage(message);
@@ -60,6 +63,7 @@ export const sendChatMessage = createAsyncThunk(
     } finally {
       dispatch(setSending(false));
     }
+    return undefined;
   }
 );
 const chatSlice = createSlice({
@@ -93,6 +97,27 @@ const chatSlice = createSlice({
       state.messages = [];
     },
 
+    /**
+     * Stream chat / story: set last assistant body or append one row (matches prior setMessages logic).
+     */
+    applyStreamingAssistantChunk: (state, action: PayloadAction<string>) => {
+      const content = action.payload;
+      const len = state.messages.length;
+      if (len > 0) {
+        const last = state.messages[len - 1];
+        if (last.role === 'assistant' || last.role === 'ai') {
+          last.content = content;
+          return;
+        }
+      }
+      state.messages.push({
+        id: `msg_${Date.now()}_${Math.random()}`,
+        role: 'assistant',
+        content,
+        timestamp: Date.now(),
+      });
+    },
+
     // Model related
     setModels: (state, action: PayloadAction<OllamaModel[]>) => {
       state.models = action.payload;
@@ -112,6 +137,12 @@ const chatSlice = createSlice({
     // Sending state
     setSending: (state, action: PayloadAction<boolean>) => {
       state.isSending = action.payload;
+      if (!action.payload) {
+        state.storyOperation = 'idle';
+      }
+    },
+    setStoryOperation: (state, action: PayloadAction<ChatStoryOperation>) => {
+      state.storyOperation = action.payload;
     },
 
     // Current message
@@ -191,18 +222,6 @@ const chatSlice = createSlice({
       Object.assign(state, initialState);
     },
   },
-  extraReducers: (builder) => {
-    builder
-      .addCase(sendChatMessage.pending, (state) => {
-        state.isSending = true;
-      })
-      .addCase(sendChatMessage.fulfilled, (state) => {
-        state.isSending = false;
-      })
-      .addCase(sendChatMessage.rejected, (state) => {
-        state.isSending = false;
-      });
-  },
 });
 
 export const {
@@ -211,11 +230,13 @@ export const {
   updateMessage,
   removeMessage,
   clearMessages,
+  applyStreamingAssistantChunk,
   setModels,
   addModel,
   removeModel,
   setSelectedModel,
   setSending,
+  setStoryOperation,
   setCurrentMessage,
   clearCurrentMessage,
   setConversationHistory,

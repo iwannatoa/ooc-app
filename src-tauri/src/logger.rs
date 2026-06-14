@@ -181,3 +181,45 @@ macro_rules! rust_log_error {
         }
     };
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Mutex;
+
+    /// Serialize tests that touch the global `LOG_FILE` path.
+    static LOGGER_TEST_LOCK: Mutex<()> = Mutex::new(());
+
+    #[test]
+    fn init_logger_creates_log_dir_and_log_error_writes() {
+        let _guard = LOGGER_TEST_LOCK.lock().unwrap();
+        let tmp = tempfile::tempdir().expect("tempdir");
+        init_logger(Some(tmp.path())).expect("init_logger");
+
+        log_error("unit-test-message-xyz");
+
+        let log_path = tmp.path().join("logs").join("rust_error.log");
+        assert!(log_path.exists(), "log file should exist");
+        let content = std::fs::read_to_string(&log_path).expect("read log");
+        assert!(
+            content.contains("unit-test-message-xyz"),
+            "log should contain message: {}",
+            content
+        );
+        assert!(content.contains("ERROR"), "log line should tag ERROR");
+    }
+
+    #[test]
+    fn rotate_log_file_renames_current_to_dot_one() {
+        let _guard = LOGGER_TEST_LOCK.lock().unwrap();
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let log_file = tmp.path().join("rust_error.log");
+        std::fs::write(&log_file, b"x").unwrap();
+
+        rotate_log_file(&log_file).expect("rotate");
+
+        assert!(!log_file.exists());
+        let rotated = tmp.path().join("rust_error.log.1");
+        assert!(rotated.exists());
+    }
+}

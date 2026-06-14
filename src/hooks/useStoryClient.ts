@@ -8,9 +8,6 @@ export type { StoryActionResponse };
 
 /**
  * Hook for story client operations
- * 
- * @deprecated This hook is maintained for backward compatibility.
- * Consider using useApiClients hook directly for new code.
  */
 export const useStoryClient = (settings: AppSettings) => {
   const [loading, setLoading] = useState(false);

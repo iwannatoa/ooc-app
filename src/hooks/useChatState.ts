@@ -1,6 +1,7 @@
 import { useAppSelector, useAppDispatch } from '@/hooks/redux';
 import {
   setMessages,
+  applyStreamingAssistantChunk,
   addMessage,
   updateMessage,
   removeMessage,
@@ -10,6 +11,7 @@ import {
   removeModel,
   setSelectedModel,
   setSending,
+  setStoryOperation,
   setCurrentMessage,
   clearCurrentMessage,
   setConversationHistory,
@@ -22,7 +24,7 @@ import {
   resetChat,
   sendChatMessage,
 } from '@/store/slices/chatSlice';
-import { ChatMessage, OllamaModel } from '@/types';
+import { ChatMessage, ChatStoryOperation, OllamaModel, Conversation } from '@/types';
 
 export const useChatState = () => {
   const dispatch = useAppDispatch();
@@ -40,6 +42,8 @@ export const useChatState = () => {
 
     // Message operations
     setMessages: (messages: ChatMessage[]) => dispatch(setMessages(messages)),
+    applyStreamingAssistantChunk: (content: string) =>
+      dispatch(applyStreamingAssistantChunk(content)),
     addMessage: (message: ChatMessage) => dispatch(addMessage(message)),
     updateMessage: (id: string, content: string) =>
       dispatch(updateMessage({ id, content })),
@@ -54,6 +58,8 @@ export const useChatState = () => {
 
     // Sending state
     setSending: (sending: boolean) => dispatch(setSending(sending)),
+    setStoryOperation: (op: ChatStoryOperation) =>
+      dispatch(setStoryOperation(op)),
 
     // Current message
     setCurrentMessage: (message: string) =>
@@ -61,11 +67,11 @@ export const useChatState = () => {
     clearCurrentMessage: () => dispatch(clearCurrentMessage()),
 
     // Conversation history
-    setConversationHistory: (history: any) =>
+    setConversationHistory: (history: Conversation[]) =>
       dispatch(setConversationHistory(history)),
-    addConversation: (conversation: any) =>
+    addConversation: (conversation: Conversation) =>
       dispatch(addConversation(conversation)),
-    updateConversation: (id: string, updates: any) =>
+    updateConversation: (id: string, updates: Partial<Conversation>) =>
       dispatch(updateConversation({ id, updates })),
     removeConversation: (id: string) => dispatch(removeConversation(id)),
     clearConversationHistory: () => dispatch(clearConversationHistory()),
@@ -73,7 +79,7 @@ export const useChatState = () => {
     // Active conversation
     setActiveConversation: (id: string | null) =>
       dispatch(setActiveConversation(id)),
-    loadConversation: (conversation: any, messages: ChatMessage[]) =>
+    loadConversation: (conversation: Conversation, messages: ChatMessage[]) =>
       dispatch(loadConversation({ conversation, messages })),
 
     // Reset

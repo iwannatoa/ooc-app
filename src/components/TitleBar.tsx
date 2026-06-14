@@ -1,6 +1,9 @@
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { useI18n } from '@/i18n';
+import { open } from '@tauri-apps/plugin-shell';
+import { useI18n } from '@/i18n/i18n';
 import styles from './TitleBar.module.scss';
+
+const RELEASES_URL = import.meta.env.VITE_RELEASES_PAGE_URL?.trim();
 
 export const TitleBar = () => {
   const { t } = useI18n();
@@ -36,6 +39,17 @@ export const TitleBar = () => {
     <div className={styles.titleBar} data-tauri-drag-region>
       <div className={styles.titleBarContent}>
         <span className={styles.title}>OOC story</span>
+        {typeof window !== 'undefined' &&
+          '__TAURI_INTERNALS__' in window &&
+          RELEASES_URL && (
+            <button
+              type='button'
+              className={styles.releasesLink}
+              onClick={() => void open(RELEASES_URL)}
+            >
+              {t('titleBar.releases')}
+            </button>
+          )}
       </div>
       <div className={styles.titleBarControls}>
         <button

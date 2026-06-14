@@ -7,7 +7,6 @@
  */
 
 import { BaseApiClient } from './base';
-import type { GetApiUrlFn } from './base';
 import { AppSettings } from '@/types';
 
 export class SettingsApi extends BaseApiClient {
@@ -20,7 +19,7 @@ export class SettingsApi extends BaseApiClient {
     // Settings are stored as JSON string in backend
     try {
       return JSON.parse(response.settings);
-    } catch (error) {
+    } catch {
       throw new Error('Failed to parse app settings');
     }
   }

@@ -34,7 +34,7 @@ class APIError(Exception):
 class ValidationError(APIError):
     """Validation error exception"""
     
-    def __init__(self, message: str, field: str = None):
+    def __init__(self, message: str, field: str = None, error_code: str = 'VALIDATION_ERROR'):
         """
         Initialize validation error
         
@@ -42,7 +42,7 @@ class ValidationError(APIError):
             message: Error message
             field: Field name that caused error
         """
-        super().__init__(message, status_code=400, error_code='VALIDATION_ERROR')
+        super().__init__(message, status_code=400, error_code=error_code)
         self.field = field
 
 
@@ -65,7 +65,13 @@ class ServiceError(APIError):
 class ProviderError(ServiceError):
     """AI provider error exception"""
     
-    def __init__(self, message: str, provider: str, status_code: int = 500):
+    def __init__(
+        self,
+        message: str,
+        provider: str,
+        status_code: int = 500,
+        error_code: str = 'PROVIDER_ERROR',
+    ):
         """
         Initialize provider error
         
@@ -76,5 +82,5 @@ class ProviderError(ServiceError):
         """
         super().__init__(message, service_name=provider, status_code=status_code)
         self.provider = provider
-        self.error_code = 'PROVIDER_ERROR'
+        self.error_code = error_code
 

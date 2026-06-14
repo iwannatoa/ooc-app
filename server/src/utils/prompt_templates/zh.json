@@ -8,9 +8,27 @@
     "4. 确保人物设定和行为符合设定",
     "",
     "**重要**：所有故事内容、对话和叙述必须使用中文。",
-    "**重要**：故事内容必须使用纯文本格式输出，不要使用任何 Markdown 格式（如粗体、斜体、标题、列表等）。",
+    "**重要**：你输出的故事正文（含对话、叙述）必须为纯文本：不要使用 Markdown（如 **粗体**、# 标题、列表符号等）；文末 `<CHARACTERS>` 约定块除外。",
+    "**说明**：本消息中的「##」标题、编号列表等仅用于区分设定区块，便于阅读；请勿在故事正文中照搬这些排版符号。",
     ""
   ],
+  "shared_story_constraints": {
+    "title": "## 创作节奏与输出长度（必读摘要）",
+    "items": [
+      "- 控制节奏：循序渐进，避免在本段一笔带过全书高潮或终局；本段可有局部收束。",
+      "- 输出长度：尽量在完整句或句号处结束；若因模型长度上限被截断属正常，避免在半句硬切。"
+    ]
+  },
+  "context_notes": {
+    "history_truncated": "**上下文提示**：更早的对话未全部载入窗口，请以大纲与最近情节为准续写，勿声称记得未提供的细节。",
+    "older_via_summary": "**上下文提示**：更早情节以「故事进展总结」为准；勿与总结矛盾。"
+  },
+  "user_task_anchor": {
+    "generate_finite": "【当前任务】生成第 {chapter} 段（计划共 {total} 段，当前第 {current} 段）。",
+    "generate_open": "【当前任务】生成第 {chapter} 段（连载模式，无预定总段数）。",
+    "continue_finite": "【当前任务】续写第 {chapter} 段（计划共 {total} 段，当前第 {current} 段）。",
+    "continue_open": "【当前任务】续写第 {chapter} 段（连载模式）。"
+  },
   "sections": {
     "background": "## 故事背景",
     "characters": "## 主要人物",
@@ -20,8 +38,8 @@
     "supplement": "## 补充设定"
   },
   "appeared_characters": {
-    "available_label": "**可用人物**:",
-    "unavailable_label": "**不可用人物** (已死亡或其他情况，不应在后续故事中出现):",
+    "available_label": "可用人物：",
+    "unavailable_label": "不可用人物（已死亡或其他情况，不应在后续故事中出现）：",
     "main_label": " (主要)",
     "auto_generated_label": " (AI生成)"
   },
@@ -34,11 +52,20 @@
         "- 请根据大纲生成当前部分的故事内容",
         "- 确保与之前部分的情节连贯",
         "- 每部分应该有适当的长度和完整性",
-        "- 为下一部分留下自然的过渡",
-        "- **重要**：请控制故事节奏，循序渐进地推进情节。当前部分应专注于当前阶段的情节发展，避免过早揭示结局、快速推进到高潮或直接跳到故事结尾。保持适当的叙事节奏，让情节自然展开，为后续部分保留发展空间。"
+        "- 为下一部分留下自然的过渡（若已设定总段数，勿提前写死全书终局）",
+        "- 节奏与截断：见上文「## 创作节奏与输出长度（必读摘要）」。"
       ]
     },
-    "without_progress": "**注意**：请按照大纲的节奏和结构发展故事，但可以根据情节需要适当调整。**重要**：请控制故事节奏，循序渐进地推进情节。避免过早揭示结局或快速推进到高潮和结尾。专注于当前阶段的情节发展，保持适当的叙事节奏，为后续部分保留发展空间。"
+    "open_ended": {
+      "progress": "**当前进度**：第 {section} 段（连载模式，无预定总段数）",
+      "title": "**连载分段说明**：",
+      "instructions": [
+        "- 请根据大纲推进本段故事，可与后段自然衔接；无预定全书总段数，勿写死全书大结局。",
+        "- 本段可有局部起承转合，不必为「最后一幕」刻意留白。",
+        "- 节奏与截断：见上文「## 创作节奏与输出长度（必读摘要）」。"
+      ]
+    },
+    "without_progress": "**注意**：请按照大纲的节奏和结构发展故事，可根据情节需要调整。节奏与截断见上文「## 创作节奏与输出长度（必读摘要）」。"
   },
   "summary": {
     "intro": "以下是之前故事内容的总结，请在此基础上继续创作：",
@@ -72,7 +99,7 @@
       "- 使用第三人称叙述",
       "- 保持适当的段落长度，便于阅读（使用空行分隔段落）",
       "- 对话使用引号标注（中文使用「」或双引号，英文使用双引号）",
-      "- 这是分段生成，请确保当前部分有适当的起承转合",
+      "- 这是分段生成，请确保当前部分有适当的起承转合；节奏与截断见上文「创作节奏与输出长度」摘要。",
       "- 在故事内容之后，请添加角色变化信息（如果有新角色出现或角色状态变化）"
     ],
     "section_generation_keyword": "分段生成",
@@ -133,15 +160,15 @@
     }
   },
   "user_messages": {
-    "continue_story": "请继续生成下一部分故事内容。请控制故事节奏，循序渐进地推进情节，避免过早揭示结局或快速推进到高潮和结尾。专注于当前部分的情节发展，保持适当的叙事节奏。",
-    "continue_story_with_chapter": "（第 {chapter_number} 章）请继续生成下一部分故事内容。请控制故事节奏，循序渐进地推进情节，避免过早揭示结局或快速推进到高潮和结尾。专注于当前部分的情节发展，保持适当的叙事节奏。",
-    "generate_current_section": "请根据大纲生成当前部分的故事内容。请控制故事节奏，循序渐进地推进情节，避免过早揭示结局或快速推进到高潮和结尾。专注于当前部分的情节发展，保持适当的叙事节奏。",
-    "generate_current_section_with_chapter": "请根据大纲生成第 {chapter_number} 章的故事内容。请控制故事节奏，循序渐进地推进情节，避免过早揭示结局或快速推进到高潮和结尾。专注于当前章节的情节发展，保持适当的叙事节奏。"
+    "continue_story": "请继续生成下一部分故事内容。节奏与截断见 system 中「创作节奏与输出长度」摘要。",
+    "continue_story_with_chapter": "（第 {chapter_number} 章）请继续生成下一部分故事内容。节奏与截断见 system 中「创作节奏与输出长度」摘要。",
+    "generate_current_section": "请根据大纲生成当前部分的故事内容。节奏与截断见 system 中「创作节奏与输出长度」摘要。",
+    "generate_current_section_with_chapter": "请根据大纲生成第 {chapter_number} 章的故事内容。节奏与截断见 system 中「创作节奏与输出长度」摘要。"
   },
   "error_messages": {
     "outline_required": "请先设置故事大纲",
     "message_required": "message is required",
-    "provider_required": "provider is required (ollama or deepseek)",
+    "provider_required": "provider is required",
     "conversation_id_required": "conversation_id is required",
     "background_required": "background is required",
     "background_required_detailed": "Background is required. Please provide background in request or save it in settings first.",
@@ -153,7 +180,9 @@
     "no_content_to_rewrite": "No content to rewrite",
     "feedback_required": "feedback is required",
     "summary_required": "summary is required",
-    "deepseek_api_key_required": "DeepSeek API key is required. Please configure it in Settings > AI Settings."
+    "deepseek_api_key_required": "DeepSeek API key is required. Please configure it in Settings > AI Settings.",
+    "provider_api_key_required": "{provider} API key is required. Please configure it in Settings > AI Settings.",
+    "persist_chat_messages_failed": "保存聊天记录失败，回复已生成但可能未写入历史记录。"
   },
   "feedback_prompt": {
     "intro": "用户提供了以下反馈：",

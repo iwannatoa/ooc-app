@@ -29,20 +29,6 @@ export interface MessageListProps {
 }
 
 /**
- * Message input component props
- */
-export interface MessageInputProps {
-  value: string;
-  onChange: (value: string) => void;
-  onSend: () => void;
-  loading?: boolean;
-  disabled?: boolean;
-  maxLength?: number;
-  placeholder?: string;
-  className?: string;
-}
-
-/**
  * Status indicator component props
  */
 export interface StatusIndicatorProps {

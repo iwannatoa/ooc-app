@@ -16,6 +16,7 @@ from service.summary_orchestration_service import SummaryOrchestrationService
 from service.ai_config_service import AIConfigService
 from service.app_settings_service import AppSettingsService
 from repository.chat_repository import ChatRepository
+from repository.chat_attachment_repository import ChatAttachmentRepository
 from repository.conversation_repository import ConversationRepository
 from repository.summary_repository import SummaryRepository
 from repository.story_progress_repository import StoryProgressRepository
@@ -23,6 +24,7 @@ from repository.ai_config_repository import AIConfigRepository
 from repository.app_settings_repository import AppSettingsRepository
 from repository.character_record_repository import CharacterRecordRepository
 from service.character_service import CharacterService
+from service.attachment_storage_service import AttachmentStorageService
 
 
 class AppModule(Module):
@@ -40,6 +42,7 @@ class AppModule(Module):
         binder.bind(AIService, to=self._create_ai_service, scope=singleton)
         binder.bind(AIServiceStreaming, to=self._create_ai_service_streaming, scope=singleton)
         binder.bind(ChatRepository, to=self._create_chat_repository, scope=singleton)
+        binder.bind(ChatAttachmentRepository, to=self._create_chat_attachment_repository, scope=singleton)
         binder.bind(ConversationRepository, to=self._create_conversation_repository, scope=singleton)
         binder.bind(SummaryRepository, to=self._create_summary_repository, scope=singleton)
         binder.bind(StoryProgressRepository, to=self._create_story_progress_repository, scope=singleton)
@@ -47,6 +50,7 @@ class AppModule(Module):
         binder.bind(AppSettingsRepository, to=self._create_app_settings_repository, scope=singleton)
         binder.bind(CharacterRecordRepository, to=self._create_character_record_repository, scope=singleton)
         binder.bind(ChatService, to=self._create_chat_service, scope=singleton)
+        binder.bind(AttachmentStorageService, to=self._create_attachment_storage_service, scope=singleton)
         binder.bind(AIConfigService, to=self._create_ai_config_service, scope=singleton)
         binder.bind(AppSettingsService, to=self._create_app_settings_service, scope=singleton)
         binder.bind(CharacterService, to=self._create_character_service, scope=singleton)
@@ -59,86 +63,51 @@ class AppModule(Module):
     
     @provider
     def _create_chat_repository(self) -> ChatRepository:
-        """
-        Create chat repository (provide database path)
-        
-        Returns:
-            ChatRepository instance
-        """
-        from utils.db_path import get_database_path
-        
-        db_path = get_database_path()
-        return ChatRepository(db_path=db_path)
+        from infrastructure.database import get_sessionmaker
+
+        return ChatRepository(session_factory=get_sessionmaker())
     
     @provider
     def _create_conversation_repository(self) -> ConversationRepository:
-        """
-        Create conversation repository (provide database path)
-        
-        Returns:
-            ConversationRepository instance
-        """
-        from utils.db_path import get_database_path
-        
-        db_path = get_database_path()
-        return ConversationRepository(db_path=db_path)
+        from infrastructure.database import get_sessionmaker
+
+        return ConversationRepository(session_factory=get_sessionmaker())
+
+    @provider
+    def _create_chat_attachment_repository(self) -> ChatAttachmentRepository:
+        from infrastructure.database import get_sessionmaker
+
+        return ChatAttachmentRepository(session_factory=get_sessionmaker())
     
     @provider
     def _create_summary_repository(self) -> SummaryRepository:
-        """
-        Create summary repository (provide database path)
-        
-        Returns:
-            SummaryRepository instance
-        """
-        from utils.db_path import get_database_path
-        
-        db_path = get_database_path()
-        return SummaryRepository(db_path=db_path)
+        from infrastructure.database import get_sessionmaker
+
+        return SummaryRepository(session_factory=get_sessionmaker())
     
     @provider
     def _create_story_progress_repository(self) -> StoryProgressRepository:
-        """
-        Create story progress repository (provide database path)
-        
-        Returns:
-            StoryProgressRepository instance
-        """
-        from utils.db_path import get_database_path
-        
-        db_path = get_database_path()
-        return StoryProgressRepository(db_path=db_path)
+        from infrastructure.database import get_sessionmaker
+
+        return StoryProgressRepository(session_factory=get_sessionmaker())
     
     @provider
     def _create_ai_config_repository(self) -> AIConfigRepository:
-        """
-        Create AI config repository (provide database path)
-        
-        Returns:
-            AIConfigRepository instance
-        """
-        from utils.db_path import get_database_path
-        
-        db_path = get_database_path()
-        return AIConfigRepository(db_path=db_path)
+        from infrastructure.database import get_sessionmaker
+
+        return AIConfigRepository(session_factory=get_sessionmaker())
     
     @provider
     def _create_app_settings_repository(self) -> AppSettingsRepository:
-        """
-        Create app settings repository (provide database path)
-        
-        Returns:
-            AppSettingsRepository instance
-        """
-        from utils.db_path import get_database_path
-        
-        db_path = get_database_path()
-        return AppSettingsRepository(db_path=db_path)
+        from infrastructure.database import get_sessionmaker
+
+        return AppSettingsRepository(session_factory=get_sessionmaker())
     
     @provider
     def _create_chat_service(
         self,
-        chat_repository: ChatRepository
+        chat_repository: ChatRepository,
+        attachment_storage_service: AttachmentStorageService,
     ) -> ChatService:
         """
         Create chat service
@@ -146,7 +115,17 @@ class AppModule(Module):
         Returns:
             ChatService instance
         """
-        return ChatService(chat_repository=chat_repository)
+        return ChatService(
+            chat_repository=chat_repository,
+            attachment_storage_service=attachment_storage_service,
+        )
+
+    @provider
+    def _create_attachment_storage_service(
+        self,
+        chat_attachment_repository: ChatAttachmentRepository,
+    ) -> AttachmentStorageService:
+        return AttachmentStorageService(attachment_repository=chat_attachment_repository)
     
     @provider
     def _create_ai_config_service(
@@ -270,7 +249,9 @@ class AppModule(Module):
         self,
         ai_service: AIService,
         chat_service: ChatService,
-        ai_config_service: AIConfigService
+        ai_config_service: AIConfigService,
+        conversation_service: ConversationService,
+        attachment_storage_service: AttachmentStorageService,
     ) -> ChatOrchestrationService:
         """
         Create chat orchestration service
@@ -281,7 +262,9 @@ class AppModule(Module):
         return ChatOrchestrationService(
             ai_service=ai_service,
             chat_service=chat_service,
-            ai_config_service=ai_config_service
+            ai_config_service=ai_config_service,
+            conversation_service=conversation_service,
+            attachment_storage_service=attachment_storage_service,
         )
     
     @provider
@@ -305,16 +288,9 @@ class AppModule(Module):
     
     @provider
     def _create_character_record_repository(self) -> CharacterRecordRepository:
-        """
-        Create character record repository (provide database path)
-        
-        Returns:
-            CharacterRecordRepository instance
-        """
-        from utils.db_path import get_database_path
-        
-        db_path = get_database_path()
-        return CharacterRecordRepository(db_path=db_path)
+        from infrastructure.database import get_sessionmaker
+
+        return CharacterRecordRepository(session_factory=get_sessionmaker())
     
     @provider
     def _create_character_service(

@@ -2,52 +2,16 @@
  * Hook for managing story actions
  *
  * Encapsulates all story-related actions and state to reduce prop drilling.
- * This hook provides a clean interface for story action operations.
- *
- * Note: This is a wrapper hook that groups props for components.
  * The actual business logic is in useAppLogic.
  */
 
-import { useCallback, useMemo } from 'react';
-import { ChatMessage } from '@/types';
+import { useCallback, useState } from 'react';
+import { ChatMessage, StoryContextTrace } from '@/types';
 import { AppSettings } from '@/types';
 import { useStoryClient } from './useStoryClient';
-
-export interface StoryActionsState {
-  loading: boolean;
-  disabled: boolean;
-  canConfirm: boolean;
-  canGenerate: boolean;
-  canDeleteLast: boolean;
-}
-
-export interface StoryActionsHandlers {
-  onGenerate: () => void;
-  onConfirm: () => void;
-  onRewrite: (feedback: string) => void;
-  onModify: (feedback: string) => void;
-  onAddSettings: () => void;
-  onDeleteLastMessage?: () => void;
-}
-
-export interface UseStoryActionsGroupedParams {
-  activeConversationId: string | null;
-  canGenerate: boolean;
-  canConfirm: boolean;
-  canDeleteLast: boolean;
-  isSending: boolean;
-  onGenerate: () => void;
-  onConfirm: () => void;
-  onRewrite: (feedback: string) => void;
-  onModify: (feedback: string) => void;
-  onAddSettings: () => void;
-  onDeleteLastMessage?: () => void;
-}
-
-export interface UseStoryActionsGroupedReturn {
-  state: StoryActionsState;
-  handlers: StoryActionsHandlers;
-}
+import { useI18n } from '@/i18n/i18n';
+import { useChatState } from './useChatState';
+import { reportApiFailureToToast } from '@/utils/reportApiFailure';
 
 export interface UseStoryActionsParams {
   activeConversationId: string | null;
@@ -57,6 +21,7 @@ export interface UseStoryActionsParams {
   ) => void;
   settings: AppSettings;
   showError: (message: string) => void;
+  showWarning: (message: string) => void;
   onConversationSelect: (conversationId: string) => Promise<void>;
 }
 
@@ -65,16 +30,9 @@ export interface UseStoryActionsReturn {
   handleConfirmSection: () => Promise<void>;
   handleRewriteSection: (feedback: string) => Promise<void>;
   handleModifySection: (feedback: string) => Promise<void>;
+  latestContextTrace: StoryContextTrace | null;
 }
 
-/**
- * Hook for managing story actions
- *
- * Provides handlers for story generation, confirmation, rewriting, and modification.
- *
- * @param params - Story action parameters
- * @returns Story action handlers
- */
 export const useStoryActions = (
   params: UseStoryActionsParams
 ): UseStoryActionsReturn => {
@@ -83,91 +41,78 @@ export const useStoryActions = (
     setMessages,
     settings,
     showError,
+    showWarning,
     onConversationSelect,
   } = params;
   const storyClient = useStoryClient(settings);
+  const { t } = useI18n();
+  const { setSending, setStoryOperation, applyStreamingAssistantChunk } =
+    useChatState();
+  const [latestContextTrace, setLatestContextTrace] =
+    useState<StoryContextTrace | null>(null);
+
+  /** Toast when `<CHARACTERS>` parse was imperfect; copy follows current i18n locale (zh/en). */
+  const maybeWarnCharacterParse = useCallback(
+    (parseWarnings?: string[]) => {
+      if (parseWarnings?.length) {
+        showWarning(t('storyWarnings.characterParseNotice'));
+      }
+    },
+    [showWarning, t]
+  );
 
   const handleGenerateStory = useCallback(async () => {
     if (!activeConversationId) {
       return;
     }
 
+    setStoryOperation('generate');
+    setSending(true);
     try {
       const onChunk = (_chunk: string, accumulated: string) => {
-        // Update messages with streaming content
-        setMessages((prev) => {
-          const lastMessage = prev[prev.length - 1];
-          if (lastMessage && lastMessage.role === 'assistant') {
-            // Update existing assistant message
-            return [
-              ...prev.slice(0, -1),
-              {
-                ...lastMessage,
-                content: accumulated,
-              },
-            ];
-          } else {
-            // Create new assistant message
-            return [
-              ...prev,
-              {
-                id: `msg_${Date.now()}`,
-                role: 'assistant',
-                content: accumulated,
-                timestamp: Date.now(),
-              },
-            ];
-          }
-        });
+        applyStreamingAssistantChunk(accumulated);
       };
 
       const result = await storyClient.generateStory(
         activeConversationId,
         onChunk
       );
+      setLatestContextTrace(result.context_trace || null);
 
       if (result.success && result.response) {
-        // Final update with stripped content
-        const finalContent = result.response;
-        setMessages((prev) => {
-          const lastMessage = prev[prev.length - 1];
-          if (lastMessage && lastMessage.role === 'assistant') {
-            return [
-              ...prev.slice(0, -1),
-              {
-                ...lastMessage,
-                content: finalContent,
-              },
-            ];
-          } else {
-            return [
-              ...prev,
-              {
-                id: `msg_${Date.now()}`,
-                role: 'assistant',
-                content: finalContent,
-                timestamp: Date.now(),
-              },
-            ];
-          }
-        });
+        applyStreamingAssistantChunk(result.response);
         await onConversationSelect(activeConversationId);
+        maybeWarnCharacterParse(result.parse_warnings);
       } else {
-        showError(result.error || 'Failed to generate story');
+        showError(
+          t('storyErrors.generateFailedDetail', {
+            detail: result.error || t('storyErrors.unknownDetail'),
+          })
+        );
       }
     } catch (error) {
       console.error('Failed to generate story:', error);
-      showError(
-        'Failed to generate story: ' +
-          (error instanceof Error ? error.message : 'Unknown error')
-      );
+      reportApiFailureToToast(error, {
+        t,
+        showError,
+        showWarning,
+        detailKey: 'storyErrors.generateFailedDetail',
+        hintNamespace: 'storyErrors',
+      });
+    } finally {
+      setSending(false);
     }
   }, [
     activeConversationId,
-    setMessages,
     storyClient,
     showError,
+    showWarning,
+    maybeWarnCharacterParse,
     onConversationSelect,
+    t,
+    applyStreamingAssistantChunk,
+    setSending,
+    setStoryOperation,
   ]);
 
   const handleConfirmSection = useCallback(async () => {
@@ -175,8 +120,11 @@ export const useStoryActions = (
       return;
     }
 
+    setStoryOperation('confirm');
+    setSending(true);
     try {
       const result = await storyClient.confirmSection(activeConversationId);
+      setLatestContextTrace(result.context_trace || null);
 
       if (result.success && result.response) {
         setMessages((prev) => [
@@ -189,22 +137,35 @@ export const useStoryActions = (
           },
         ]);
         await onConversationSelect(activeConversationId);
+        maybeWarnCharacterParse(result.parse_warnings);
       } else {
-        showError(result.error || 'Failed to confirm section');
+        showError(
+          t('storyErrors.confirmFailedDetail', {
+            detail: result.error || t('storyErrors.unknownDetail'),
+          })
+        );
       }
     } catch (error) {
       console.error('Failed to confirm section:', error);
-      showError(
-        'Failed to confirm section: ' +
-          (error instanceof Error ? error.message : 'Unknown error')
-      );
+      reportApiFailureToToast(error, {
+        t,
+        showError,
+        detailKey: 'storyErrors.confirmFailedDetail',
+        hintNamespace: 'storyErrors',
+      });
+    } finally {
+      setSending(false);
     }
   }, [
     activeConversationId,
     setMessages,
     storyClient,
     showError,
+    maybeWarnCharacterParse,
     onConversationSelect,
+    t,
+    setSending,
+    setStoryOperation,
   ]);
 
   const handleRewriteSection = useCallback(
@@ -213,14 +174,16 @@ export const useStoryActions = (
         return;
       }
 
+      setStoryOperation('rewrite');
+      setSending(true);
       try {
-        // Add a small delay to allow UI to update
         await new Promise((resolve) => setTimeout(resolve, 300));
 
         const result = await storyClient.rewriteSection(
           activeConversationId,
           feedback
         );
+        setLatestContextTrace(result.context_trace || null);
 
         if (result.success && result.response) {
           setMessages((prev) => [
@@ -233,15 +196,24 @@ export const useStoryActions = (
             },
           ]);
           await onConversationSelect(activeConversationId);
+          maybeWarnCharacterParse(result.parse_warnings);
         } else {
-          showError(result.error || 'Failed to rewrite section');
+          showError(
+            t('storyErrors.rewriteFailedDetail', {
+              detail: result.error || t('storyErrors.unknownDetail'),
+            })
+          );
         }
       } catch (error) {
         console.error('Failed to rewrite section:', error);
-        showError(
-          'Failed to rewrite section: ' +
-            (error instanceof Error ? error.message : 'Unknown error')
-        );
+        reportApiFailureToToast(error, {
+          t,
+          showError,
+          detailKey: 'storyErrors.rewriteFailedDetail',
+          hintNamespace: 'storyErrors',
+        });
+      } finally {
+        setSending(false);
       }
     },
     [
@@ -249,7 +221,11 @@ export const useStoryActions = (
       setMessages,
       storyClient,
       showError,
+      maybeWarnCharacterParse,
       onConversationSelect,
+      t,
+      setSending,
+      setStoryOperation,
     ]
   );
 
@@ -259,14 +235,16 @@ export const useStoryActions = (
         return;
       }
 
+      setStoryOperation('modify');
+      setSending(true);
       try {
-        // Add a small delay to allow UI to update
         await new Promise((resolve) => setTimeout(resolve, 300));
 
         const result = await storyClient.modifySection(
           activeConversationId,
           feedback
         );
+        setLatestContextTrace(result.context_trace || null);
 
         if (result.success && result.response) {
           setMessages((prev) => [
@@ -279,15 +257,24 @@ export const useStoryActions = (
             },
           ]);
           await onConversationSelect(activeConversationId);
+          maybeWarnCharacterParse(result.parse_warnings);
         } else {
-          showError(result.error || 'Failed to modify section');
+          showError(
+            t('storyErrors.modifyFailedDetail', {
+              detail: result.error || t('storyErrors.unknownDetail'),
+            })
+          );
         }
       } catch (error) {
         console.error('Failed to modify section:', error);
-        showError(
-          'Failed to modify section: ' +
-            (error instanceof Error ? error.message : 'Unknown error')
-        );
+        reportApiFailureToToast(error, {
+          t,
+          showError,
+          detailKey: 'storyErrors.modifyFailedDetail',
+          hintNamespace: 'storyErrors',
+        });
+      } finally {
+        setSending(false);
       }
     },
     [
@@ -295,7 +282,11 @@ export const useStoryActions = (
       setMessages,
       storyClient,
       showError,
+      maybeWarnCharacterParse,
       onConversationSelect,
+      t,
+      setSending,
+      setStoryOperation,
     ]
   );
 
@@ -304,59 +295,6 @@ export const useStoryActions = (
     handleConfirmSection,
     handleRewriteSection,
     handleModifySection,
-  };
-};
-
-/**
- * Hook to group story actions props into state and handlers
- *
- * This hook doesn't contain business logic, it just groups props
- * to reduce the number of props passed to components.
- *
- * @param params - All story action related props
- * @returns Grouped state and handlers
- */
-export const useStoryActionsGrouped = (
-  params: UseStoryActionsGroupedParams
-): UseStoryActionsGroupedReturn => {
-  const state: StoryActionsState = useMemo(
-    () => ({
-      loading: params.isSending,
-      disabled: !params.activeConversationId,
-      canConfirm: params.canConfirm,
-      canGenerate: params.canGenerate,
-      canDeleteLast: params.canDeleteLast,
-    }),
-    [
-      params.isSending,
-      params.activeConversationId,
-      params.canConfirm,
-      params.canGenerate,
-      params.canDeleteLast,
-    ]
-  );
-
-  const handlers: StoryActionsHandlers = useMemo(
-    () => ({
-      onGenerate: params.onGenerate,
-      onConfirm: params.onConfirm,
-      onRewrite: params.onRewrite,
-      onModify: params.onModify,
-      onAddSettings: params.onAddSettings,
-      onDeleteLastMessage: params.onDeleteLastMessage,
-    }),
-    [
-      params.onGenerate,
-      params.onConfirm,
-      params.onRewrite,
-      params.onModify,
-      params.onAddSettings,
-      params.onDeleteLastMessage,
-    ]
-  );
-
-  return {
-    state,
-    handlers,
+    latestContextTrace,
   };
 };

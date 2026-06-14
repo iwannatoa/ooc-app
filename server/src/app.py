@@ -5,6 +5,7 @@ Flask application entry point
 """
 import sys
 import os
+import secrets
 from pathlib import Path
 
 # Set UTF-8 encoding for stdout/stderr to support Chinese characters
@@ -48,7 +49,14 @@ if not os.getenv('DB_PATH'):
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_injector import FlaskInjector
-from config import get_config
+from config import ProductionConfig, get_config
+from infrastructure.database import create_schema, get_engine, init_engine
+from infrastructure.schema_migrations import apply_schema_migrations
+from repository.character_record_repository import apply_character_record_migrations
+from repository.conversation_repository import apply_conversation_settings_migrations
+from middleware.api_auth import register_api_auth
+from middleware.request_context import register_request_context
+from utils.db_path import get_database_path
 from utils.logger import setup_logger
 from di.module import AppModule
 from controller.chat_controller import ChatController
@@ -64,12 +72,50 @@ app = Flask(__name__)
 config = get_config()
 app.config.from_object(config)
 
-# Enable CORS
-if config.CORS_ENABLED:
-    CORS(app)
+is_production = config is ProductionConfig
+if not getattr(config, 'FLASK_API_TOKEN', None) and not is_production:
+    generated_token = secrets.token_urlsafe(32)
+    os.environ['FLASK_API_TOKEN'] = generated_token
+    app.config['FLASK_API_TOKEN'] = generated_token
+    logger.info('FLASK_API_TOKEN not provided; generated an in-memory development token')
+
+if not os.getenv('FLASK_INSTANCE_ID'):
+    os.environ['FLASK_INSTANCE_ID'] = secrets.token_hex(16)
+app.config['FLASK_INSTANCE_ID'] = os.getenv('FLASK_INSTANCE_ID', '')
+
+if is_production and not getattr(config, 'FLASK_API_TOKEN', None):
+    logger.error('Production mode requires FLASK_API_TOKEN for API authentication')
+    raise SystemExit(1)
+
+# Single SQLite engine + schema (repositories share session factory via Injector)
+init_engine(get_database_path())
+create_schema()
+apply_schema_migrations(get_engine())
+apply_conversation_settings_migrations(get_engine())
+apply_character_record_migrations(get_engine())
+
+# CORS: scoped to /api/* with explicit origins (no wildcard)
+if config.CORS_ENABLED and config.CORS_ORIGINS:
+    CORS(
+        app,
+        resources={
+            r'/api/*': {
+                'origins': list(config.CORS_ORIGINS),
+                'methods': list(config.CORS_ALLOW_METHODS),
+                'allow_headers': list(config.CORS_ALLOW_HEADERS),
+                'expose_headers': list(config.CORS_EXPOSE_HEADERS),
+                'supports_credentials': True,
+            }
+        },
+    )
+elif config.CORS_ENABLED:
+    logger.warning('CORS_ENABLED is True but CORS_ORIGINS is empty; CORS middleware not applied')
 
 # Set max content length
 app.config['MAX_CONTENT_LENGTH'] = config.MAX_CONTENT_LENGTH
+
+register_api_auth(app)
+register_request_context(app)
 
 injector = FlaskInjector(app=app, modules=[AppModule()])
 
@@ -102,11 +148,12 @@ def health_check():
         
         provider = request.args.get('provider', 'ollama')
         
-        # Get AIService from injector
-        with app.app_context():
-            ai_service = injector.injector.get(AIService)
-            result = ai_service.health_check(provider=provider)
-            return jsonify(result)
+        ai_service = injector.injector.get(AIService)
+        result = ai_service.health_check(provider=provider)
+        if isinstance(result, dict):
+            result = dict(result)
+            result['instance_id'] = app.config.get('FLASK_INSTANCE_ID')
+        return jsonify(result)
     
     except Exception as e:
         logger.error(f"Health check error: {str(e)}")
@@ -121,23 +168,62 @@ def health_check():
 def stop_server():
     import threading
     import time
-    def shutdown():
-        global _server_instance
-        time.sleep(1)
-        if _server_instance:
-            logger.info("Shutting down server via server.shutdown()")
-            _server_instance.shutdown()
-        else:
-            # Fallback: use os._exit if no other method available
-            import os
-            logger.info("Shutting down server via os._exit")
-            os._exit(0)
     
-    threading.Thread(target=shutdown, daemon=True).start()
-    return jsonify({
-        "success": True,
-        "message": "Server is shutting down"
-    })
+    logger.info("=" * 60)
+    logger.info("Flask server received shutdown request...")
+    logger.info("=" * 60)
+
+    expected_instance_id = (app.config.get('FLASK_INSTANCE_ID') or '').strip()
+    presented_instance_id = (request.headers.get('X-Flask-Instance-Id') or '').strip()
+    if expected_instance_id and presented_instance_id != expected_instance_id:
+        logger.warning(
+            'Rejecting /api/stop: instance ownership mismatch (presented=%s)',
+            presented_instance_id or '<empty>',
+        )
+        return jsonify({
+            "success": False,
+            "error": "Instance ownership mismatch",
+        }), 409
+    
+    if _server_instance:
+        def shutdown():
+            # Give a small delay to ensure the response is sent first
+            time.sleep(0.1)
+            try:
+                logger.info("Shutting down server via server.shutdown()")
+                # shutdown() will stop accepting new requests and wait for current requests to complete
+                # Since we're in a separate thread, this won't block the current request
+                _server_instance.shutdown()
+                logger.info("Server shutdown completed")
+                logger.info("=" * 60)
+            except Exception as e:
+                logger.error(f"Error during shutdown: {e}")
+                logger.info("=" * 60)
+        
+        # Start shutdown in a separate thread (non-daemon so it completes)
+        shutdown_thread = threading.Thread(target=shutdown, daemon=False)
+        shutdown_thread.start()
+        
+        # Return response immediately - shutdown will happen in background
+        # The shutdown() call will wait for this request to complete before actually shutting down
+        return jsonify({
+            "success": True,
+            "message": "Server shutdown initiated"
+        })
+    else:
+        # Started without make_server (e.g. embedded WSGI): cannot trigger shutdown from here.
+        logger.warning(
+            "POST /api/stop received but _server_instance is unset; "
+            "host process must terminate this Python process."
+        )
+        logger.info("=" * 60)
+        return jsonify({
+            "success": False,
+            "error": (
+                "Graceful shutdown is unavailable (_server_instance not set). "
+                "The parent/host process should terminate this worker."
+            ),
+        }), 503
 
 
 @app.errorhandler(404)

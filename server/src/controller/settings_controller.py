@@ -12,11 +12,12 @@ from service.app_settings_service import AppSettingsService
 from service.character_service import CharacterService
 from service.story_generation_service import StoryGenerationService
 from service.chat_service import ChatService
+from infrastructure.provider_capabilities import get_supported_providers
 from utils.logger import get_logger
 from utils.stream_response import create_stream_response
-from utils.i18n import get_i18n_text
 from utils.controller_helpers import error_response, handle_errors
 import json
+from pathlib import Path
 
 logger = get_logger(__name__)
 
@@ -126,6 +127,10 @@ class SettingsController:
         @app.route('/api/conversation/characters/generate-stream', methods=['POST'])
         def generate_character_stream():
             return self.generate_character_stream()
+
+        @app.route('/api/story-templates', methods=['GET'])
+        def list_story_templates():
+            return self.list_story_templates()
     
     @handle_errors
     def get_conversations_list(self):
@@ -319,8 +324,8 @@ class SettingsController:
         """
         try:
             conversation_id = request.args.get('conversation_id')
-            language = self.app_settings_service.get_language()
             if not conversation_id:
+                language = self.app_settings_service.get_language()
                 return error_response(language, 'error_messages.conversation_id_required')
             
             progress = self.story_service.get_progress(conversation_id)
@@ -387,12 +392,14 @@ class SettingsController:
         if not conversation_id:
             return error_response(language, 'error_messages.conversation_id_required')
         
-        progress = self.story_service.update_progress(
-            conversation_id=conversation_id,
-            current_section=data.get('current_section'),
-            total_sections=data.get('total_sections'),
-            status=data.get('status')
-        )
+        update_kwargs = {
+            'conversation_id': conversation_id,
+            'current_section': data.get('current_section'),
+            'status': data.get('status'),
+        }
+        if 'total_sections' in data:
+            update_kwargs['total_sections'] = data['total_sections']
+        progress = self.story_service.update_progress(**update_kwargs)
         
         return jsonify({
             "success": True,
@@ -485,7 +492,6 @@ class SettingsController:
             - success: Success flag
         """
         try:
-            import json
             data = request.json or {}
             settings = data.get('settings')
             
@@ -508,23 +514,17 @@ class SettingsController:
             # Extract and save AI configurations to ai_config table
             if 'ai' in settings_dict:
                 ai_settings = settings_dict['ai']
-                provider = ai_settings.get('provider')
-                
-                if provider:
-                    # Get provider-specific config
-                    provider_config = ai_settings.get(provider, {})
-                    
-                    # Extract API key (support both camelCase and snake_case)
-                    # Check if apiKey or api_key exists in the config (even if empty)
+                for provider in get_supported_providers():
+                    provider_config = ai_settings.get(provider)
+                    if not isinstance(provider_config, dict):
+                        continue
+
                     api_key = None
                     if 'apiKey' in provider_config:
                         api_key = provider_config.get('apiKey')
                     elif 'api_key' in provider_config:
                         api_key = provider_config.get('api_key')
-                    # Pass api_key as-is (could be None, empty string, or actual key)
-                    # Repository will handle None vs empty string appropriately
-                    
-                    # Save to ai_config table
+
                     self.ai_config_service.create_or_update_config(
                         provider=provider,
                         model=provider_config.get('model'),
@@ -533,7 +533,6 @@ class SettingsController:
                         max_tokens=provider_config.get('maxTokens') or provider_config.get('max_tokens'),
                         temperature=provider_config.get('temperature')
                     )
-                    
                     logger.info(f"Saved AI config for provider: {provider}")
             
             return jsonify({
@@ -727,4 +726,26 @@ class SettingsController:
             )
         
         return create_stream_response(stream_generator=stream_generator())
+
+    def list_story_templates(self):
+        """List built-in story template descriptors (local JSON under ``utils/story_templates``)."""
+        root = Path(__file__).resolve().parent.parent / 'utils' / 'story_templates'
+        items = []
+        if root.is_dir():
+            for path in sorted(root.glob('*.json')):
+                try:
+                    with path.open(encoding='utf-8') as fh:
+                        data = json.load(fh)
+                    items.append({
+                        'id': data.get('id', path.stem),
+                        'title': data.get('title', path.stem),
+                        'background': data.get('background', ''),
+                        'outline_hint': data.get('outline_hint', ''),
+                        'characters': data.get('characters') or [],
+                        'character_personality': data.get('character_personality') or {},
+                        'additional_settings': data.get('additional_settings') or {},
+                    })
+                except Exception:
+                    logger.warning('Skip invalid story template file: %s', path)
+        return jsonify({'success': True, 'templates': items})
 

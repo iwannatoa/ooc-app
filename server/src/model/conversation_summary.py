@@ -3,9 +3,7 @@ Conversation summary data model
 """
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, Text, DateTime, Index
-from sqlalchemy.ext.declarative import declarative_base
-
-Base = declarative_base()
+from model.base import Base
 
 
 class ConversationSummary(Base):
@@ -22,7 +20,7 @@ class ConversationSummary(Base):
     
     # Add index
     __table_args__ = (
-        Index('idx_conversation_created', 'conversation_id', 'created_at'),
+        Index('idx_conversation_summaries_conv_created', 'conversation_id', 'created_at'),
     )
     
     def to_dict(self) -> dict:

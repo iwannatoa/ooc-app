@@ -20,6 +20,43 @@ export interface StoryProgress {
   updated_at?: string;
 }
 
+export interface StoryContextTrace {
+  selectedSources: string[];
+  droppedSources: string[];
+  trimReasons: string[];
+  summaryVersion?: string;
+  budgetUsed?: {
+    totalBudget?: number;
+    usedTokens?: number;
+    usedByLayer?: {
+      recent?: number;
+      history?: number;
+      summary?: number;
+      system?: number;
+    };
+  };
+  strategy?: {
+    recentMessagesWithSummary?: number;
+    maxMessageHistory?: number;
+    maxContextTokens?: number;
+    effectiveBudgetRatio?: number;
+    recentBudgetRatio?: number;
+    summaryBudgetRatio?: number;
+    summaryRefreshDeltaMessages?: number;
+  };
+}
+
+/**
+ * Redux/UI: which long-running story or chat operation is active (for labels and loading).
+ */
+export type ChatStoryOperation =
+  | 'idle'
+  | 'generate'
+  | 'confirm'
+  | 'rewrite'
+  | 'modify'
+  | 'chat_stream';
+
 /**
  * Story action types
  */

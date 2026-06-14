@@ -1,12 +1,18 @@
 """
 Story generation service layer
 """
-from typing import Optional, Dict
+from typing import Optional, Dict, Any
+
+from sqlalchemy.orm import Session
 from repository.story_progress_repository import StoryProgressRepository
 from service.ai_service import AIService
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+# Sentinel: omit ``total_sections`` when updating progress (keep DB value).
+# ``None`` means explicitly clear total_sections (open-ended serialization).
+_TOTAL_SECTIONS_OMIT = object()
 
 
 class StoryService:
@@ -27,17 +33,20 @@ class StoryService:
         self.repository = story_progress_repository
         self.ai_service = ai_service
     
-    def get_progress(self, conversation_id: str) -> Optional[Dict]:
+    def get_progress(
+        self, conversation_id: str, session: Optional[Session] = None
+    ) -> Optional[Dict]:
         """
         Get story progress
         
         Args:
             conversation_id: Conversation ID
+            session: Optional outer SQLAlchemy session (same transaction as writes)
         
         Returns:
             Progress dictionary, or None if not exists
         """
-        progress = self.repository.get_progress(conversation_id)
+        progress = self.repository.get_progress(conversation_id, session=session)
         return progress.to_dict() if progress else None
     
     def mark_outline_confirmed(self, conversation_id: str) -> bool:
@@ -56,11 +65,12 @@ class StoryService:
         self,
         conversation_id: str,
         current_section: Optional[int] = None,
-        total_sections: Optional[int] = None,
+        total_sections: Any = _TOTAL_SECTIONS_OMIT,
         last_generated_content: Optional[str] = None,
         last_generated_section: Optional[int] = None,
         status: Optional[str] = None,
-        outline_confirmed: Optional[bool] = None
+        outline_confirmed: Optional[bool] = None,
+        session: Optional[Session] = None,
     ) -> Dict:
         """
         Update story progress
@@ -68,7 +78,8 @@ class StoryService:
         Args:
             conversation_id: Conversation ID
             current_section: Current section number
-            total_sections: Total sections count
+            total_sections: Total sections count, or ``None`` to clear (open-ended).
+                Default internal sentinel means "do not change this field".
             last_generated_content: Last generated content
             last_generated_section: Last generated section number
             status: Status
@@ -78,29 +89,36 @@ class StoryService:
             Updated progress dictionary
         """
         # Get existing progress
-        existing = self.repository.get_progress(conversation_id)
+        existing = self.repository.get_progress(conversation_id, session=session)
         
         if existing:
-            # Update existing progress
+            update_total = total_sections is not _TOTAL_SECTIONS_OMIT
+            resolved_total = (
+                total_sections if update_total else existing.total_sections
+            )
             progress = self.repository.create_or_update_progress(
                 conversation_id=conversation_id,
                 current_section=current_section if current_section is not None else existing.current_section,
-                total_sections=total_sections if total_sections is not None else existing.total_sections,
+                total_sections=resolved_total,
                 last_generated_content=last_generated_content if last_generated_content is not None else existing.last_generated_content,
                 last_generated_section=last_generated_section if last_generated_section is not None else existing.last_generated_section,
                 status=status if status is not None else existing.status,
-                outline_confirmed=outline_confirmed if outline_confirmed is not None else (existing.outline_confirmed == 'true')
+                outline_confirmed=outline_confirmed if outline_confirmed is not None else (existing.outline_confirmed == 'true'),
+                session=session,
+                update_total_sections=update_total,
             )
         else:
-            # Create new progress
+            ts = None if total_sections is _TOTAL_SECTIONS_OMIT else total_sections
             progress = self.repository.create_or_update_progress(
                 conversation_id=conversation_id,
                 current_section=current_section or 0,
-                total_sections=total_sections,
+                total_sections=ts,
                 last_generated_content=last_generated_content,
                 last_generated_section=last_generated_section,
                 status=status or 'pending',
-                outline_confirmed=outline_confirmed or False
+                outline_confirmed=outline_confirmed or False,
+                session=session,
+                update_total_sections=True,
             )
         
         return progress.to_dict()

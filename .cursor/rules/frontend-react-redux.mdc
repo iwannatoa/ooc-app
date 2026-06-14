@@ -1,0 +1,36 @@
+---
+description: Frontend React and Redux Toolkit conventions
+globs: **/*.{ts,tsx}
+alwaysApply: false
+---
+
+# Frontend React + Redux Conventions
+
+Scope: files under `src/` and related TypeScript UI modules.
+
+## Architecture alignment
+
+- Keep UI composition in components; move reusable behavior into hooks.
+- Reuse existing hooks under `src/hooks/` before adding new service wrappers.
+- Keep global state in Redux slices under `src/store/slices/`.
+- Prefer selectors and typed hooks (`RootState`, `AppDispatch`) for store access.
+
+## Component and hook patterns
+
+- Components: PascalCase file names and exports.
+- Hooks: `useXxx` naming and colocated tests in `__tests__` where applicable.
+- Keep side effects in `useEffect` with explicit dependency arrays.
+- Avoid mixing unrelated concerns inside one hook; split by domain behavior.
+
+## State management
+
+- Use Redux Toolkit reducers/actions for shared state transitions.
+- Preserve existing slice boundaries (`chat`, `conversations`, `settings`, `ui`, `dialog`, etc.).
+- Avoid duplicating derived state in multiple slices.
+- Keep async behavior in existing client/hook flow unless there is a clear reason to move it.
+
+## Imports and types
+
+- Follow current import style (`@/` aliases where already used).
+- Use explicit types for props, API payloads, and returned hook contracts.
+- Avoid `any`; prefer narrow unions and shared types from `src/types`.

@@ -1,6 +1,6 @@
 import React from 'react';
 import { PythonServerStatus, OllamaStatus } from '@/types';
-import { useI18n } from '@/i18n';
+import { useI18n } from '@/i18n/i18n';
 import styles from './StatusIndicator.module.scss';
 
 interface StatusIndicatorProps {

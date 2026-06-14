@@ -1,6 +1,6 @@
 import React from 'react';
 import { OllamaModel } from '@/types';
-import { useI18n } from '@/i18n';
+import { useI18n } from '@/i18n/i18n';
 import styles from './ModelSelector.module.scss';
 
 interface ModelSelectorProps {
@@ -24,6 +24,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
       onChange={(e) => onModelChange(e.target.value)}
       disabled={disabled || models.length === 0}
       className={styles.modelSelector}
+      aria-label={t('modelSelector.label')}
     >
       {models.length === 0 ? (
         <option value=''>{t('modelSelector.noModelsAvailable')}</option>
