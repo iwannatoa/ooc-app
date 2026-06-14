@@ -116,6 +116,10 @@ jobs:
     name: E2E Tauri Desktop
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    env:
+      DESKTOP_TRAY_ENABLED: 'false'
+      DESKTOP_SHORTCUT_ENABLED: 'false'
+      DESKTOP_UPDATER_ENABLED: 'false'
     steps:
       - uses: actions/checkout@v4
 
@@ -133,7 +137,8 @@ jobs:
             libglib2.0-dev \
             pkg-config \
             libwebkit2gtk-4.1-dev \
-            xvfb
+            xvfb \
+            psmisc
 
       - name: Setup Node.js
         uses: actions/setup-node@v4

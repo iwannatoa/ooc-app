@@ -3,6 +3,19 @@ import { createTauriTest } from '@srsholmes/tauri-playwright';
 
 const repoRoot = process.cwd();
 
+// Ensure spawned `tauri dev` inherits headless-safe desktop defaults on Linux CI/WSL.
+if (process.platform !== 'win32') {
+  for (const key of [
+    'DESKTOP_TRAY_ENABLED',
+    'DESKTOP_SHORTCUT_ENABLED',
+    'DESKTOP_UPDATER_ENABLED',
+  ]) {
+    if (!process.env[key]) {
+      process.env[key] = 'false';
+    }
+  }
+}
+
 const tauriCommand =
   process.platform === 'win32'
     ? 'cmd.exe /c npm.cmd run tauri:dev --'
@@ -32,24 +45,26 @@ const { test: baseTest, expect } = createTauriTest({
   tauriCommand,
   tauriCwd: repoRoot,
   tauriFeatures: ['e2e-testing'],
-  startTimeout: 180,
+  startTimeout: 240,
 });
 
 export const test = baseTest.extend({
-  // Runs before each test's tauriPage spawn so the second test gets a free dev port.
+  // Tear down vite/playwright artifacts after each test (test 2 needs a free port).
   _tauriE2eCleanup: [
     async ({}, use) => {
-      cleanupTauriE2eSidecars();
       await use();
       cleanupTauriE2eSidecars();
     },
     { auto: true },
   ],
   tauriPage: async ({ tauriPage }, use) => {
-    await tauriPage.waitForFunction(
-      'document.readyState === "complete" && !!window.__PW_ACTIVE__',
-      120_000
-    );
+    // Socket readiness precedes webview registration on cold CI; retry until main is drivable.
+    await expect(async () => {
+      await tauriPage.waitForFunction(
+        'document.readyState === "complete" && !!window.__PW_ACTIVE__',
+        20_000
+      );
+    }).toPass({ timeout: 180_000 });
     await use(tauriPage);
   },
 });

@@ -178,17 +178,26 @@ fn main() {
 
             // Show window after content is loaded
             if let Some(window) = app.get_webview_window("main") {
-                #[cfg(debug_assertions)]
+                #[cfg(all(debug_assertions, not(feature = "e2e-testing")))]
                 {
                     window.open_devtools();
                 }
 
-                // Wait a bit for content to load, then show window
-                let window_clone = window.clone();
-                tauri::async_runtime::spawn(async move {
-                    tokio::time::sleep(tokio::time::Duration::from_millis(300)).await;
-                    let _ = window_clone.show();
-                });
+                #[cfg(feature = "e2e-testing")]
+                {
+                    // Headless CI: show immediately; delayed/tray show can leave "main" unready for Playwright.
+                    let _ = window.show();
+                }
+
+                #[cfg(not(feature = "e2e-testing"))]
+                {
+                    // Wait a bit for content to load, then show window
+                    let window_clone = window.clone();
+                    tauri::async_runtime::spawn(async move {
+                        tokio::time::sleep(tokio::time::Duration::from_millis(300)).await;
+                        let _ = window_clone.show();
+                    });
+                }
             }
 
             Ok(())
