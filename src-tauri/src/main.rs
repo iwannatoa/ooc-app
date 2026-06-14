@@ -46,9 +46,16 @@ fn bool_env(var_name: &str, default_value: bool) -> bool {
 }
 
 fn main() {
-    let tray_enabled = bool_env("DESKTOP_TRAY_ENABLED", true);
-    let shortcut_enabled = bool_env("DESKTOP_SHORTCUT_ENABLED", true);
-    let updater_enabled = bool_env("DESKTOP_UPDATER_ENABLED", true);
+    // Headless Linux CI (xvfb) cannot reliably create tray/shortcut/updater plugins.
+    // Desktop E2E builds with `--features e2e-testing`; keep those off unless env overrides.
+    #[cfg(feature = "e2e-testing")]
+    let desktop_extras_default = false;
+    #[cfg(not(feature = "e2e-testing"))]
+    let desktop_extras_default = true;
+
+    let tray_enabled = bool_env("DESKTOP_TRAY_ENABLED", desktop_extras_default);
+    let shortcut_enabled = bool_env("DESKTOP_SHORTCUT_ENABLED", desktop_extras_default);
+    let updater_enabled = bool_env("DESKTOP_UPDATER_ENABLED", desktop_extras_default);
 
     #[cfg_attr(not(feature = "e2e-testing"), allow(unused_mut))]
     let mut builder = tauri::Builder::default()
@@ -186,10 +193,10 @@ fn main() {
 
             Ok(())
         })
-        .on_window_event(|window, event| {
+        .on_window_event(move |window, event| {
             if let WindowEvent::CloseRequested { api, .. } = event {
                 // Tray mode: close window into background, keep process alive.
-                if bool_env("DESKTOP_TRAY_ENABLED", true) {
+                if tray_enabled {
                     api.prevent_close();
                     let _ = window.hide();
                 }

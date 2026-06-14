@@ -26,6 +26,7 @@
     "withGlobalTauri": true,
     "windows": [
       {
+        "label": "main",
         "title": "OOC story",
         "width": 1200,
         "height": 800,

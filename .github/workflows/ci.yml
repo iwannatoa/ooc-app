@@ -180,6 +180,10 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Run Tauri desktop smoke (xvfb)
+        env:
+          DESKTOP_TRAY_ENABLED: 'false'
+          DESKTOP_SHORTCUT_ENABLED: 'false'
+          DESKTOP_UPDATER_ENABLED: 'false'
         run: xvfb-run -a npm run test:e2e:tauri
 
       - name: Upload Playwright report
