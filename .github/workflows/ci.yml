@@ -248,7 +248,7 @@ jobs:
         run: pytest
 
       - name: Upload coverage reports
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v7
         with:
           files: ./server/coverage.xml
           flags: backend
